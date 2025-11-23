@@ -2,6 +2,8 @@ package com.jameselner.finance_hub.domain;
 
 import com.jameselner.finance_hub.domain.enums.DebtType;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -11,6 +13,8 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "debts",
     indexes = {
@@ -63,111 +67,4 @@ public class Debt {
 
     @OneToMany(mappedBy = "debt", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<DebtPayment> debtPayments = new ArrayList<>();
-
-    public Debt() {
-    }
-
-    public Long getDebtId() {
-        return debtId;
-    }
-
-    public void setDebtId(Long debtId) {
-        this.debtId = debtId;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public String getDebtName() {
-        return debtName;
-    }
-
-    public void setDebtName(String debtName) {
-        this.debtName = debtName;
-    }
-
-    public DebtType getDebtType() {
-        return debtType;
-    }
-
-    public void setDebtType(DebtType debtType) {
-        this.debtType = debtType;
-    }
-
-    public BigDecimal getPrincipalAmount() {
-        return principalAmount;
-    }
-
-    public void setPrincipalAmount(BigDecimal principalAmount) {
-        this.principalAmount = principalAmount;
-    }
-
-    public BigDecimal getCurrentBalance() {
-        return currentBalance;
-    }
-
-    public void setCurrentBalance(BigDecimal currentBalance) {
-        this.currentBalance = currentBalance;
-    }
-
-    public BigDecimal getInterestRate() {
-        return interestRate;
-    }
-
-    public void setInterestRate(BigDecimal interestRate) {
-        this.interestRate = interestRate;
-    }
-
-    public LocalDate getStartDate() {
-        return startDate;
-    }
-
-    public void setStartDate(LocalDate startDate) {
-        this.startDate = startDate;
-    }
-
-    public LocalDate getTargetPayoffDate() {
-        return targetPayoffDate;
-    }
-
-    public void setTargetPayoffDate(LocalDate targetPayoffDate) {
-        this.targetPayoffDate = targetPayoffDate;
-    }
-
-    public BigDecimal getMinimumPayment() {
-        return minimumPayment;
-    }
-
-    public void setMinimumPayment(BigDecimal minimumPayment) {
-        this.minimumPayment = minimumPayment;
-    }
-
-    public OffsetDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(OffsetDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public OffsetDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(OffsetDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public List<DebtPayment> getDebtPayments() {
-        return debtPayments;
-    }
-
-    public void setDebtPayments(List<DebtPayment> debtPayments) {
-        this.debtPayments = debtPayments;
-    }
 }

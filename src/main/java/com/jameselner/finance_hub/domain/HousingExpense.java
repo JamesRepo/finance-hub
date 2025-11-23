@@ -3,6 +3,8 @@ package com.jameselner.finance_hub.domain;
 import com.jameselner.finance_hub.domain.enums.Frequency;
 import com.jameselner.finance_hub.domain.enums.HousingExpenseType;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -10,6 +12,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "housing_expenses",
     indexes = {
@@ -55,87 +59,4 @@ public class HousingExpense {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
-
-    public HousingExpense() {
-    }
-
-    public Long getExpenseId() {
-        return expenseId;
-    }
-
-    public void setExpenseId(Long expenseId) {
-        this.expenseId = expenseId;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public HousingExpenseType getExpenseType() {
-        return expenseType;
-    }
-
-    public void setExpenseType(HousingExpenseType expenseType) {
-        this.expenseType = expenseType;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
-
-    public Frequency getFrequency() {
-        return frequency;
-    }
-
-    public void setFrequency(Frequency frequency) {
-        this.frequency = frequency;
-    }
-
-    public LocalDate getStartDate() {
-        return startDate;
-    }
-
-    public void setStartDate(LocalDate startDate) {
-        this.startDate = startDate;
-    }
-
-    public LocalDate getEndDate() {
-        return endDate;
-    }
-
-    public void setEndDate(LocalDate endDate) {
-        this.endDate = endDate;
-    }
-
-    public Boolean getIsActive() {
-        return isActive;
-    }
-
-    public void setIsActive(Boolean isActive) {
-        this.isActive = isActive;
-    }
-
-    public OffsetDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(OffsetDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public OffsetDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(OffsetDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
 }

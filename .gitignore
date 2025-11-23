@@ -32,3 +32,25 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Vaadin / Frontend ###
+# Vaadin production bundle and generated stuff
+frontend/generated/
+src/main/resources/META-INF/VAADIN/config/flow-build-info.json
+src/main/resources/META-INF/VAADIN/webapp/
+src/main/resources/META-INF/VAADIN/static/
+
+# Frontend build outputs
+dist/
+build/
+!.vaadin/
+
+# NPM / PNPM / Yarn lockfiles (optional – keep one if you want it versioned)
+# package-lock.json
+# pnpm-lock.yaml
+# yarn.lock
+
+# Local npm cache
+.npm/
+.pnpm-store/
+.yarn/

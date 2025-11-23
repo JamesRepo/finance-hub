@@ -2,6 +2,8 @@ package com.jameselner.finance_hub.domain;
 
 import com.jameselner.finance_hub.domain.enums.CategoryType;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -9,6 +11,8 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "categories",
     indexes = {
@@ -54,87 +58,4 @@ public class Category {
 
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Budget> budgets = new ArrayList<>();
-
-    public Category() {
-    }
-
-    public Long getCategoryId() {
-        return categoryId;
-    }
-
-    public void setCategoryId(Long categoryId) {
-        this.categoryId = categoryId;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public String getCategoryName() {
-        return categoryName;
-    }
-
-    public void setCategoryName(String categoryName) {
-        this.categoryName = categoryName;
-    }
-
-    public CategoryType getCategoryType() {
-        return categoryType;
-    }
-
-    public void setCategoryType(CategoryType categoryType) {
-        this.categoryType = categoryType;
-    }
-
-    public String getColorCode() {
-        return colorCode;
-    }
-
-    public void setColorCode(String colorCode) {
-        this.colorCode = colorCode;
-    }
-
-    public Boolean getIsSystem() {
-        return isSystem;
-    }
-
-    public void setIsSystem(Boolean isSystem) {
-        this.isSystem = isSystem;
-    }
-
-    public OffsetDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(OffsetDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public OffsetDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(OffsetDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public List<Transaction> getTransactions() {
-        return transactions;
-    }
-
-    public void setTransactions(List<Transaction> transactions) {
-        this.transactions = transactions;
-    }
-
-    public List<Budget> getBudgets() {
-        return budgets;
-    }
-
-    public void setBudgets(List<Budget> budgets) {
-        this.budgets = budgets;
-    }
 }

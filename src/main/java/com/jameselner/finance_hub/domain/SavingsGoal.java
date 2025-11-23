@@ -2,6 +2,8 @@ package com.jameselner.finance_hub.domain;
 
 import com.jameselner.finance_hub.domain.enums.Priority;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -9,6 +11,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "savings_goals",
     indexes = {
@@ -49,79 +53,4 @@ public class SavingsGoal {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
-
-    public SavingsGoal() {
-    }
-
-    public Long getGoalId() {
-        return goalId;
-    }
-
-    public void setGoalId(Long goalId) {
-        this.goalId = goalId;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public String getGoalName() {
-        return goalName;
-    }
-
-    public void setGoalName(String goalName) {
-        this.goalName = goalName;
-    }
-
-    public BigDecimal getTargetAmount() {
-        return targetAmount;
-    }
-
-    public void setTargetAmount(BigDecimal targetAmount) {
-        this.targetAmount = targetAmount;
-    }
-
-    public BigDecimal getCurrentAmount() {
-        return currentAmount;
-    }
-
-    public void setCurrentAmount(BigDecimal currentAmount) {
-        this.currentAmount = currentAmount;
-    }
-
-    public LocalDate getTargetDate() {
-        return targetDate;
-    }
-
-    public void setTargetDate(LocalDate targetDate) {
-        this.targetDate = targetDate;
-    }
-
-    public Priority getPriority() {
-        return priority;
-    }
-
-    public void setPriority(Priority priority) {
-        this.priority = priority;
-    }
-
-    public OffsetDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(OffsetDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public OffsetDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(OffsetDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
 }
