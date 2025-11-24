@@ -1,0 +1,407 @@
+/**
+ * Custom CSS styles for the Finance Hub application.
+ * These styles complement Vaadin's Lumo theme with finance-specific colors and components.
+ */
+
+/Users/james/Development/source/finance-hub/src/main/resources/META-INF/resources/styles/finance-dashboard.css
+
+/* Color Variables - Finance Theme */
+:root {
+    --finance-primary: #2563eb;
+    --finance-primary-dark: #1e40af;
+    --finance-secondary: #10b981;
+    --finance-danger: #ef4444;
+    --finance-warning: #f59e0b;
+    --finance-bg: #f8fafc;
+    --finance-card-bg: #ffffff;
+    --finance-text-primary: #1e293b;
+    --finance-text-secondary: #64748b;
+    --finance-border: #e2e8f0;
+    --finance-success-light: #d1fae5;
+    --finance-danger-light: #fee2e2;
+    --finance-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --finance-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Global Styles */
+.finance-dashboard {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: var(--finance-bg);
+    color: var(--finance-text-primary);
+}
+
+/* Navigation Tabs */
+.nav-tabs vaadin-tab {
+    color: var(--finance-text-secondary);
+    font-weight: 500;
+    transition: all 0.3s ease;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+}
+
+.nav-tabs vaadin-tab[selected] {
+    color: var(--finance-primary);
+    background-color: var(--finance-bg);
+}
+
+.nav-tabs vaadin-tab:hover {
+    color: var(--finance-primary);
+    background-color: var(--finance-bg);
+}
+
+/* Logo Text */
+.logo-text {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--finance-primary);
+    letter-spacing: -0.025em;
+}
+
+/* Card Styling */
+.finance-card {
+    background-color: var(--finance-card-bg);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    box-shadow: var(--finance-shadow);
+    border: 1px solid var(--finance-border);
+    transition: box-shadow 0.3s ease;
+}
+
+.finance-card:hover {
+    box-shadow: var(--finance-shadow-lg);
+}
+
+/* Summary Card Specific Styles */
+.summary-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.summary-card-value {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--finance-text-primary);
+    line-height: 1.2;
+}
+
+.summary-card-label {
+    color: var(--finance-text-secondary);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.summary-card-trend {
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.75rem;
+}
+
+.summary-card-trend.positive {
+    color: var(--finance-secondary);
+}
+
+.summary-card-trend.negative {
+    color: var(--finance-danger);
+}
+
+/* Progress Bar Styles */
+.finance-progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: var(--finance-border);
+    border-radius: 9999px;
+    overflow: hidden;
+    margin: 0.5rem 0;
+}
+
+.finance-progress-fill {
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.5s ease;
+}
+
+.finance-progress-fill.primary {
+    background-color: var(--finance-primary);
+}
+
+.finance-progress-fill.success {
+    background-color: var(--finance-secondary);
+}
+
+.finance-progress-fill.danger {
+    background-color: var(--finance-danger);
+}
+
+.finance-progress-fill.warning {
+    background-color: var(--finance-warning);
+}
+
+/* Transaction List Styles */
+.transaction-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background-color 0.2s ease;
+}
+
+.transaction-item:hover {
+    background-color: var(--finance-bg);
+    border-radius: 0.5rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+.transaction-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.transaction-icon.income {
+    background-color: var(--finance-success-light);
+    color: var(--finance-secondary);
+}
+
+.transaction-icon.expense {
+    background-color: var(--finance-danger-light);
+    color: var(--finance-danger);
+}
+
+.transaction-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.transaction-name {
+    font-weight: 500;
+    color: var(--finance-text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.transaction-date {
+    font-size: 0.875rem;
+    color: var(--finance-text-secondary);
+}
+
+.transaction-amount {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.transaction-amount.income {
+    color: var(--finance-secondary);
+}
+
+.transaction-amount.expense {
+    color: var(--finance-danger);
+}
+
+/* Form Styles */
+vaadin-text-field,
+vaadin-number-field,
+vaadin-date-picker,
+vaadin-select {
+    width: 100%;
+}
+
+vaadin-text-field::part(input-field),
+vaadin-number-field::part(input-field),
+vaadin-date-picker::part(input-field),
+vaadin-select::part(input-field) {
+    border-radius: 0.5rem;
+    border: 1px solid var(--finance-border);
+    background-color: white;
+}
+
+vaadin-text-field:hover::part(input-field),
+vaadin-number-field:hover::part(input-field),
+vaadin-date-picker:hover::part(input-field),
+vaadin-select:hover::part(input-field) {
+    border-color: var(--finance-primary);
+}
+
+vaadin-text-field[focused]::part(input-field),
+vaadin-number-field[focused]::part(input-field),
+vaadin-date-picker[focused]::part(input-field),
+vaadin-select[focused]::part(input-field) {
+    border-color: var(--finance-primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Button Styles */
+vaadin-button[theme~="primary"] {
+    background-color: var(--finance-primary);
+    color: white;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+vaadin-button[theme~="primary"]:hover {
+    background-color: var(--finance-primary-dark);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+vaadin-button[theme~="primary"]:active {
+    transform: scale(0.98);
+}
+
+/* Sidebar Menu Button Styles */
+.sidebar-menu vaadin-button {
+    width: 100%;
+    justify-content: flex-start;
+    margin-bottom: 0.25rem;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.sidebar-menu vaadin-button[active] {
+    background-color: var(--finance-primary);
+    color: white;
+}
+
+.sidebar-menu vaadin-button:hover:not([active]) {
+    background-color: var(--finance-bg);
+    color: var(--finance-primary);
+}
+
+/* Chart Bar Styles */
+.chart-bar {
+    background: linear-gradient(to top, var(--finance-primary), #60a5fa);
+    border-radius: 0.375rem 0.375rem 0 0;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.chart-bar:hover {
+    opacity: 0.8;
+    transform: scaleY(1.05);
+}
+
+/* Tab Navigation Styles */
+vaadin-tabs {
+    background-color: white;
+    border-radius: 0.75rem 0.75rem 0 0;
+    border: 1px solid var(--finance-border);
+    border-bottom: none;
+}
+
+vaadin-tab {
+    color: var(--finance-text-secondary);
+    font-weight: 500;
+}
+
+vaadin-tab[selected] {
+    color: var(--finance-primary);
+    border-bottom: 2px solid var(--finance-primary);
+}
+
+/* Notification Styles */
+vaadin-notification-card[theme~="success"] {
+    background-color: var(--finance-secondary);
+}
+
+vaadin-notification-card[theme~="error"] {
+    background-color: var(--finance-danger);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .summary-card-value {
+        font-size: 1.5rem;
+    }
+
+    .logo-text {
+        font-size: 1.25rem;
+    }
+
+    .nav-tabs {
+        display: none; /* Hide on mobile, use hamburger menu instead */
+    }
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background-color: var(--finance-bg);
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--finance-border);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--finance-text-secondary);
+}
+
+/* Loading Animation */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.loading {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Utility Classes */
+.text-primary {
+    color: var(--finance-text-primary);
+}
+
+.text-secondary {
+    color: var(--finance-text-secondary);
+}
+
+.text-success {
+    color: var(--finance-secondary);
+}
+
+.text-danger {
+    color: var(--finance-danger);
+}
+
+.text-warning {
+    color: var(--finance-warning);
+}
+
+.bg-primary {
+    background-color: var(--finance-primary);
+}
+
+.bg-success {
+    background-color: var(--finance-secondary);
+}
+
+.bg-danger {
+    background-color: var(--finance-danger);
+}
+
+.bg-warning {
+    background-color: var(--finance-warning);
+}
