@@ -3,8 +3,6 @@
  * These styles complement Vaadin's Lumo theme with finance-specific colors and components.
  */
 
-/Users/james/Development/source/finance-hub/src/main/resources/META-INF/resources/styles/finance-dashboard.css
-
 /* Color Variables - Finance Theme */
 :root {
     --finance-primary: #2563eb;
@@ -212,40 +210,40 @@
     color: var(--finance-danger);
 }
 
-/* Form Styles */
-vaadin-text-field,
-vaadin-number-field,
-vaadin-date-picker,
-vaadin-select {
+/* Form Styles - Scoped to finance-dashboard */
+.finance-dashboard vaadin-text-field,
+.finance-dashboard vaadin-number-field,
+.finance-dashboard vaadin-date-picker,
+.finance-dashboard vaadin-select {
     width: 100%;
 }
 
-vaadin-text-field::part(input-field),
-vaadin-number-field::part(input-field),
-vaadin-date-picker::part(input-field),
-vaadin-select::part(input-field) {
+.finance-dashboard vaadin-text-field::part(input-field),
+.finance-dashboard vaadin-number-field::part(input-field),
+.finance-dashboard vaadin-date-picker::part(input-field),
+.finance-dashboard vaadin-select::part(input-field) {
     border-radius: 0.5rem;
     border: 1px solid var(--finance-border);
     background-color: white;
 }
 
-vaadin-text-field:hover::part(input-field),
-vaadin-number-field:hover::part(input-field),
-vaadin-date-picker:hover::part(input-field),
-vaadin-select:hover::part(input-field) {
+.finance-dashboard vaadin-text-field:hover::part(input-field),
+.finance-dashboard vaadin-number-field:hover::part(input-field),
+.finance-dashboard vaadin-date-picker:hover::part(input-field),
+.finance-dashboard vaadin-select:hover::part(input-field) {
     border-color: var(--finance-primary);
 }
 
-vaadin-text-field[focused]::part(input-field),
-vaadin-number-field[focused]::part(input-field),
-vaadin-date-picker[focused]::part(input-field),
-vaadin-select[focused]::part(input-field) {
+.finance-dashboard vaadin-text-field[focused]::part(input-field),
+.finance-dashboard vaadin-number-field[focused]::part(input-field),
+.finance-dashboard vaadin-date-picker[focused]::part(input-field),
+.finance-dashboard vaadin-select[focused]::part(input-field) {
     border-color: var(--finance-primary);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
-/* Button Styles */
-vaadin-button[theme~="primary"] {
+/* Button Styles - Scoped to finance-dashboard */
+.finance-dashboard vaadin-button[theme~="primary"] {
     background-color: var(--finance-primary);
     color: white;
     border-radius: 0.5rem;
@@ -253,12 +251,12 @@ vaadin-button[theme~="primary"] {
     transition: all 0.3s ease;
 }
 
-vaadin-button[theme~="primary"]:hover {
+.finance-dashboard vaadin-button[theme~="primary"]:hover {
     background-color: var(--finance-primary-dark);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-vaadin-button[theme~="primary"]:active {
+.finance-dashboard vaadin-button[theme~="primary"]:active {
     transform: scale(0.98);
 }
 
@@ -294,25 +292,25 @@ vaadin-button[theme~="primary"]:active {
     transform: scaleY(1.05);
 }
 
-/* Tab Navigation Styles */
-vaadin-tabs {
+/* Tab Navigation Styles - Scoped to finance-dashboard */
+.finance-dashboard vaadin-tabs {
     background-color: white;
     border-radius: 0.75rem 0.75rem 0 0;
     border: 1px solid var(--finance-border);
     border-bottom: none;
 }
 
-vaadin-tab {
+.finance-dashboard vaadin-tab {
     color: var(--finance-text-secondary);
     font-weight: 500;
 }
 
-vaadin-tab[selected] {
+.finance-dashboard vaadin-tab[selected] {
     color: var(--finance-primary);
     border-bottom: 2px solid var(--finance-primary);
 }
 
-/* Notification Styles */
+/* Notification Styles - Keep global for consistency */
 vaadin-notification-card[theme~="success"] {
     background-color: var(--finance-secondary);
 }
@@ -332,7 +330,29 @@ vaadin-notification-card[theme~="error"] {
     }
 
     .nav-tabs {
-        display: none; /* Hide on mobile, use hamburger menu instead */
+        display: none !important; /* Hide on mobile, use hamburger menu instead */
+    }
+
+    /* Show hamburger button on mobile */
+    .drawer-toggle {
+        display: flex !important;
+    }
+
+    /* Hide "Logout" text on mobile, keep icon */
+    .logout-btn span {
+        display: none;
+    }
+
+    /* Adjust notification button on mobile */
+    .notification-btn {
+        padding: 0.5rem !important;
+    }
+}
+
+/* Hide hamburger button on desktop */
+@media (min-width: 769px) {
+    .drawer-toggle {
+        display: none !important;
     }
 }
 

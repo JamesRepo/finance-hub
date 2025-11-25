@@ -14,9 +14,13 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
+import com.vaadin.flow.router.Route;
 import com.vaadin.flow.spring.security.AuthenticationContext;
+import jakarta.annotation.security.PermitAll;
 
+@Route("")
 @CssImport("./styles/finance-dashboard.css")
+@PermitAll
 public class MainLayout extends AppLayout {
 
     private final AuthenticationContext authenticationContext;
@@ -28,6 +32,9 @@ public class MainLayout extends AppLayout {
         createMainContent();
 
         addClassName("finance-dashboard");
+
+        // Set drawer to be hidden by default on mobile (will be shown on desktop via CSS)
+        setPrimarySection(Section.DRAWER);
     }
 
     /**
@@ -35,6 +42,15 @@ public class MainLayout extends AppLayout {
      * Uses Vaadin's AppLayout navbar area for sticky positioning.
      */
     private void createHeader() {
+        // Hamburger menu button for mobile drawer toggle
+        Button drawerToggle = new Button(VaadinIcon.MENU.create());
+        drawerToggle.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        drawerToggle.addClassName("drawer-toggle");
+        drawerToggle.getStyle()
+                .set("color", "#2563eb")
+                .set("margin-right", "0.5rem");
+        drawerToggle.addClickListener(event -> setDrawerOpened(!isDrawerOpened()));
+
         HorizontalLayout logo = new HorizontalLayout();
         logo.setAlignItems(FlexComponent.Alignment.CENTER);
         logo.setSpacing(true);
@@ -52,6 +68,11 @@ public class MainLayout extends AppLayout {
 
         logo.add(dollarIcon, logoText);
 
+        // Group hamburger and logo together
+        HorizontalLayout logoSection = new HorizontalLayout(drawerToggle, logo);
+        logoSection.setAlignItems(FlexComponent.Alignment.CENTER);
+        logoSection.setSpacing(false);
+
         // Navigation tabs (Dashboard, Reports, Budget, Settings)
         Tab dashboardTab = createNavTab("Dashboard", VaadinIcon.DASHBOARD, true);
         Tab transactionsTab = createNavTab("Transactions", VaadinIcon.CREDIT_CARD, false);
@@ -62,21 +83,26 @@ public class MainLayout extends AppLayout {
         navTabs.addClassName("nav-tabs");
         navTabs.getStyle()
                 .set("margin-left", "auto")
-                .set("margin-right", "auto");
+                .set("margin-right", "auto")
+                .set("flex-shrink", "1")
+                .set("overflow", "hidden");
 
         Button notificationBtn = new Button(VaadinIcon.BELL.create());
         notificationBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        notificationBtn.addClassName("notification-btn");
         notificationBtn.getStyle().set("color", "#64748b");
 
         Button logoutButton = new Button("Logout", VaadinIcon.SIGN_OUT.create(), click -> {
             authenticationContext.logout();
         });
+        logoutButton.addClassName("logout-btn");
 
         HorizontalLayout userSection = new HorizontalLayout(notificationBtn, logoutButton);
         userSection.setSpacing(true);
         userSection.setAlignItems(FlexComponent.Alignment.CENTER);
+        userSection.getStyle().set("flex-shrink", "0");
 
-        HorizontalLayout header = new HorizontalLayout(logo, navTabs, userSection);
+        HorizontalLayout header = new HorizontalLayout(logoSection, navTabs, userSection);
         header.setWidthFull();
         header.setAlignItems(FlexComponent.Alignment.CENTER);
         header.setPadding(true);
@@ -218,7 +244,7 @@ public class MainLayout extends AppLayout {
                 .set("overflow-y", "auto");
 
         // Page header
-        H1 pageTitle = new H1("Dashboard");
+        H1 pageTitle = new H1("Financial Overview");
         pageTitle.getStyle()
                 .set("font-size", "2rem")
                 .set("margin-bottom", "0.5rem");

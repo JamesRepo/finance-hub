@@ -35,7 +35,7 @@ build/
 
 ### Vaadin / Frontend ###
 # Vaadin production bundle and generated stuff
-frontend/generated/
+src/main/frontend/generated/
 src/main/resources/META-INF/VAADIN/config/flow-build-info.json
 src/main/resources/META-INF/VAADIN/webapp/
 src/main/resources/META-INF/VAADIN/static/
