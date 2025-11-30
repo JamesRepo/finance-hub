@@ -1,5 +1,7 @@
 package com.jameselner.finance_hub.view;
 
+import com.jameselner.finance_hub.repository.UserRepository;
+import com.jameselner.finance_hub.service.DashboardService;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.button.Button;
@@ -24,9 +26,17 @@ import jakarta.annotation.security.PermitAll;
 public class MainLayout extends AppLayout {
 
     private final AuthenticationContext authenticationContext;
+    private final DashboardService dashboardService;
+    private final UserRepository userRepository;
 
-    public MainLayout(final AuthenticationContext authenticationContext) {
+    public MainLayout(
+            final AuthenticationContext authenticationContext,
+            final DashboardService dashboardService,
+            final UserRepository userRepository
+    ) {
         this.authenticationContext = authenticationContext;
+        this.dashboardService = dashboardService;
+        this.userRepository = userRepository;
         createHeader();
         createDrawer();
         createMainContent();
@@ -261,7 +271,7 @@ public class MainLayout extends AppLayout {
         contentArea.add(pageHeader);
 
         // Add dashboard components
-//        contentArea.add(new SummaryCardsComponent());
+        contentArea.add(new SummaryCardsComponent(dashboardService, authenticationContext, userRepository));
 //        contentArea.add(new ChartAndTransactionsComponent());
 //        contentArea.add(new DebtAndSavingsComponent());
 //        contentArea.add(new YearlySummaryComponent());
