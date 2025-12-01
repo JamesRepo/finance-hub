@@ -1,0 +1,70 @@
+package com.jameselner.finance_hub.view.components;
+
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.spring.security.AuthenticationContext;
+
+public class AppHeader extends HorizontalLayout {
+
+    private final AuthenticationContext authenticationContext;
+
+    public AppHeader(final AuthenticationContext authenticationContext) {
+        this.authenticationContext = authenticationContext;
+
+        setWidthFull();
+        setAlignItems(FlexComponent.Alignment.CENTER);
+        setPadding(true);
+        setSpacing(true);
+        getStyle()
+                .set("background-color", "white")
+                .set("border-bottom", "1px solid #e2e8f0")
+                .set("box-shadow", "0 1px 3px rgba(0, 0, 0, 0.1)");
+
+        add(createLogoAndHeader(), createUserSection());
+    }
+
+    private HorizontalLayout createLogoAndHeader() {
+        HorizontalLayout logo = new HorizontalLayout();
+        logo.setAlignItems(FlexComponent.Alignment.CENTER);
+        logo.setSpacing(true);
+
+        Icon dollarIcon = VaadinIcon.DOLLAR.create();
+        dollarIcon.setColor("#2563eb");
+        dollarIcon.setSize("24px");
+
+        Span logoText = new Span("Finance Hub");
+        logoText.addClassName("logo-text");
+        logoText.getStyle()
+                .set("font-size", "1.5rem")
+                .set("font-weight", "700")
+                .set("color", "#2563eb");
+
+        logo.add(dollarIcon, logoText);
+        return logo;
+    }
+
+    private HorizontalLayout createUserSection() {
+        Button notificationBtn = new Button(VaadinIcon.USER.create());
+        notificationBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        notificationBtn.addClassName("notification-btn");
+        notificationBtn.getStyle().set("color", "#64748b");
+
+        Button logoutButton = new Button("Logout", VaadinIcon.SIGN_OUT.create(),
+                click -> authenticationContext.logout());
+        logoutButton.addClassName("logout-btn");
+
+        HorizontalLayout userSection = new HorizontalLayout(notificationBtn, logoutButton);
+        userSection.setSpacing(true);
+        userSection.setAlignItems(FlexComponent.Alignment.CENTER);
+        userSection.getStyle()
+                .set("flex-shrink", "0")
+                .set("margin-left", "auto");
+
+        return userSection;
+    }
+}
