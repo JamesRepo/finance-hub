@@ -1,7 +1,7 @@
 package com.jameselner.finance_hub.domain.enums;
 
 public enum AccountType {
-    CHECKING,
+    CURRENT,
     SAVINGS,
     CREDIT_CARD,
     INVESTMENT,

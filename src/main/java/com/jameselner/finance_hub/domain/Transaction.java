@@ -48,14 +48,11 @@ public class Transaction {
     @Column(name = "transaction_date", nullable = false)
     private LocalDate transactionDate;
 
+    @Column(name = "place_venue", columnDefinition = "TEXT")
+    private String placeVenue;
+
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
-
-    @Column(name = "notes", columnDefinition = "TEXT")
-    private String notes;
-
-    @Column(name = "payment_method", length = 50)
-    private String paymentMethod;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
