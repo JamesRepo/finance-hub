@@ -84,6 +84,23 @@ public class TransactionService {
     }
 
     /**
+     * Find transactions by year and month and return as DTOs
+     */
+    public List<TransactionDTO> findByYearAndMonthAsDto(int year, int month) {
+        if (month < 1 || month > 12) {
+            throw new IllegalArgumentException("Month must be between 1 and 12");
+        }
+
+        LocalDate startDate = LocalDate.of(year, month, 1);
+        LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
+
+        return transactionRepository.findByTransactionDateBetweenOrderByTransactionDateDesc(startDate, endDate)
+                .stream()
+                .map(transactionMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Delete a transaction by ID
      */
     @Transactional

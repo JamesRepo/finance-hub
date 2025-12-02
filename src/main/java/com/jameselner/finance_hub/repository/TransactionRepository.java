@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
@@ -22,5 +23,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("type") TransactionType type,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
+    );
+
+    List<Transaction> findByTransactionDateBetweenOrderByTransactionDateDesc(
+            LocalDate startDate,
+            LocalDate endDate
     );
 }

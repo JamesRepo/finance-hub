@@ -6,6 +6,7 @@ import com.jameselner.finance_hub.service.CategoryService;
 import com.jameselner.finance_hub.service.TransactionService;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
@@ -19,6 +20,11 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
 
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+
 @Route(value = "transactions", layout = MainLayout.class)
 @PageTitle("Transactions | Finance Hub")
 @PermitAll
@@ -31,6 +37,8 @@ public class TransactionView extends VerticalLayout {
     private Grid<TransactionDTO> transactionGrid;
     private TransactionForm transactionForm;
     private Dialog formDialog;
+    private ComboBox<YearMonth> monthFilter;
+    private YearMonth selectedMonth;
 
     public TransactionView(
             final TransactionService transactionService,
@@ -48,6 +56,7 @@ public class TransactionView extends VerticalLayout {
         createHeader();
         createGrid();
         createFormDialog();
+        createMonthFilter();
 
         add(createToolbar(), transactionGrid);
         refreshGrid();
@@ -63,9 +72,10 @@ public class TransactionView extends VerticalLayout {
         addButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         addButton.addClickListener(event -> openFormForNew());
 
-        HorizontalLayout toolbar = new HorizontalLayout(addButton);
+        HorizontalLayout toolbar = new HorizontalLayout(monthFilter, addButton);
         toolbar.setWidthFull();
-        toolbar.setJustifyContentMode(JustifyContentMode.END);
+        toolbar.setJustifyContentMode(JustifyContentMode.BETWEEN);
+        toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
 
         return toolbar;
     }
@@ -142,8 +152,41 @@ public class TransactionView extends VerticalLayout {
         formDialog.open();
     }
 
+    private void createMonthFilter() {
+        monthFilter = new ComboBox<>("Filter by Month");
+        monthFilter.setWidth("250px");
+
+        // Create list of last 24 months
+        List<YearMonth> months = new ArrayList<>();
+        YearMonth current = YearMonth.now();
+        for (int i = 0; i < 24; i++) {
+            months.add(current.minusMonths(i));
+        }
+
+        monthFilter.setItems(months);
+        monthFilter.setItemLabelGenerator(month ->
+            month.format(DateTimeFormatter.ofPattern("MMMM yyyy")));
+
+        // Set default to current month
+        selectedMonth = YearMonth.now();
+        monthFilter.setValue(selectedMonth);
+
+        // Add listener to refresh grid when selection changes
+        monthFilter.addValueChangeListener(event -> {
+            selectedMonth = event.getValue();
+            refreshGrid();
+        });
+    }
+
     private void refreshGrid() {
-        transactionGrid.setItems(transactionService.findAllAsDto());
+        if (selectedMonth != null) {
+            transactionGrid.setItems(transactionService.findByYearAndMonthAsDto(
+                selectedMonth.getYear(),
+                selectedMonth.getMonthValue()
+            ));
+        } else {
+            transactionGrid.setItems(transactionService.findAllAsDto());
+        }
     }
 
     private HorizontalLayout createCategoryBadge(TransactionDTO transaction) {
