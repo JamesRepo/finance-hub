@@ -28,9 +28,8 @@ public class TransactionDTO {
     private TransactionType transactionType;
     private BigDecimal amount;
     private LocalDate transactionDate;
+    private String placeVenue;
     private String description;
-    private String notes;
-    private String paymentMethod;
 
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;

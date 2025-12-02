@@ -34,9 +34,8 @@ public class TransactionMapper {
                 .transactionType(transaction.getTransactionType())
                 .amount(transaction.getAmount())
                 .transactionDate(transaction.getTransactionDate())
+                .placeVenue(transaction.getPlaceVenue())
                 .description(transaction.getDescription())
-                .notes(transaction.getNotes())
-                .paymentMethod(transaction.getPaymentMethod())
                 .createdAt(transaction.getCreatedAt())
                 .updatedAt(transaction.getUpdatedAt())
                 .build();
@@ -81,7 +80,6 @@ public class TransactionMapper {
         transaction.setAmount(dto.getAmount());
         transaction.setTransactionDate(dto.getTransactionDate());
         transaction.setDescription(dto.getDescription());
-        transaction.setNotes(dto.getNotes());
-        transaction.setPaymentMethod(dto.getPaymentMethod());
+        transaction.setPlaceVenue(dto.getPlaceVenue());
     }
 }
