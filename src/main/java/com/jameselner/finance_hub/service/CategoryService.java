@@ -22,23 +22,23 @@ public class CategoryService {
         return categoryRepository.findAll();
     }
 
-    public List<Category> findByType(CategoryType type) {
+    public List<Category> findByType(final CategoryType type) {
         return categoryRepository.findAll().stream()
                 .filter(category -> category.getCategoryType() == type)
                 .collect(Collectors.toList());
     }
 
-    public Optional<Category> findById(Long id) {
+    public Optional<Category> findById(final Long id) {
         return categoryRepository.findById(id);
     }
 
     @Transactional
-    public Category save(Category category) {
+    public Category save(final Category category) {
         return categoryRepository.save(category);
     }
 
     @Transactional
-    public void delete(Category category) {
+    public void delete(final Category category) {
         categoryRepository.delete(category);
     }
 }

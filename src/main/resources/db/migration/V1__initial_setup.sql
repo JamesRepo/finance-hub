@@ -17,7 +17,7 @@ CREATE TABLE accounts (
     account_id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
     account_name VARCHAR(100) NOT NULL,
-    account_type VARCHAR(50) NOT NULL CHECK (account_type IN ('CURRENT', 'SAVINGS', 'CREDIT_CARD', 'INVESTMENT', 'CASH', 'OTHER')),
+    account_type VARCHAR(50) NOT NULL CHECK (account_type IN ('CURRENT', 'SAVINGS', 'CREDIT_CARD', 'INVESTMENT', 'CASH', 'OTHER', 'IMPORTED')),
     balance DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
     currency VARCHAR(3) NOT NULL DEFAULT 'GBP',
     is_active BOOLEAN NOT NULL DEFAULT true,

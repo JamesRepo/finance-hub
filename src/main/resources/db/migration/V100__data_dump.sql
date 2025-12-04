@@ -24,7 +24,8 @@ INSERT INTO accounts (user_id, account_name, account_type, balance, currency, is
     (1, 'Monzo Savings Account', 'SAVINGS', 12500.00, 'GBP', true, '2024-01-15 11:05:00+00'),
     (1, 'Lloyds', 'CURRENT', 8000.00, 'GBP', true, '2024-01-20 10:00:00+00'),
     (1, 'Lloyds Credit Card', 'CREDIT_CARD', -850.25, 'GBP', true, '2024-01-15 11:10:00+00'),
-    (1, 'Natwest Credit Card', 'CREDIT_CARD', -1850.25, 'GBP', true, '2024-01-15 11:10:00+00');
+    (1, 'Natwest Credit Card', 'CREDIT_CARD', -1850.25, 'GBP', true, '2024-01-15 11:10:00+00'),
+    (1, 'Imported', 'IMPORTED', 0.00, 'GBP', false, '2024-01-15 11:10:00+00');
 
 
 -- =====================================================

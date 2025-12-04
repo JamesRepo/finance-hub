@@ -1,5 +1,6 @@
 package com.jameselner.finance_hub.repository;
 
+import com.jameselner.finance_hub.domain.Category;
 import com.jameselner.finance_hub.domain.Transaction;
 import com.jameselner.finance_hub.domain.User;
 import com.jameselner.finance_hub.domain.enums.TransactionType;
@@ -28,5 +29,15 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     List<Transaction> findByTransactionDateBetweenOrderByTransactionDateDesc(
             LocalDate startDate,
             LocalDate endDate
+    );
+
+    @Query("SELECT t FROM Transaction t JOIN t.category c " +
+           "WHERE t.transactionDate BETWEEN :startDate AND :endDate " +
+           "AND t.category = :category " +
+           "ORDER BY t.transactionDate DESC")
+    List<Transaction> findByTransactionDateBetweenAndCategoryOrderByTransactionDateDesc(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("category") Category category
     );
 }

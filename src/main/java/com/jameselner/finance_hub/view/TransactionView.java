@@ -1,5 +1,6 @@
 package com.jameselner.finance_hub.view;
 
+import com.jameselner.finance_hub.domain.Category;
 import com.jameselner.finance_hub.dto.TransactionDTO;
 import com.jameselner.finance_hub.service.AccountService;
 import com.jameselner.finance_hub.service.CategoryService;
@@ -38,7 +39,9 @@ public class TransactionView extends VerticalLayout {
     private TransactionForm transactionForm;
     private Dialog formDialog;
     private ComboBox<YearMonth> monthFilter;
+    private ComboBox<Category> categoryFilter;
     private YearMonth selectedMonth;
+    private Category selectedCategory;
 
     public TransactionView(
             final TransactionService transactionService,
@@ -57,6 +60,7 @@ public class TransactionView extends VerticalLayout {
         createGrid();
         createFormDialog();
         createMonthFilter();
+        createCategoryTypeFilter();
 
         add(createToolbar(), transactionGrid);
         refreshGrid();
@@ -72,7 +76,11 @@ public class TransactionView extends VerticalLayout {
         addButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         addButton.addClickListener(event -> openFormForNew());
 
-        HorizontalLayout toolbar = new HorizontalLayout(monthFilter, addButton);
+        HorizontalLayout leftSection = new HorizontalLayout(monthFilter, categoryFilter);
+        leftSection.setSpacing(true);
+        leftSection.setAlignItems(FlexComponent.Alignment.CENTER);
+
+        HorizontalLayout toolbar = new HorizontalLayout(leftSection, addButton);
         toolbar.setWidthFull();
         toolbar.setJustifyContentMode(JustifyContentMode.BETWEEN);
         toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
@@ -154,7 +162,7 @@ public class TransactionView extends VerticalLayout {
 
     private void createMonthFilter() {
         monthFilter = new ComboBox<>("Filter by Month");
-        monthFilter.setWidth("250px");
+        monthFilter.setWidth("200px");
 
         // Create list of last 24 months
         List<YearMonth> months = new ArrayList<>();
@@ -178,13 +186,50 @@ public class TransactionView extends VerticalLayout {
         });
     }
 
+    private void createCategoryTypeFilter() {
+        categoryFilter = new ComboBox<>("Filter by Category");
+        categoryFilter.setWidth("180px");
+
+        // Add "All" option by including null, plus the enum values
+        List<Category> categories = categoryService.findAll();
+        categoryFilter.setItems(categories);
+        categoryFilter.setItemLabelGenerator(category -> {
+            if (category == null) {
+                return "All";
+            }
+            return category.getCategoryName();
+        });
+
+        // Set placeholder
+        categoryFilter.setPlaceholder("All");
+        categoryFilter.setClearButtonVisible(true);
+
+        // No default selection (shows all)
+        selectedCategory = null;
+
+        // Add listener to refresh grid when selection changes
+        categoryFilter.addValueChangeListener(event -> {
+            selectedCategory = event.getValue();
+            refreshGrid();
+        });
+    }
+
     private void refreshGrid() {
-        if (selectedMonth != null) {
+        if (selectedMonth != null && selectedCategory != null) {
+            // Filter by both month and category type
+            transactionGrid.setItems(transactionService.findByYearAndMonthAndCategoryAsDto(
+                selectedMonth.getYear(),
+                selectedMonth.getMonthValue(),
+                selectedCategory
+            ));
+        } else if (selectedMonth != null) {
+            // Filter by month only
             transactionGrid.setItems(transactionService.findByYearAndMonthAsDto(
                 selectedMonth.getYear(),
                 selectedMonth.getMonthValue()
             ));
         } else {
+            // No filters
             transactionGrid.setItems(transactionService.findAllAsDto());
         }
     }
