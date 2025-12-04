@@ -5,14 +5,18 @@ import com.jameselner.finance_hub.dto.TransactionDTO;
 import com.jameselner.finance_hub.service.AccountService;
 import com.jameselner.finance_hub.service.CategoryService;
 import com.jameselner.finance_hub.service.TransactionService;
+import com.jameselner.finance_hub.view.components.TransactionForm;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -120,6 +124,10 @@ public class TransactionView extends VerticalLayout {
                 .setHeader("Account")
                 .setAutoWidth(true);
 
+        transactionGrid.addColumn(new ComponentRenderer<>(this::createDeleteButton))
+                .setHeader("Actions")
+                .setAutoWidth(true)
+                .setFlexGrow(0);
 
         transactionGrid.asSingleSelect().addValueChangeListener(event -> {
             if (event.getValue() != null) {
@@ -254,5 +262,44 @@ public class TransactionView extends VerticalLayout {
 
         layout.add(colorDot, categoryName);
         return layout;
+    }
+
+    private Button createDeleteButton(final TransactionDTO transaction) {
+        Button deleteButton = new Button(new Icon(VaadinIcon.TRASH));
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_SMALL);
+        deleteButton.getElement().setAttribute("aria-label", "Delete transaction");
+
+        deleteButton.addClickListener(event -> {
+            event.getSource().getUI().ifPresent(ui -> ui.access(() -> {
+                showDeleteConfirmation(transaction);
+            }));
+        });
+
+        return deleteButton;
+    }
+
+    private void showDeleteConfirmation(final TransactionDTO transaction) {
+        ConfirmDialog dialog = new ConfirmDialog();
+        dialog.setHeader("Delete Transaction");
+        dialog.setText(
+            String.format("Are you sure you want to delete this transaction?\n\n" +
+                "Date: %s\nCategory: %s\nAmount: £%s\nPlace: %s",
+                transaction.getTransactionDate(),
+                transaction.getCategoryName(),
+                transaction.getAmount(),
+                transaction.getPlaceVenue() != null ? transaction.getPlaceVenue() : "N/A")
+        );
+
+        dialog.setCancelable(true);
+        dialog.setConfirmText("Delete");
+        dialog.setConfirmButtonTheme("error primary");
+
+        dialog.addConfirmListener(e -> deleteTransaction(transaction));
+
+        dialog.open();
+    }
+
+    private void deleteTransaction(final TransactionDTO transaction) {
+        transactionService.deleteById(transaction.getTransactionId());
     }
 }

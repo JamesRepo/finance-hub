@@ -8,6 +8,7 @@ import com.jameselner.finance_hub.dto.TransactionDTO;
 import com.jameselner.finance_hub.mapper.TransactionMapper;
 import com.jameselner.finance_hub.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -131,6 +133,8 @@ public class TransactionService {
     @Transactional
     public void deleteById(final Long id) {
         validateIdNotNull(id);
+
+        log.debug("Deleting transaction with ID {}", id);
 
         if (!transactionRepository.existsById(id)) {
             throw new IllegalArgumentException("Transaction with ID " + id + " does not exist");

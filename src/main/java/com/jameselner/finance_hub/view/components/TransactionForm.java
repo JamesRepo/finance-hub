@@ -1,4 +1,4 @@
-package com.jameselner.finance_hub.view;
+package com.jameselner.finance_hub.view.components;
 
 import com.jameselner.finance_hub.domain.Account;
 import com.jameselner.finance_hub.domain.Category;
