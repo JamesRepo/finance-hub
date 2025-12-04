@@ -1,5 +1,6 @@
 package com.jameselner.finance_hub.view.components;
 
+import com.jameselner.finance_hub.view.BudgetTrackingView;
 import com.jameselner.finance_hub.view.DashboardView;
 import com.jameselner.finance_hub.view.TransactionView;
 import com.vaadin.flow.component.Component;
@@ -75,7 +76,7 @@ public class AppNavigation extends VerticalLayout {
         transactions.setPrefixComponent(VaadinIcon.EXCHANGE.create());
         nav.addItem(transactions);
 
-        SideNavItem budget = new SideNavItem("Budget");
+        SideNavItem budget = new SideNavItem("Budget", BudgetTrackingView.class);
         budget.setPrefixComponent(VaadinIcon.PIGGY_BANK.create());
         nav.addItem(budget);
 
