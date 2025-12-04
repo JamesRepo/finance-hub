@@ -54,3 +54,9 @@ build/
 .npm/
 .pnpm-store/
 .yarn/
+
+# Vaadin generated Vite config
+vite.generated.ts
+
+# Production bundles
+src/main/bundles/
