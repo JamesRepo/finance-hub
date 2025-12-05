@@ -40,4 +40,14 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("endDate") LocalDate endDate,
             @Param("category") Category category
     );
+
+    @Query("SELECT t FROM Transaction t JOIN t.account a " +
+           "WHERE a.user = :user " +
+           "AND t.transactionDate BETWEEN :startDate AND :endDate " +
+           "ORDER BY t.transactionDate DESC")
+    List<Transaction> findByAccountUserAndTransactionDateBetween(
+            @Param("user") User user,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
 }
