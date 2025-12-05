@@ -2,6 +2,7 @@ package com.jameselner.finance_hub.view.components;
 
 import com.jameselner.finance_hub.view.BudgetTrackingView;
 import com.jameselner.finance_hub.view.DashboardView;
+import com.jameselner.finance_hub.view.DebtManagementView;
 import com.jameselner.finance_hub.view.TransactionView;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Span;
@@ -79,6 +80,10 @@ public class AppNavigation extends VerticalLayout {
         SideNavItem budget = new SideNavItem("Budget", BudgetTrackingView.class);
         budget.setPrefixComponent(VaadinIcon.PIGGY_BANK.create());
         nav.addItem(budget);
+
+        SideNavItem debts = new SideNavItem("Debts", DebtManagementView.class);
+        debts.setPrefixComponent(VaadinIcon.CREDIT_CARD.create());
+        nav.addItem(debts);
 
         SideNavItem investments = new SideNavItem("Investments");
         investments.setPrefixComponent(VaadinIcon.TRENDING_UP.create());
