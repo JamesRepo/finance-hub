@@ -7,6 +7,7 @@ import com.jameselner.finance_hub.dto.IncomeSourceDTO;
 import com.jameselner.finance_hub.dto.IncomeVsExpenseDTO;
 import com.jameselner.finance_hub.repository.CategoryRepository;
 import com.jameselner.finance_hub.repository.UserRepository;
+import com.jameselner.finance_hub.service.IncomeDeductionService;
 import com.jameselner.finance_hub.service.IncomeForecastService;
 import com.jameselner.finance_hub.service.IncomeReportService;
 import com.jameselner.finance_hub.service.IncomeSourceService;
@@ -37,9 +38,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Route(value = "income", layout = MainLayout.class)
 @PageTitle("Income Tracking | Finance Hub")
@@ -47,6 +46,7 @@ import java.util.Map;
 public class IncomeTrackingView extends VerticalLayout {
 
     private final IncomeSourceService incomeSourceService;
+    private final IncomeDeductionService incomeDeductionService;
     private final IncomeForecastService incomeForecastService;
     private final IncomeReportService incomeReportService;
     private final AuthenticationContext authenticationContext;
@@ -75,6 +75,7 @@ public class IncomeTrackingView extends VerticalLayout {
 
     public IncomeTrackingView(
             final IncomeSourceService incomeSourceService,
+            final IncomeDeductionService incomeDeductionService,
             final IncomeForecastService incomeForecastService,
             final IncomeReportService incomeReportService,
             final AuthenticationContext authenticationContext,
@@ -82,6 +83,7 @@ public class IncomeTrackingView extends VerticalLayout {
             final CategoryRepository categoryRepository
     ) {
         this.incomeSourceService = incomeSourceService;
+        this.incomeDeductionService = incomeDeductionService;
         this.incomeForecastService = incomeForecastService;
         this.incomeReportService = incomeReportService;
         this.authenticationContext = authenticationContext;
@@ -486,12 +488,10 @@ public class IncomeTrackingView extends VerticalLayout {
                 .set("font-size", "var(--lumo-font-size-xl)")
                 .set("font-weight", "bold");
 
-        if (theme.equals("success")) {
-            valueSpan.getStyle().set("color", "var(--lumo-success-color)");
-        } else if (theme.equals("error")) {
-            valueSpan.getStyle().set("color", "var(--lumo-error-color)");
-        } else if (theme.equals("primary")) {
-            valueSpan.getStyle().set("color", "var(--lumo-primary-color)");
+        switch (theme) {
+            case "success" -> valueSpan.getStyle().set("color", "var(--lumo-success-color)");
+            case "error" -> valueSpan.getStyle().set("color", "var(--lumo-error-color)");
+            case "primary" -> valueSpan.getStyle().set("color", "var(--lumo-primary-color)");
         }
 
         Span labelSpan = new Span(label);
@@ -527,6 +527,7 @@ public class IncomeTrackingView extends VerticalLayout {
     private void setupDialogs() {
         incomeSourceForm = new IncomeSourceForm(
                 incomeSourceService,
+                incomeDeductionService,
                 authenticationContext,
                 userRepository,
                 categoryRepository

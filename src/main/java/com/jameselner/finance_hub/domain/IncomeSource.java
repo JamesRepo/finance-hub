@@ -10,6 +10,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -41,6 +43,15 @@ public class IncomeSource {
 
     @Column(name = "amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;
+
+    @Column(name = "gross_amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal grossAmount;
+
+    @Column(name = "net_amount", precision = 15, scale = 2)
+    private BigDecimal netAmount;
+
+    @OneToMany(mappedBy = "incomeSource", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<IncomeDeduction> deductions = new ArrayList<>();
 
     @Column(name = "is_recurring", nullable = false)
     private Boolean isRecurring = false;

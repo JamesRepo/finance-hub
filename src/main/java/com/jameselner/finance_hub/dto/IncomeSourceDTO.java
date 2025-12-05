@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Builder
@@ -21,6 +23,10 @@ public class IncomeSourceDTO {
     private String sourceName;
     private String description;
     private BigDecimal amount;
+    private BigDecimal grossAmount;
+    private BigDecimal netAmount;
+    @Builder.Default
+    private List<IncomeDeductionDTO> deductions = new ArrayList<>();
     private Boolean isRecurring;
     private RecurrenceFrequency recurrenceFrequency;
     private LocalDate startDate;

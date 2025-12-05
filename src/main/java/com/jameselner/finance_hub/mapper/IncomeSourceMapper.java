@@ -9,12 +9,15 @@ import com.jameselner.finance_hub.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.stream.Collectors;
+
 @Component
 @RequiredArgsConstructor
 public class IncomeSourceMapper {
 
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
+    private final IncomeDeductionMapper incomeDeductionMapper;
 
     public IncomeSourceDTO toDto(final IncomeSource incomeSource) {
         if (incomeSource == null) {
@@ -28,6 +31,12 @@ public class IncomeSourceMapper {
                 .sourceName(incomeSource.getSourceName())
                 .description(incomeSource.getDescription())
                 .amount(incomeSource.getAmount())
+                .grossAmount(incomeSource.getGrossAmount())
+                .netAmount(incomeSource.getNetAmount())
+                .deductions(incomeSource.getDeductions() != null ?
+                        incomeSource.getDeductions().stream()
+                                .map(incomeDeductionMapper::toDto)
+                                .collect(Collectors.toList()) : null)
                 .isRecurring(incomeSource.getIsRecurring())
                 .recurrenceFrequency(incomeSource.getRecurrenceFrequency())
                 .startDate(incomeSource.getStartDate())
@@ -66,6 +75,8 @@ public class IncomeSourceMapper {
         incomeSource.setSourceName(dto.getSourceName());
         incomeSource.setDescription(dto.getDescription());
         incomeSource.setAmount(dto.getAmount());
+        incomeSource.setGrossAmount(dto.getGrossAmount());
+        incomeSource.setNetAmount(dto.getNetAmount());
         incomeSource.setIsRecurring(dto.getIsRecurring());
         incomeSource.setRecurrenceFrequency(dto.getRecurrenceFrequency());
         incomeSource.setStartDate(dto.getStartDate());
