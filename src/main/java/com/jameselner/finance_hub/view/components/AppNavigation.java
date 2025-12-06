@@ -3,6 +3,7 @@ package com.jameselner.finance_hub.view.components;
 import com.jameselner.finance_hub.view.BudgetTrackingView;
 import com.jameselner.finance_hub.view.DashboardView;
 import com.jameselner.finance_hub.view.DebtManagementView;
+import com.jameselner.finance_hub.view.HolidaysView;
 import com.jameselner.finance_hub.view.HousingExpensesView;
 import com.jameselner.finance_hub.view.IncomeTrackingView;
 import com.jameselner.finance_hub.view.MonthlySummaryView;
@@ -96,6 +97,10 @@ public class AppNavigation extends VerticalLayout {
         SideNavItem housing = new SideNavItem("Housing", HousingExpensesView.class);
         housing.setPrefixComponent(VaadinIcon.HOME.create());
         nav.addItem(housing);
+
+        SideNavItem holidays = new SideNavItem("Holidays", HolidaysView.class);
+        holidays.setPrefixComponent(VaadinIcon.AIRPLANE.create());
+        nav.addItem(holidays);
 
         SideNavItem savingsGoals = new SideNavItem("Savings Goals", SavingsGoalsView.class);
         savingsGoals.setPrefixComponent(VaadinIcon.MONEY.create());
