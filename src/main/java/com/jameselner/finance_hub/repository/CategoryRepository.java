@@ -14,6 +14,26 @@ import java.util.Optional;
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, Long> {
 
+    /**
+     * Find all categories for a user (including system categories)
+     */
+    @Query("SELECT c FROM Category c WHERE c.user = :user OR c.isSystem = true ORDER BY c.categoryName")
+    List<Category> findByUserOrSystem(@Param("user") User user);
+
+    /**
+     * Find categories by type for a user (including system categories)
+     */
+    @Query("SELECT c FROM Category c WHERE (c.user = :user OR c.isSystem = true) AND c.categoryType = :type ORDER BY c.categoryName")
+    List<Category> findByUserOrSystemAndType(@Param("user") User user, @Param("type") CategoryType type);
+
+    /**
+     * Count user-specific categories (excluding system categories)
+     */
+    long countByUser(User user);
+
+    /**
+     * Find categories by type
+     */
     List<Category> findByCategoryType(CategoryType categoryType);
 
     /**
