@@ -1,6 +1,8 @@
 package com.jameselner.finance_hub.view.components;
 
+import com.jameselner.finance_hub.view.AccountsView;
 import com.jameselner.finance_hub.view.BudgetTrackingView;
+import com.jameselner.finance_hub.view.CategoriesView;
 import com.jameselner.finance_hub.view.DashboardView;
 import com.jameselner.finance_hub.view.DebtManagementView;
 import com.jameselner.finance_hub.view.HolidaysView;
@@ -8,6 +10,7 @@ import com.jameselner.finance_hub.view.HousingExpensesView;
 import com.jameselner.finance_hub.view.IncomeTrackingView;
 import com.jameselner.finance_hub.view.MonthlySummaryView;
 import com.jameselner.finance_hub.view.SavingsGoalsView;
+import com.jameselner.finance_hub.view.SubscriptionsView;
 import com.jameselner.finance_hub.view.TransactionView;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Span;
@@ -78,9 +81,13 @@ public class AppNavigation extends VerticalLayout {
     private SideNav createFinanceNav() {
         SideNav nav = new SideNav();
 
-        SideNavItem accounts = new SideNavItem("Accounts");
+        SideNavItem accounts = new SideNavItem("Accounts", AccountsView.class);
         accounts.setPrefixComponent(VaadinIcon.WALLET.create());
         nav.addItem(accounts);
+
+        SideNavItem categories = new SideNavItem("Categories", CategoriesView.class);
+        categories.setPrefixComponent(VaadinIcon.TAG.create());
+        nav.addItem(categories);
 
         SideNavItem transactions = new SideNavItem("Transactions", TransactionView.class);
         transactions.setPrefixComponent(VaadinIcon.EXCHANGE.create());
@@ -113,6 +120,10 @@ public class AppNavigation extends VerticalLayout {
         SideNavItem investments = new SideNavItem("Investments");
         investments.setPrefixComponent(VaadinIcon.TRENDING_UP.create());
         nav.addItem(investments);
+
+        SideNavItem subscriptions = new SideNavItem("Subscriptions", SubscriptionsView.class);
+        subscriptions.setPrefixComponent(VaadinIcon.REFRESH.create());
+        nav.addItem(subscriptions);
 
         SideNavItem bills = new SideNavItem("Bills");
         bills.setPrefixComponent(VaadinIcon.INVOICE.create());

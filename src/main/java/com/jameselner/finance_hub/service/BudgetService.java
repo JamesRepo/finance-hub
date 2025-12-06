@@ -3,6 +3,7 @@ package com.jameselner.finance_hub.service;
 import com.jameselner.finance_hub.domain.Budget;
 import com.jameselner.finance_hub.domain.Category;
 import com.jameselner.finance_hub.domain.Holiday;
+import com.jameselner.finance_hub.domain.Subscription;
 import com.jameselner.finance_hub.domain.Transaction;
 import com.jameselner.finance_hub.domain.User;
 import com.jameselner.finance_hub.domain.enums.TransactionType;
@@ -12,6 +13,7 @@ import com.jameselner.finance_hub.repository.BudgetRepository;
 import com.jameselner.finance_hub.repository.CategoryRepository;
 import com.jameselner.finance_hub.repository.HolidayExpenseRepository;
 import com.jameselner.finance_hub.repository.HolidayRepository;
+import com.jameselner.finance_hub.repository.SubscriptionRepository;
 import com.jameselner.finance_hub.repository.TransactionRepository;
 import com.jameselner.finance_hub.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +39,7 @@ public class BudgetService {
     private final CategoryRepository categoryRepository;
     private final HolidayRepository holidayRepository;
     private final HolidayExpenseRepository holidayExpenseRepository;
+    private final SubscriptionRepository subscriptionRepository;
 
     /**
      * Create a new budget from DTO
@@ -227,6 +230,7 @@ public class BudgetService {
     /**
      * Calculate the total amount spent for a category within a date range
      * For "Holidays" category, this includes both regular transactions and holiday expenses
+     * For "Subscriptions" category, this includes both regular transactions and subscription costs
      */
     public BigDecimal calculateSpentAmount(
             final User user,
@@ -267,7 +271,20 @@ public class BudgetService {
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
 
-        return transactionTotal.add(holidayTotal);
+        // If this is the "Subscriptions" category, also include subscription costs
+        BigDecimal subscriptionTotal = BigDecimal.ZERO;
+        if ("Subscriptions".equalsIgnoreCase(category.getCategoryName())) {
+            // Find all subscriptions with payment dates within the budget period
+            List<Subscription> subscriptions = subscriptionRepository.findByUserAndPaymentDateBetween(
+                    user, startDate, endDate);
+
+            // Sum the subscription amounts
+            subscriptionTotal = subscriptions.stream()
+                    .map(Subscription::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+
+        return transactionTotal.add(holidayTotal).add(subscriptionTotal);
     }
 
     // Private validation methods
