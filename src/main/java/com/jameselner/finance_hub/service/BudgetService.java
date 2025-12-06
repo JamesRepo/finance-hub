@@ -2,6 +2,7 @@ package com.jameselner.finance_hub.service;
 
 import com.jameselner.finance_hub.domain.Budget;
 import com.jameselner.finance_hub.domain.Category;
+import com.jameselner.finance_hub.domain.Holiday;
 import com.jameselner.finance_hub.domain.Transaction;
 import com.jameselner.finance_hub.domain.User;
 import com.jameselner.finance_hub.domain.enums.TransactionType;
@@ -9,6 +10,8 @@ import com.jameselner.finance_hub.dto.BudgetDTO;
 import com.jameselner.finance_hub.mapper.BudgetMapper;
 import com.jameselner.finance_hub.repository.BudgetRepository;
 import com.jameselner.finance_hub.repository.CategoryRepository;
+import com.jameselner.finance_hub.repository.HolidayExpenseRepository;
+import com.jameselner.finance_hub.repository.HolidayRepository;
 import com.jameselner.finance_hub.repository.TransactionRepository;
 import com.jameselner.finance_hub.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +35,8 @@ public class BudgetService {
     private final TransactionRepository transactionRepository;
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
+    private final HolidayRepository holidayRepository;
+    private final HolidayExpenseRepository holidayExpenseRepository;
 
     /**
      * Create a new budget from DTO
@@ -221,6 +226,7 @@ public class BudgetService {
 
     /**
      * Calculate the total amount spent for a category within a date range
+     * For "Holidays" category, this includes both regular transactions and holiday expenses
      */
     public BigDecimal calculateSpentAmount(
             final User user,
@@ -241,13 +247,27 @@ public class BudgetService {
         }
 
         // Sum all expense transactions for the category within the date range
-        return transactionRepository.findByTransactionDateBetweenAndCategoryOrderByTransactionDateDesc(
+        BigDecimal transactionTotal = transactionRepository.findByTransactionDateBetweenAndCategoryOrderByTransactionDateDesc(
                         startDate, endDate, category)
                 .stream()
                 .filter(t -> t.getTransactionType() == TransactionType.EXPENSE)
                 .filter(t -> t.getAccount() != null && t.getAccount().getUser().equals(user))
                 .map(Transaction::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // If this is the "Holidays" category, also include holiday expenses
+        BigDecimal holidayTotal = BigDecimal.ZERO;
+        if ("Holidays".equalsIgnoreCase(category.getCategoryName())) {
+            // Find all holidays that overlap with the budget period
+            List<Holiday> holidays = holidayRepository.findByUserAndDateRange(user, startDate, endDate);
+
+            // Sum all expenses from these holidays
+            holidayTotal = holidays.stream()
+                    .map(holidayExpenseRepository::calculateTotalSpent)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+
+        return transactionTotal.add(holidayTotal);
     }
 
     // Private validation methods
