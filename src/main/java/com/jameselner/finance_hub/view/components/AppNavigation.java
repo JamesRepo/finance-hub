@@ -12,6 +12,7 @@ import com.jameselner.finance_hub.view.MonthlySummaryView;
 import com.jameselner.finance_hub.view.SavingsGoalsView;
 import com.jameselner.finance_hub.view.SubscriptionsView;
 import com.jameselner.finance_hub.view.TransactionView;
+import com.jameselner.finance_hub.view.YearlySummaryView;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -66,6 +67,10 @@ public class AppNavigation extends VerticalLayout {
         SideNavItem monthlySummary = new SideNavItem("Monthly Summary", MonthlySummaryView.class);
         monthlySummary.setPrefixComponent(VaadinIcon.CALENDAR_USER.create());
         nav.addItem(monthlySummary);
+
+        SideNavItem yearlySummary = new SideNavItem("Yearly Summary", YearlySummaryView.class);
+        yearlySummary.setPrefixComponent(VaadinIcon.CALENDAR.create());
+        nav.addItem(yearlySummary);
 
         SideNavItem analytics = new SideNavItem("Analytics");
         analytics.setPrefixComponent(VaadinIcon.CHART.create());

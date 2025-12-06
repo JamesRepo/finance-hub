@@ -1,0 +1,28 @@
+package com.jameselner.finance_hub.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class YearComparisonDTO {
+    private Integer previousYear;
+    private Integer currentYear;
+
+    private BigDecimal incomeChange;
+    private BigDecimal incomeChangePercent;
+
+    private BigDecimal expenseChange;
+    private BigDecimal expenseChangePercent;
+
+    private BigDecimal savingsChange;
+    private BigDecimal savingsChangePercent;
+
+    private BigDecimal savingsRateChange; // Change in percentage points
+}
