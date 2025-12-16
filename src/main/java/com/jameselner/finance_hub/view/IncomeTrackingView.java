@@ -55,14 +55,11 @@ public class IncomeTrackingView extends VerticalLayout {
 
     private Span totalIncomeSpan;
     private Span recurringIncomeSpan;
-    private Span activeSourcesSpan;
+    private Span postDeductionIncomeSpan;
     private Span forecastedMonthlySpan;
 
     private VerticalLayout contentLayout;
     private Grid<IncomeSourceDTO> incomeSourceGrid;
-    private VerticalLayout forecastLayout;
-    private VerticalLayout reportsLayout;
-    private VerticalLayout comparisonLayout;
 
     private IncomeSourceForm incomeSourceForm;
     private Dialog formDialog;
@@ -123,10 +120,17 @@ public class IncomeTrackingView extends VerticalLayout {
         cardsLayout.setWidthFull();
         cardsLayout.setSpacing(true);
 
+        // Post-deduction card is first and prominent
+        VerticalLayout postDeductionCard = createSummaryCard("Take-Home Income", "£0.00", VaadinIcon.WALLET, "post-deduction-income");
+        postDeductionCard.getStyle()
+                .set("background-color", "var(--lumo-success-color-10pct)")
+                .set("border", "2px solid var(--lumo-success-color)")
+                .set("flex", "1.5");
+
         cardsLayout.add(
-                createSummaryCard("Total Active Income", "£0.00", VaadinIcon.MONEY, "total-income"),
+                postDeductionCard,
+                createSummaryCard("Gross Income", "£0.00", VaadinIcon.MONEY, "total-income"),
                 createSummaryCard("Recurring Income", "£0.00", VaadinIcon.REFRESH, "recurring-income"),
-                createSummaryCard("Active Sources", "0", VaadinIcon.LIST, "active-sources"),
                 createSummaryCard("Forecasted Monthly", "£0.00", VaadinIcon.CALENDAR, "forecasted-monthly")
         );
 
@@ -157,6 +161,14 @@ public class IncomeTrackingView extends VerticalLayout {
                 .set("font-size", "var(--lumo-font-size-xxl)")
                 .set("font-weight", "bold");
 
+        // Make post-deduction value extra prominent
+        if ("post-deduction-income".equals(cardType)) {
+            cardIcon.getStyle().set("color", "var(--lumo-success-color)");
+            valueSpan.getStyle()
+                    .set("font-size", "var(--lumo-font-size-xxxl)")
+                    .set("color", "var(--lumo-success-color)");
+        }
+
         Span labelSpan = new Span(label);
         labelSpan.getStyle()
                 .set("font-size", "var(--lumo-font-size-s)")
@@ -171,8 +183,8 @@ public class IncomeTrackingView extends VerticalLayout {
             case "recurring-income":
                 recurringIncomeSpan = valueSpan;
                 break;
-            case "active-sources":
-                activeSourcesSpan = valueSpan;
+            case "post-deduction-income":
+                postDeductionIncomeSpan = valueSpan;
                 break;
             case "forecasted-monthly":
                 forecastedMonthlySpan = valueSpan;
@@ -237,21 +249,25 @@ public class IncomeTrackingView extends VerticalLayout {
         Grid<IncomeSourceDTO> grid = new Grid<>(IncomeSourceDTO.class, false);
         grid.setSizeFull();
 
-        grid.addColumn(IncomeSourceDTO::getSourceName)
-                .setHeader("Source Name")
+        grid.addColumn(dto -> dto.getCategoryName() != null ? dto.getCategoryName() : "Uncategorised")
+                .setHeader("Category")
                 .setAutoWidth(true)
                 .setFlexGrow(1);
 
-        grid.addColumn(dto -> String.format("£%.2f", dto.getAmount()))
-                .setHeader("Amount")
+        grid.addColumn(dto -> dto.getStartDate().format(DateTimeFormatter.ofPattern("dd MMM yyyy")))
+                .setHeader("Date")
+                .setAutoWidth(true);
+
+        grid.addColumn(dto -> String.format("£%.2f", dto.getGrossAmount() != null ? dto.getGrossAmount() : dto.getAmount()))
+                .setHeader("Gross")
+                .setAutoWidth(true);
+
+        grid.addColumn(dto -> String.format("£%.2f", dto.getNetAmount() != null ? dto.getNetAmount() : dto.getAmount()))
+                .setHeader("Net")
                 .setAutoWidth(true);
 
         grid.addColumn(dto -> dto.getIsRecurring() ? dto.getRecurrenceFrequency().getDisplayName() : "One-time")
                 .setHeader("Frequency")
-                .setAutoWidth(true);
-
-        grid.addColumn(dto -> dto.getStartDate().format(DateTimeFormatter.ofPattern("dd MMM yyyy")))
-                .setHeader("Start Date")
                 .setAutoWidth(true);
 
         grid.addColumn(dto -> {
@@ -569,7 +585,9 @@ public class IncomeTrackingView extends VerticalLayout {
         confirmDialog.setCloseOnOutsideClick(false);
 
         H3 title = new H3("Delete Income Source");
-        Span message = new Span("Are you sure you want to delete \"" + dto.getSourceName() +
+        String identifier = (dto.getCategoryName() != null ? dto.getCategoryName() : "Income") +
+                " - " + dto.getStartDate().format(DateTimeFormatter.ofPattern("dd MMM yyyy"));
+        Span message = new Span("Are you sure you want to delete \"" + identifier +
                 "\"? This action cannot be undone.");
 
         Button confirmButton = new Button("Delete", event -> {
@@ -603,13 +621,20 @@ public class IncomeTrackingView extends VerticalLayout {
 
         BigDecimal totalIncome = incomeSourceService.getTotalActiveIncomeByUser(user);
         BigDecimal recurringIncome = incomeSourceService.getTotalRecurringIncomeByUser(user);
-        long activeSources = incomeSourceService.countActiveIncomeSourcesByUser(user);
+
+        // Calculate total net income (post-deduction)
+        List<IncomeSourceDTO> incomeSources = incomeSourceService.findByUserAsDto(user);
+        BigDecimal totalNetIncome = incomeSources.stream()
+                .filter(dto -> dto.getIsActive() != null && dto.getIsActive())
+                .map(dto -> dto.getNetAmount() != null ? dto.getNetAmount() : dto.getAmount())
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         IncomeForecastDTO monthlyForecast = incomeForecastService.generateMonthlyForecast(user);
 
+        postDeductionIncomeSpan.setText(String.format("£%.2f", totalNetIncome));
         totalIncomeSpan.setText(String.format("£%.2f", totalIncome != null ? totalIncome : BigDecimal.ZERO));
         recurringIncomeSpan.setText(String.format("£%.2f", recurringIncome != null ? recurringIncome : BigDecimal.ZERO));
-        activeSourcesSpan.setText(String.valueOf(activeSources));
         forecastedMonthlySpan.setText(String.format("£%.2f", monthlyForecast.getAverageMonthlyIncome()));
 
         refreshIncomeSourceGrid();

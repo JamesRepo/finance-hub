@@ -21,6 +21,7 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
@@ -30,7 +31,6 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.BigDecimalField;
 import com.vaadin.flow.component.textfield.TextArea;
-import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
@@ -58,14 +58,14 @@ public class IncomeSourceForm extends VerticalLayout {
     private IncomeSourceDTO currentIncomeSource;
     private final List<IncomeDeductionDTO> deductions = new ArrayList<>();
 
-    private TextField sourceNameField;
     private TextArea descriptionField;
+    private Details descriptionDetails;
     private BigDecimalField grossAmountField;
     private Span netAmountDisplay;
+    private VerticalLayout deductionTotalsSection;
     private Checkbox isRecurringCheckbox;
     private ComboBox<RecurrenceFrequency> recurrenceFrequencyCombo;
-    private DatePicker startDatePicker;
-    private DatePicker endDatePicker;
+    private DatePicker datePicker;
     private ComboBox<Category> categoryCombo;
     private Checkbox isActiveCheckbox;
     private Checkbox autoCreateTransactionCheckbox;
@@ -119,14 +119,14 @@ public class IncomeSourceForm extends VerticalLayout {
     }
 
     private void createFormFields() {
-        sourceNameField = new TextField("Income Source Name");
-        sourceNameField.setRequiredIndicatorVisible(true);
-        sourceNameField.setHelperText("e.g., Full-time Salary, Freelance Work");
-        sourceNameField.setPlaceholder("Enter source name");
-
-        descriptionField = new TextArea("Description");
-        descriptionField.setHelperText("Optional details about this income source");
+        descriptionField = new TextArea();
+        descriptionField.setPlaceholder("Optional notes about this income source");
         descriptionField.setMaxLength(1000);
+        descriptionField.setWidthFull();
+        descriptionField.setMinHeight("80px");
+
+        descriptionDetails = new Details("Add Notes (Optional)", descriptionField);
+        descriptionDetails.setOpened(false);
 
         grossAmountField = new BigDecimalField("Gross Amount (Pre-Tax)");
         grossAmountField.setPrefixComponent(new Span("£"));
@@ -150,13 +150,10 @@ public class IncomeSourceForm extends VerticalLayout {
         recurrenceFrequencyCombo.setHelperText("How often does this income occur?");
         recurrenceFrequencyCombo.setEnabled(false);
 
-        startDatePicker = new DatePicker("Start Date");
-        startDatePicker.setRequiredIndicatorVisible(true);
-        startDatePicker.setValue(LocalDate.now());
-        startDatePicker.setHelperText("When did/will this income start?");
-
-        endDatePicker = new DatePicker("End Date");
-        endDatePicker.setHelperText("Optional: When will this income end?");
+        datePicker = new DatePicker("Date Received");
+        datePicker.setRequiredIndicatorVisible(true);
+        datePicker.setValue(LocalDate.now());
+        datePicker.setHelperText("When was this income received?");
 
         List<Category> incomeCategories = categoryRepository.findByCategoryType(CategoryType.INCOME);
         categoryCombo = new ComboBox<>("Category");
@@ -180,22 +177,18 @@ public class IncomeSourceForm extends VerticalLayout {
                 new FormLayout.ResponsiveStep("500px", 2)
         );
 
-        formLayout.add(sourceNameField);
-        formLayout.setColspan(sourceNameField, 2);
-
-        formLayout.add(descriptionField);
-        formLayout.setColspan(descriptionField, 2);
-
         formLayout.add(
                 grossAmountField,
                 categoryCombo,
+                datePicker,
                 isRecurringCheckbox,
                 recurrenceFrequencyCombo,
-                startDatePicker,
-                endDatePicker,
                 isActiveCheckbox,
                 autoCreateTransactionCheckbox
         );
+
+        formLayout.add(descriptionDetails);
+        formLayout.setColspan(descriptionDetails, 2);
 
         return formLayout;
     }
@@ -230,6 +223,7 @@ public class IncomeSourceForm extends VerticalLayout {
         deductionsSection.setPadding(false);
         deductionsSection.setSpacing(true);
         deductionsSection.getStyle().set("margin-top", "1rem");
+        deductionsSection.setWidthFull();
 
         H4 sectionTitle = new H4("Deductions");
         sectionTitle.getStyle().set("margin", "0");
@@ -246,18 +240,36 @@ public class IncomeSourceForm extends VerticalLayout {
         deductionsGrid = createDeductionsGrid();
 
         Div gridContainer = new Div(deductionsGrid);
+        gridContainer.setWidthFull();
         gridContainer.getStyle()
                 .set("border", "1px solid var(--lumo-contrast-20pct)")
                 .set("border-radius", "var(--lumo-border-radius-m)")
-                .set("overflow", "hidden");
+                .set("overflow", "auto")
+                .set("max-width", "100%");
 
-        deductionsSection.add(header, gridContainer);
+        deductionTotalsSection = createDeductionTotalsSection();
+
+        deductionsSection.add(header, gridContainer, deductionTotalsSection);
+    }
+
+    private VerticalLayout createDeductionTotalsSection() {
+        VerticalLayout totals = new VerticalLayout();
+        totals.setPadding(true);
+        totals.setSpacing(false);
+        totals.getStyle()
+                .set("background-color", "var(--lumo-contrast-5pct)")
+                .set("border-radius", "var(--lumo-border-radius-m)")
+                .set("margin-top", "0.5rem");
+
+        return totals;
     }
 
     private Grid<IncomeDeductionDTO> createDeductionsGrid() {
         Grid<IncomeDeductionDTO> grid = new Grid<>(IncomeDeductionDTO.class, false);
         grid.setAllRowsVisible(true);
         grid.setMaxHeight("300px");
+        grid.setWidthFull();
+        grid.getStyle().set("min-width", "100%");
 
         grid.addColumn(dto -> dto.getDeductionType().getDisplayName())
                 .setHeader("Type")
@@ -364,27 +376,100 @@ public class IncomeSourceForm extends VerticalLayout {
 
         final BigDecimal grossAmount = grossAmountValue;
 
-        BigDecimal totalDeductions = deductions.stream()
-                .filter(IncomeDeductionDTO::getIsActive)
-                .map(dto -> {
-                    if (dto.getIsPercentage() && dto.getPercentageValue() != null) {
-                        return grossAmount.multiply(dto.getPercentageValue())
-                                .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
-                    } else if (dto.getAmount() != null) {
-                        return dto.getAmount();
-                    }
-                    return BigDecimal.ZERO;
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // Calculate each deduction amount
+        List<DeductionAmount> deductionAmounts = new ArrayList<>();
+        BigDecimal totalDeductions = BigDecimal.ZERO;
+
+        for (IncomeDeductionDTO dto : deductions) {
+            if (dto.getIsActive()) {
+                BigDecimal amount;
+                if (dto.getIsPercentage() && dto.getPercentageValue() != null) {
+                    amount = grossAmount.multiply(dto.getPercentageValue())
+                            .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                } else if (dto.getAmount() != null) {
+                    amount = dto.getAmount();
+                } else {
+                    amount = BigDecimal.ZERO;
+                }
+                deductionAmounts.add(new DeductionAmount(dto.getDeductionName(), amount));
+                totalDeductions = totalDeductions.add(amount);
+            }
+        }
 
         BigDecimal netAmount = grossAmount.subtract(totalDeductions);
         netAmountDisplay.setText(String.format("£%.2f", netAmount));
+
+        // Update deduction totals section
+        updateDeductionTotalsSection(grossAmount, deductionAmounts, totalDeductions, netAmount);
 
         // Also update the DTO if it exists
         if (currentIncomeSource != null) {
             currentIncomeSource.setNetAmount(netAmount);
         }
     }
+
+    private void updateDeductionTotalsSection(BigDecimal grossAmount, List<DeductionAmount> deductionAmounts,
+                                               BigDecimal totalDeductions, BigDecimal netAmount) {
+        deductionTotalsSection.removeAll();
+
+        if (deductionAmounts.isEmpty()) {
+            Span noDeductions = new Span("No deductions added yet");
+            noDeductions.getStyle().set("color", "var(--lumo-secondary-text-color)");
+            deductionTotalsSection.add(noDeductions);
+            return;
+        }
+
+        // Gross amount row
+        HorizontalLayout grossRow = createCalculationRow("Gross Income", String.format("£%.2f", grossAmount), false);
+        deductionTotalsSection.add(grossRow);
+
+        // Each deduction row
+        for (DeductionAmount da : deductionAmounts) {
+            HorizontalLayout deductionRow = createCalculationRow("- " + da.name, String.format("£%.2f", da.amount), false);
+            deductionRow.getStyle().set("color", "var(--lumo-error-text-color)");
+            deductionTotalsSection.add(deductionRow);
+        }
+
+        // Divider
+        Div divider = new Div();
+        divider.getStyle()
+                .set("border-top", "1px solid var(--lumo-contrast-20pct)")
+                .set("margin", "0.5rem 0");
+        divider.setWidthFull();
+        deductionTotalsSection.add(divider);
+
+        // Total deductions row
+        HorizontalLayout totalDeductionsRow = createCalculationRow("Total Deductions", String.format("£%.2f", totalDeductions), false);
+        totalDeductionsRow.getStyle().set("color", "var(--lumo-error-text-color)");
+        deductionTotalsSection.add(totalDeductionsRow);
+
+        // Net amount row (highlighted)
+        HorizontalLayout netRow = createCalculationRow("Net Take-Home", String.format("£%.2f", netAmount), true);
+        netRow.getStyle()
+                .set("color", "var(--lumo-success-color)")
+                .set("font-weight", "bold")
+                .set("font-size", "var(--lumo-font-size-l)")
+                .set("margin-top", "0.5rem");
+        deductionTotalsSection.add(netRow);
+    }
+
+    private HorizontalLayout createCalculationRow(String label, String value, boolean highlight) {
+        Span labelSpan = new Span(label);
+        Span valueSpan = new Span(value);
+        valueSpan.getStyle().set("font-weight", highlight ? "bold" : "normal");
+
+        HorizontalLayout row = new HorizontalLayout(labelSpan, valueSpan);
+        row.setWidthFull();
+        row.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+        row.setPadding(false);
+        row.setSpacing(false);
+        row.getStyle().set("padding", "0.25rem 0");
+
+        return row;
+    }
+
+    // Helper record for deduction amounts
+    private record DeductionAmount(String name, BigDecimal amount) {}
 
     private void createButtons() {
         saveButton = new Button("Save Income Source");
@@ -402,11 +487,6 @@ public class IncomeSourceForm extends VerticalLayout {
     }
 
     private void setupBinder() {
-        binder.forField(sourceNameField)
-                .withValidator(Objects::nonNull, "Source name is required")
-                .withValidator(name -> !name.trim().isEmpty(), "Source name cannot be empty")
-                .bind(IncomeSourceDTO::getSourceName, IncomeSourceDTO::setSourceName);
-
         binder.forField(descriptionField)
                 .bind(IncomeSourceDTO::getDescription, IncomeSourceDTO::setDescription);
 
@@ -423,12 +503,9 @@ public class IncomeSourceForm extends VerticalLayout {
         binder.forField(recurrenceFrequencyCombo)
                 .bind(IncomeSourceDTO::getRecurrenceFrequency, IncomeSourceDTO::setRecurrenceFrequency);
 
-        binder.forField(startDatePicker)
-                .withValidator(Objects::nonNull, "Start date is required")
+        binder.forField(datePicker)
+                .withValidator(Objects::nonNull, "Date is required")
                 .bind(IncomeSourceDTO::getStartDate, IncomeSourceDTO::setStartDate);
-
-        binder.forField(endDatePicker)
-                .bind(IncomeSourceDTO::getEndDate, IncomeSourceDTO::setEndDate);
 
         binder.forField(categoryCombo)
                 .bind(
@@ -476,6 +553,13 @@ public class IncomeSourceForm extends VerticalLayout {
             dto.setUserId(currentUser.getUserId());
 
             binder.writeBean(dto);
+
+            // Auto-generate source name from category and date
+            String categoryName = dto.getCategoryName() != null ? dto.getCategoryName() : "Income";
+            String dateStr = dto.getStartDate() != null
+                    ? dto.getStartDate().format(java.time.format.DateTimeFormatter.ofPattern("MMM yyyy"))
+                    : LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("MMM yyyy"));
+            dto.setSourceName(categoryName + " - " + dateStr);
 
             // Set amount field to gross amount for backward compatibility
             dto.setAmount(dto.getGrossAmount());

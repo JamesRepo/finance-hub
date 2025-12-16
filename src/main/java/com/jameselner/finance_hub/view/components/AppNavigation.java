@@ -33,7 +33,7 @@ public class AppNavigation extends VerticalLayout {
         add(
                 createSection("MAIN", createMainNav()),
                 createSection("FINANCE", createFinanceNav()),
-                createSection("TOOLS", createToolsNav())
+                createSection("ADMIN", createAdminNav())
         );
     }
 
@@ -72,14 +72,6 @@ public class AppNavigation extends VerticalLayout {
         yearlySummary.setPrefixComponent(VaadinIcon.CALENDAR.create());
         nav.addItem(yearlySummary);
 
-        SideNavItem analytics = new SideNavItem("Analytics");
-        analytics.setPrefixComponent(VaadinIcon.CHART.create());
-        nav.addItem(analytics);
-
-        SideNavItem reports = new SideNavItem("Reports");
-        reports.setPrefixComponent(VaadinIcon.FILE_TEXT.create());
-        nav.addItem(reports);
-
         return nav;
     }
 
@@ -89,10 +81,6 @@ public class AppNavigation extends VerticalLayout {
         SideNavItem accounts = new SideNavItem("Accounts", AccountsView.class);
         accounts.setPrefixComponent(VaadinIcon.WALLET.create());
         nav.addItem(accounts);
-
-        SideNavItem categories = new SideNavItem("Categories", CategoriesView.class);
-        categories.setPrefixComponent(VaadinIcon.TAG.create());
-        nav.addItem(categories);
 
         SideNavItem transactions = new SideNavItem("Transactions", TransactionView.class);
         transactions.setPrefixComponent(VaadinIcon.EXCHANGE.create());
@@ -122,35 +110,19 @@ public class AppNavigation extends VerticalLayout {
         debts.setPrefixComponent(VaadinIcon.CREDIT_CARD.create());
         nav.addItem(debts);
 
-        SideNavItem investments = new SideNavItem("Investments");
-        investments.setPrefixComponent(VaadinIcon.TRENDING_UP.create());
-        nav.addItem(investments);
-
         SideNavItem subscriptions = new SideNavItem("Subscriptions", SubscriptionsView.class);
         subscriptions.setPrefixComponent(VaadinIcon.REFRESH.create());
         nav.addItem(subscriptions);
 
-        SideNavItem bills = new SideNavItem("Bills");
-        bills.setPrefixComponent(VaadinIcon.INVOICE.create());
-        nav.addItem(bills);
-
         return nav;
     }
 
-    private SideNav createToolsNav() {
+    private SideNav createAdminNav() {
         SideNav nav = new SideNav();
 
-        SideNavItem goals = new SideNavItem("Goals");
-        goals.setPrefixComponent(VaadinIcon.FLAG.create());
-        nav.addItem(goals);
-
-        SideNavItem calculator = new SideNavItem("Calculator");
-        calculator.setPrefixComponent(VaadinIcon.CALC.create());
-        nav.addItem(calculator);
-
-        SideNavItem settings = new SideNavItem("Settings");
-        settings.setPrefixComponent(VaadinIcon.COG.create());
-        nav.addItem(settings);
+        SideNavItem categories = new SideNavItem("Categories", CategoriesView.class);
+        categories.setPrefixComponent(VaadinIcon.TAG.create());
+        nav.addItem(categories);
 
         return nav;
     }
