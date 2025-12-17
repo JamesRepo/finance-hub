@@ -319,28 +319,28 @@ public class IncomeSourceForm extends VerticalLayout {
         return grid;
     }
 
+    private int editingDeductionIndex = -1;
+
     private void setupDeductionDialog() {
         deductionDialog = new DeductionFormDialog(incomeDeductionService);
         deductionDialog.setSaveListener(deduction -> {
-            // Update or add deduction in the list
-            boolean found = false;
-            for (int i = 0; i < deductions.size(); i++) {
-                if (deductions.get(i).getDeductionId() != null &&
-                        deductions.get(i).getDeductionId().equals(deduction.getDeductionId())) {
-                    deductions.set(i, deduction);
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
+            if (editingDeductionIndex >= 0 && editingDeductionIndex < deductions.size()) {
+                // We were editing an existing deduction - replace it
+                deductions.set(editingDeductionIndex, deduction);
+            } else {
+                // This is a new deduction - add it
                 deductions.add(deduction);
             }
+            editingDeductionIndex = -1;
             refreshDeductionsGrid();
             updateNetAmount();
         });
     }
 
     private void openDeductionDialog(final IncomeDeductionDTO deduction) {
+        // Track which deduction we're editing by index
+        editingDeductionIndex = deduction != null ? deductions.indexOf(deduction) : -1;
+
         // Allow adding deductions even before saving the income source
         Long incomeSourceId = (currentIncomeSource != null) ? currentIncomeSource.getIncomeSourceId() : null;
         deductionDialog.open(incomeSourceId, deduction);
