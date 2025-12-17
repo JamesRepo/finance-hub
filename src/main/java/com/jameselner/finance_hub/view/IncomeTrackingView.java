@@ -1,6 +1,7 @@
 package com.jameselner.finance_hub.view;
 
 import com.jameselner.finance_hub.domain.User;
+import com.jameselner.finance_hub.dto.IncomeDeductionDTO;
 import com.jameselner.finance_hub.dto.IncomeForecastDTO;
 import com.jameselner.finance_hub.dto.IncomeReportDTO;
 import com.jameselner.finance_hub.dto.IncomeSourceDTO;
@@ -304,6 +305,11 @@ public class IncomeTrackingView extends VerticalLayout {
     }
 
     private HorizontalLayout createActionButtons(final IncomeSourceDTO dto) {
+        Button copyButton = new Button(new Icon(VaadinIcon.COPY));
+        copyButton.addThemeVariants(ButtonVariant.LUMO_ICON);
+        copyButton.getElement().setAttribute("title", "Copy to next month");
+        copyButton.addClickListener(event -> copyToNextMonth(dto));
+
         Button editButton = new Button(new Icon(VaadinIcon.EDIT));
         editButton.addThemeVariants(ButtonVariant.LUMO_ICON);
         editButton.getElement().setAttribute("title", "Edit");
@@ -314,10 +320,52 @@ public class IncomeTrackingView extends VerticalLayout {
         deleteButton.getElement().setAttribute("title", "Delete");
         deleteButton.addClickListener(event -> deleteIncomeSource(dto));
 
-        HorizontalLayout actions = new HorizontalLayout(editButton, deleteButton);
+        HorizontalLayout actions = new HorizontalLayout(copyButton, editButton, deleteButton);
         actions.setSpacing(true);
 
         return actions;
+    }
+
+    private void copyToNextMonth(final IncomeSourceDTO sourceDto) {
+        // Create a copy with date set to next month
+        IncomeSourceDTO copy = new IncomeSourceDTO();
+        copy.setCategoryId(sourceDto.getCategoryId());
+        copy.setCategoryName(sourceDto.getCategoryName());
+        copy.setGrossAmount(sourceDto.getGrossAmount());
+        copy.setAmount(sourceDto.getAmount());
+        copy.setIsRecurring(sourceDto.getIsRecurring());
+        copy.setRecurrenceFrequency(sourceDto.getRecurrenceFrequency());
+        copy.setIsActive(sourceDto.getIsActive());
+        copy.setAutoCreateTransaction(sourceDto.getAutoCreateTransaction());
+        copy.setDescription(sourceDto.getDescription());
+
+        // Set date to next month (same day)
+        if (sourceDto.getStartDate() != null) {
+            copy.setStartDate(sourceDto.getStartDate().plusMonths(1));
+        } else {
+            copy.setStartDate(LocalDate.now().plusMonths(1));
+        }
+
+        // Load deductions from source and prepare them for copying
+        List<IncomeDeductionDTO> sourceDeductions = incomeDeductionService.findByIncomeSourceAsDto(sourceDto.getIncomeSourceId());
+        copy.setDeductions(sourceDeductions.stream()
+                .map(d -> {
+                    IncomeDeductionDTO deductionCopy = new IncomeDeductionDTO();
+                    deductionCopy.setDeductionType(d.getDeductionType());
+                    deductionCopy.setDeductionName(d.getDeductionName());
+                    deductionCopy.setIsPercentage(d.getIsPercentage());
+                    deductionCopy.setAmount(d.getAmount());
+                    deductionCopy.setPercentageValue(d.getPercentageValue());
+                    deductionCopy.setDescription(d.getDescription());
+                    deductionCopy.setIsActive(d.getIsActive());
+                    // Don't copy the ID - this is a new deduction
+                    return deductionCopy;
+                })
+                .collect(java.util.stream.Collectors.toList()));
+
+        // Open form with the copy for editing
+        incomeSourceForm.setIncomeSourceWithDeductions(copy, copy.getDeductions());
+        formDialog.open();
     }
 
     private void showForecastView() {

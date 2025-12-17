@@ -18,7 +18,6 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.BigDecimalField;
 import com.vaadin.flow.component.textfield.TextArea;
-import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
@@ -38,7 +37,6 @@ public class DeductionFormDialog extends Dialog {
     private IncomeDeductionDTO currentDeduction;
 
     private ComboBox<DeductionType> deductionTypeCombo;
-    private TextField deductionNameField;
     private Checkbox isPercentageCheckbox;
     private BigDecimalField amountField;
     private BigDecimalField percentageField;
@@ -95,15 +93,6 @@ public class DeductionFormDialog extends Dialog {
         deductionTypeCombo.setItems(DeductionType.values());
         deductionTypeCombo.setItemLabelGenerator(DeductionType::getDisplayName);
         deductionTypeCombo.setRequiredIndicatorVisible(true);
-        deductionTypeCombo.addValueChangeListener(event -> {
-            if (event.getValue() != null && deductionNameField.isEmpty()) {
-                deductionNameField.setValue(event.getValue().getDisplayName());
-            }
-        });
-
-        deductionNameField = new TextField("Deduction Name");
-        deductionNameField.setRequiredIndicatorVisible(true);
-        deductionNameField.setPlaceholder("e.g., Income Tax - PAYE");
 
         isPercentageCheckbox = new Checkbox("Use Percentage");
         isPercentageCheckbox.setHelperText("Check to use percentage of gross salary");
@@ -132,7 +121,6 @@ public class DeductionFormDialog extends Dialog {
 
         formLayout.add(
                 deductionTypeCombo,
-                deductionNameField,
                 isPercentageCheckbox,
                 amountField,
                 percentageField,
@@ -163,11 +151,6 @@ public class DeductionFormDialog extends Dialog {
         binder.forField(deductionTypeCombo)
                 .withValidator(Objects::nonNull, "Deduction type is required")
                 .bind(IncomeDeductionDTO::getDeductionType, IncomeDeductionDTO::setDeductionType);
-
-        binder.forField(deductionNameField)
-                .withValidator(Objects::nonNull, "Deduction name is required")
-                .withValidator(name -> !name.trim().isEmpty(), "Deduction name cannot be empty")
-                .bind(IncomeDeductionDTO::getDeductionName, IncomeDeductionDTO::setDeductionName);
 
         binder.forField(isPercentageCheckbox)
                 .bind(IncomeDeductionDTO::getIsPercentage, IncomeDeductionDTO::setIsPercentage);
@@ -217,6 +200,11 @@ public class DeductionFormDialog extends Dialog {
             dto.setIncomeSourceId(incomeSourceId);
 
             binder.writeBean(dto);
+
+            // Auto-set deduction name from deduction type
+            if (dto.getDeductionType() != null) {
+                dto.setDeductionName(dto.getDeductionType().getDisplayName());
+            }
 
             // Ensure the unused field is null to satisfy database constraints
             if (dto.getIsPercentage()) {

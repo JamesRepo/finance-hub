@@ -627,6 +627,32 @@ public class IncomeSourceForm extends VerticalLayout {
         }
     }
 
+    /**
+     * Sets the income source with pre-loaded deductions (used for copying).
+     * This does not load deductions from DB - uses the provided list instead.
+     */
+    public void setIncomeSourceWithDeductions(final IncomeSourceDTO dto, final List<IncomeDeductionDTO> deductionsToCopy) {
+        this.currentIncomeSource = null; // Treat as new (no ID)
+        binder.readBean(dto);
+
+        if (dto.getIsRecurring() != null && dto.getIsRecurring()) {
+            recurrenceFrequencyCombo.setEnabled(true);
+        }
+
+        // Open description if it has content
+        if (dto.getDescription() != null && !dto.getDescription().isEmpty()) {
+            descriptionDetails.setOpened(true);
+        }
+
+        // Use provided deductions instead of loading from DB
+        deductions.clear();
+        if (deductionsToCopy != null) {
+            deductions.addAll(deductionsToCopy);
+        }
+        refreshDeductionsGrid();
+        updateNetAmount();
+    }
+
     private void loadDeductions(final Long incomeSourceId) {
         deductions.clear();
         deductions.addAll(incomeDeductionService.findByIncomeSourceAsDto(incomeSourceId));
