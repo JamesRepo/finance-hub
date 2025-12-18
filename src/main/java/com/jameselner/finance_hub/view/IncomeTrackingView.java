@@ -15,6 +15,7 @@ import com.jameselner.finance_hub.service.IncomeSourceService;
 import com.jameselner.finance_hub.view.components.IncomeSourceForm;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
@@ -58,6 +59,9 @@ public class IncomeTrackingView extends VerticalLayout {
     private Span recurringIncomeSpan;
     private Span postDeductionIncomeSpan;
     private Span forecastedMonthlySpan;
+
+    private ComboBox<String> yearFilterCombo;
+    private Integer selectedYear = null; // null means "All Time"
 
     private VerticalLayout contentLayout;
     private Grid<IncomeSourceDTO> incomeSourceGrid;
@@ -109,9 +113,37 @@ public class IncomeTrackingView extends VerticalLayout {
         H2 title = new H2("Income Tracking");
         title.getStyle().set("margin", "0");
 
-        HorizontalLayout header = new HorizontalLayout(title);
+        // Year filter
+        yearFilterCombo = new ComboBox<>();
+        yearFilterCombo.setPlaceholder("Filter by year");
+        yearFilterCombo.setWidth("150px");
+        yearFilterCombo.setClearButtonVisible(false);
+
+        // Populate years - current year and a few previous years, plus "All Time"
+        int currentYear = LocalDate.now().getYear();
+        List<String> yearOptions = new java.util.ArrayList<>();
+        yearOptions.add("All Time");
+        for (int year = currentYear; year >= currentYear - 5; year--) {
+            yearOptions.add(String.valueOf(year));
+        }
+        yearFilterCombo.setItems(yearOptions);
+        yearFilterCombo.setValue(String.valueOf(currentYear)); // Default to current year
+        selectedYear = currentYear;
+
+        yearFilterCombo.addValueChangeListener(event -> {
+            String value = event.getValue();
+            if ("All Time".equals(value)) {
+                selectedYear = null;
+            } else {
+                selectedYear = Integer.parseInt(value);
+            }
+            refreshData();
+        });
+
+        HorizontalLayout header = new HorizontalLayout(title, yearFilterCombo);
         header.setWidthFull();
         header.setAlignItems(FlexComponent.Alignment.CENTER);
+        header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
 
         return header;
     }
@@ -667,12 +699,25 @@ public class IncomeTrackingView extends VerticalLayout {
     private void refreshData() {
         User user = getCurrentUser();
 
-        BigDecimal totalIncome = incomeSourceService.getTotalActiveIncomeByUser(user);
-        BigDecimal recurringIncome = incomeSourceService.getTotalRecurringIncomeByUser(user);
+        // Get all income sources and filter by year if selected
+        List<IncomeSourceDTO> allIncomeSources = incomeSourceService.findByUserAsDto(user);
+        List<IncomeSourceDTO> filteredSources = filterByYear(allIncomeSources);
 
-        // Calculate total net income (post-deduction)
-        List<IncomeSourceDTO> incomeSources = incomeSourceService.findByUserAsDto(user);
-        BigDecimal totalNetIncome = incomeSources.stream()
+        // Calculate totals from filtered sources
+        BigDecimal totalGrossIncome = filteredSources.stream()
+                .filter(dto -> dto.getIsActive() != null && dto.getIsActive())
+                .map(dto -> dto.getGrossAmount() != null ? dto.getGrossAmount() : dto.getAmount())
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal recurringIncome = filteredSources.stream()
+                .filter(dto -> dto.getIsActive() != null && dto.getIsActive())
+                .filter(dto -> dto.getIsRecurring() != null && dto.getIsRecurring())
+                .map(dto -> dto.getGrossAmount() != null ? dto.getGrossAmount() : dto.getAmount())
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalNetIncome = filteredSources.stream()
                 .filter(dto -> dto.getIsActive() != null && dto.getIsActive())
                 .map(dto -> dto.getNetAmount() != null ? dto.getNetAmount() : dto.getAmount())
                 .filter(java.util.Objects::nonNull)
@@ -681,18 +726,29 @@ public class IncomeTrackingView extends VerticalLayout {
         IncomeForecastDTO monthlyForecast = incomeForecastService.generateMonthlyForecast(user);
 
         postDeductionIncomeSpan.setText(String.format("£%.2f", totalNetIncome));
-        totalIncomeSpan.setText(String.format("£%.2f", totalIncome != null ? totalIncome : BigDecimal.ZERO));
-        recurringIncomeSpan.setText(String.format("£%.2f", recurringIncome != null ? recurringIncome : BigDecimal.ZERO));
+        totalIncomeSpan.setText(String.format("£%.2f", totalGrossIncome));
+        recurringIncomeSpan.setText(String.format("£%.2f", recurringIncome));
         forecastedMonthlySpan.setText(String.format("£%.2f", monthlyForecast.getAverageMonthlyIncome()));
 
         refreshIncomeSourceGrid();
+    }
+
+    private List<IncomeSourceDTO> filterByYear(List<IncomeSourceDTO> sources) {
+        if (selectedYear == null) {
+            // "All Time" - no filtering
+            return sources;
+        }
+        return sources.stream()
+                .filter(dto -> dto.getStartDate() != null && dto.getStartDate().getYear() == selectedYear)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     private void refreshIncomeSourceGrid() {
         if (incomeSourceGrid != null) {
             User user = getCurrentUser();
             List<IncomeSourceDTO> incomeSources = incomeSourceService.findByUserAsDto(user);
-            incomeSourceGrid.setItems(incomeSources);
+            List<IncomeSourceDTO> filteredSources = filterByYear(incomeSources);
+            incomeSourceGrid.setItems(filteredSources);
         }
     }
 

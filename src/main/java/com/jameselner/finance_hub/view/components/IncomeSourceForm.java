@@ -408,6 +408,35 @@ public class IncomeSourceForm extends VerticalLayout {
         }
     }
 
+    /**
+     * Calculates the net amount from gross amount minus all active deductions.
+     */
+    private BigDecimal calculateNetAmount(BigDecimal grossAmount) {
+        if (grossAmount == null) {
+            grossAmount = BigDecimal.ZERO;
+        }
+
+        final BigDecimal gross = grossAmount;
+        BigDecimal totalDeductions = BigDecimal.ZERO;
+
+        for (IncomeDeductionDTO dto : deductions) {
+            if (dto.getIsActive()) {
+                BigDecimal amount;
+                if (dto.getIsPercentage() && dto.getPercentageValue() != null) {
+                    amount = gross.multiply(dto.getPercentageValue())
+                            .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                } else if (dto.getAmount() != null) {
+                    amount = dto.getAmount();
+                } else {
+                    amount = BigDecimal.ZERO;
+                }
+                totalDeductions = totalDeductions.add(amount);
+            }
+        }
+
+        return gross.subtract(totalDeductions);
+    }
+
     private void updateDeductionTotalsSection(BigDecimal grossAmount, List<DeductionAmount> deductionAmounts,
                                                BigDecimal totalDeductions, BigDecimal netAmount) {
         deductionTotalsSection.removeAll();
@@ -564,9 +593,9 @@ public class IncomeSourceForm extends VerticalLayout {
             // Set amount field to gross amount for backward compatibility
             dto.setAmount(dto.getGrossAmount());
 
-            // Update net amount
-            updateNetAmount();
-            dto.setNetAmount(currentIncomeSource != null ? currentIncomeSource.getNetAmount() : BigDecimal.ZERO);
+            // Calculate and set net amount
+            BigDecimal netAmount = calculateNetAmount(dto.getGrossAmount());
+            dto.setNetAmount(netAmount);
 
             IncomeSourceDTO savedDto;
             boolean isNewIncomeSource = dto.getIncomeSourceId() == null;
