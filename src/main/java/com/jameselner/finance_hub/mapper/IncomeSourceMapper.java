@@ -28,9 +28,7 @@ public class IncomeSourceMapper {
                 .incomeSourceId(incomeSource.getIncomeSourceId())
                 .userId(incomeSource.getUser() != null ? incomeSource.getUser().getUserId() : null)
                 .userName(incomeSource.getUser() != null ? incomeSource.getUser().getEmail() : null)
-                .sourceName(incomeSource.getSourceName())
                 .description(incomeSource.getDescription())
-                .amount(incomeSource.getAmount())
                 .grossAmount(incomeSource.getGrossAmount())
                 .netAmount(incomeSource.getNetAmount())
                 .deductions(incomeSource.getDeductions() != null ?
@@ -72,9 +70,7 @@ public class IncomeSourceMapper {
             incomeSource.setUser(user);
         }
 
-        incomeSource.setSourceName(dto.getSourceName());
         incomeSource.setDescription(dto.getDescription());
-        incomeSource.setAmount(dto.getAmount());
         incomeSource.setGrossAmount(dto.getGrossAmount());
         incomeSource.setNetAmount(dto.getNetAmount());
         incomeSource.setIsRecurring(dto.getIsRecurring());

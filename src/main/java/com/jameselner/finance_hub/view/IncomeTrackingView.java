@@ -283,29 +283,16 @@ public class IncomeTrackingView extends VerticalLayout {
                 .setHeader("Date")
                 .setAutoWidth(true);
 
-        grid.addColumn(dto -> String.format("£%.2f", dto.getGrossAmount() != null ? dto.getGrossAmount() : dto.getAmount()))
+        grid.addColumn(dto -> String.format("£%.2f", dto.getGrossAmount() != null ? dto.getGrossAmount() : BigDecimal.ZERO))
                 .setHeader("Gross")
                 .setAutoWidth(true);
 
-        grid.addColumn(dto -> String.format("£%.2f", dto.getNetAmount() != null ? dto.getNetAmount() : dto.getAmount()))
+        grid.addColumn(dto -> String.format("£%.2f", dto.getNetAmount() != null ? dto.getNetAmount() : dto.getGrossAmount()))
                 .setHeader("Net")
                 .setAutoWidth(true);
 
         grid.addColumn(dto -> dto.getIsRecurring() ? dto.getRecurrenceFrequency().getDisplayName() : "One-time")
                 .setHeader("Frequency")
-                .setAutoWidth(true);
-
-        grid.addColumn(dto -> {
-            if (dto.getNextExpectedDate() != null) {
-                return dto.getNextExpectedDate().format(DateTimeFormatter.ofPattern("dd MMM yyyy"));
-            }
-            return "-";
-        })
-                .setHeader("Next Expected")
-                .setAutoWidth(true);
-
-        grid.addComponentColumn(this::createStatusBadge)
-                .setHeader("Status")
                 .setAutoWidth(true);
 
         grid.addComponentColumn(this::createActionButtons)
@@ -356,7 +343,7 @@ public class IncomeTrackingView extends VerticalLayout {
         copy.setCategoryId(sourceDto.getCategoryId());
         copy.setCategoryName(sourceDto.getCategoryName());
         copy.setGrossAmount(sourceDto.getGrossAmount());
-        copy.setAmount(sourceDto.getAmount());
+        copy.setNetAmount(sourceDto.getNetAmount());
         copy.setIsRecurring(sourceDto.getIsRecurring());
         copy.setRecurrenceFrequency(sourceDto.getRecurrenceFrequency());
         copy.setIsActive(sourceDto.getIsActive());
@@ -462,8 +449,7 @@ public class IncomeTrackingView extends VerticalLayout {
             if (source.getStartDate() == null) continue;
 
             String monthKey = source.getStartDate().format(DateTimeFormatter.ofPattern("MMM yyyy"));
-            BigDecimal gross = source.getGrossAmount() != null ? source.getGrossAmount() :
-                    (source.getAmount() != null ? source.getAmount() : BigDecimal.ZERO);
+            BigDecimal gross = source.getGrossAmount() != null ? source.getGrossAmount() : BigDecimal.ZERO;
             BigDecimal net = source.getNetAmount() != null ? source.getNetAmount() : gross;
 
             MonthlyIncomeData existing = monthlyMap.get(monthKey);
@@ -504,7 +490,7 @@ public class IncomeTrackingView extends VerticalLayout {
         for (IncomeSourceDTO source : filteredSources) {
             String category = source.getCategoryName() != null ? source.getCategoryName() : "Uncategorised";
             BigDecimal amount = source.getNetAmount() != null ? source.getNetAmount() :
-                    (source.getAmount() != null ? source.getAmount() : BigDecimal.ZERO);
+                    (source.getGrossAmount() != null ? source.getGrossAmount() : BigDecimal.ZERO);
             categoryTotals.merge(category, amount, BigDecimal::add);
             grandTotal = grandTotal.add(amount);
         }
@@ -586,7 +572,7 @@ public class IncomeTrackingView extends VerticalLayout {
             if (source.getStartDate() == null) continue;
             int year = source.getStartDate().getYear();
             BigDecimal amount = source.getNetAmount() != null ? source.getNetAmount() :
-                    (source.getAmount() != null ? source.getAmount() : BigDecimal.ZERO);
+                    (source.getGrossAmount() != null ? source.getGrossAmount() : BigDecimal.ZERO);
             yearTotals.merge(year, amount, BigDecimal::add);
         }
 
@@ -742,20 +728,20 @@ public class IncomeTrackingView extends VerticalLayout {
         // Calculate totals from filtered sources
         BigDecimal totalGrossIncome = filteredSources.stream()
                 .filter(dto -> dto.getIsActive() != null && dto.getIsActive())
-                .map(dto -> dto.getGrossAmount() != null ? dto.getGrossAmount() : dto.getAmount())
+                .map(IncomeSourceDTO::getGrossAmount)
                 .filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal recurringIncome = filteredSources.stream()
                 .filter(dto -> dto.getIsActive() != null && dto.getIsActive())
                 .filter(dto -> dto.getIsRecurring() != null && dto.getIsRecurring())
-                .map(dto -> dto.getGrossAmount() != null ? dto.getGrossAmount() : dto.getAmount())
+                .map(IncomeSourceDTO::getGrossAmount)
                 .filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal totalNetIncome = filteredSources.stream()
                 .filter(dto -> dto.getIsActive() != null && dto.getIsActive())
-                .map(dto -> dto.getNetAmount() != null ? dto.getNetAmount() : dto.getAmount())
+                .map(dto -> dto.getNetAmount() != null ? dto.getNetAmount() : dto.getGrossAmount())
                 .filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -794,7 +780,7 @@ public class IncomeTrackingView extends VerticalLayout {
 
             String monthKey = source.getStartDate().format(DateTimeFormatter.ofPattern("yyyy-MM"));
             BigDecimal amount = source.getNetAmount() != null ? source.getNetAmount() :
-                    (source.getAmount() != null ? source.getAmount() : BigDecimal.ZERO);
+                    (source.getGrossAmount() != null ? source.getGrossAmount() : BigDecimal.ZERO);
             monthlyTotals.merge(monthKey, amount, BigDecimal::add);
         }
 

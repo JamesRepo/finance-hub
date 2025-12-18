@@ -51,14 +51,15 @@ public class IncomeForecastService {
                 }
             } else {
                 if (isWithinPeriod(source.getStartDate(), startDate, endDate)) {
+                    String categoryName = source.getCategory() != null ? source.getCategory().getCategoryName() : "Income";
                     IncomeForecastDTO.ForecastedIncomeEntry entry = IncomeForecastDTO.ForecastedIncomeEntry.builder()
                             .expectedDate(source.getStartDate())
-                            .sourceName(source.getSourceName())
-                            .amount(source.getAmount())
+                            .sourceName(categoryName)
+                            .amount(source.getGrossAmount())
                             .frequency("One-time")
                             .build();
                     entries.add(entry);
-                    totalForecastedIncome = totalForecastedIncome.add(source.getAmount());
+                    totalForecastedIncome = totalForecastedIncome.add(source.getGrossAmount());
                 }
             }
         }
@@ -119,6 +120,7 @@ public class IncomeForecastService {
         List<IncomeForecastDTO.ForecastedIncomeEntry> entries = new ArrayList<>();
         LocalDate currentDate = source.getNextExpectedDate() != null ?
                 source.getNextExpectedDate() : source.getStartDate();
+        String categoryName = source.getCategory() != null ? source.getCategory().getCategoryName() : "Income";
 
         while (currentDate.isBefore(endDate) || currentDate.isEqual(endDate)) {
             if (currentDate.isAfter(startDate) || currentDate.isEqual(startDate)) {
@@ -127,8 +129,8 @@ public class IncomeForecastService {
 
                     IncomeForecastDTO.ForecastedIncomeEntry entry = IncomeForecastDTO.ForecastedIncomeEntry.builder()
                             .expectedDate(currentDate)
-                            .sourceName(source.getSourceName())
-                            .amount(source.getAmount())
+                            .sourceName(categoryName)
+                            .amount(source.getGrossAmount())
                             .frequency(source.getRecurrenceFrequency().getDisplayName())
                             .build();
                     entries.add(entry);

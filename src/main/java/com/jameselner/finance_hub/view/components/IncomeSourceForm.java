@@ -583,16 +583,6 @@ public class IncomeSourceForm extends VerticalLayout {
 
             binder.writeBean(dto);
 
-            // Auto-generate source name from category and date
-            String categoryName = dto.getCategoryName() != null ? dto.getCategoryName() : "Income";
-            String dateStr = dto.getStartDate() != null
-                    ? dto.getStartDate().format(java.time.format.DateTimeFormatter.ofPattern("MMM yyyy"))
-                    : LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("MMM yyyy"));
-            dto.setSourceName(categoryName + " - " + dateStr);
-
-            // Set amount field to gross amount for backward compatibility
-            dto.setAmount(dto.getGrossAmount());
-
             // Calculate and set net amount
             BigDecimal netAmount = calculateNetAmount(dto.getGrossAmount());
             dto.setNetAmount(netAmount);

@@ -28,11 +28,11 @@ public interface IncomeSourceRepository extends JpaRepository<IncomeSource, Long
             "ORDER BY i.nextExpectedDate ASC")
     List<IncomeSource> findDueRecurringIncome(@Param("user") User user, @Param("date") LocalDate date);
 
-    @Query("SELECT COALESCE(SUM(i.amount), 0) FROM IncomeSource i " +
+    @Query("SELECT COALESCE(SUM(i.grossAmount), 0) FROM IncomeSource i " +
             "WHERE i.user = :user AND i.isActive = true")
     BigDecimal getTotalActiveIncomeByUser(@Param("user") User user);
 
-    @Query("SELECT COALESCE(SUM(i.amount), 0) FROM IncomeSource i " +
+    @Query("SELECT COALESCE(SUM(i.grossAmount), 0) FROM IncomeSource i " +
             "WHERE i.user = :user AND i.isActive = true AND i.isRecurring = true")
     BigDecimal getTotalRecurringIncomeByUser(@Param("user") User user);
 

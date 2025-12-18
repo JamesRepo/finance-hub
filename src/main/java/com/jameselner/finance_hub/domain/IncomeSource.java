@@ -35,14 +35,8 @@ public class IncomeSource {
     @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_income_sources_user"))
     private User user;
 
-    @Column(name = "source_name", nullable = false, length = 255)
-    private String sourceName;
-
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
-
-    @Column(name = "amount", nullable = false, precision = 15, scale = 2)
-    private BigDecimal amount;
 
     @Column(name = "gross_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal grossAmount;

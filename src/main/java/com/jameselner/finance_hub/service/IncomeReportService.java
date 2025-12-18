@@ -55,16 +55,17 @@ public class IncomeReportService {
         for (IncomeSource source : allIncomeSources) {
             if (source.getIsActive() && isSourceRelevantForPeriod(source, startDate, endDate)) {
                 BigDecimal sourceAmount;
+                String categoryName = source.getCategory() != null ? source.getCategory().getCategoryName() : "Uncategorised";
 
                 if (source.getIsRecurring()) {
                     // Calculate total for recurring sources based on occurrences in period
                     int occurrences = countOccurrencesInPeriod(source, startDate, endDate);
-                    sourceAmount = source.getAmount().multiply(BigDecimal.valueOf(occurrences));
+                    sourceAmount = source.getGrossAmount().multiply(BigDecimal.valueOf(occurrences));
                     recurringIncome = recurringIncome.add(sourceAmount);
                 } else {
                     // One-time income: only count if within period
                     if (isDateWithinPeriod(source.getStartDate(), startDate, endDate)) {
-                        sourceAmount = source.getAmount();
+                        sourceAmount = source.getGrossAmount();
                         oneTimeIncome = oneTimeIncome.add(sourceAmount);
                     } else {
                         continue;
@@ -73,16 +74,13 @@ public class IncomeReportService {
 
                 totalIncome = totalIncome.add(sourceAmount);
 
-                if (source.getCategory() != null) {
-                    String categoryName = source.getCategory().getCategoryName();
-                    incomeByCategory.merge(categoryName, sourceAmount, BigDecimal::add);
-                }
+                incomeByCategory.merge(categoryName, sourceAmount, BigDecimal::add);
 
-                incomeBySource.merge(source.getSourceName(), sourceAmount, BigDecimal::add);
+                incomeBySource.merge(categoryName, sourceAmount, BigDecimal::add);
 
                 if (sourceAmount.compareTo(highestAmount) > 0) {
                     highestAmount = sourceAmount;
-                    highestSourceName = source.getSourceName();
+                    highestSourceName = categoryName;
                 }
             }
         }
@@ -211,10 +209,10 @@ public class IncomeReportService {
             if (isSourceRelevantForPeriod(source, startDate, endDate)) {
                 if (source.getIsRecurring()) {
                     int occurrences = countOccurrencesInPeriod(source, startDate, endDate);
-                    totalIncome = totalIncome.add(source.getAmount().multiply(BigDecimal.valueOf(occurrences)));
+                    totalIncome = totalIncome.add(source.getGrossAmount().multiply(BigDecimal.valueOf(occurrences)));
                 } else {
                     if (isDateWithinPeriod(source.getStartDate(), startDate, endDate)) {
-                        totalIncome = totalIncome.add(source.getAmount());
+                        totalIncome = totalIncome.add(source.getGrossAmount());
                     }
                 }
             }

@@ -278,11 +278,8 @@ public class IncomeSourceService {
         if (dto.getUserId() == null) {
             throw new IllegalArgumentException("User ID must not be null");
         }
-        if (dto.getSourceName() == null || dto.getSourceName().trim().isEmpty()) {
-            throw new IllegalArgumentException("Source name must not be null or empty");
-        }
-        if (dto.getAmount() == null) {
-            throw new IllegalArgumentException("Amount must not be null");
+        if (dto.getGrossAmount() == null) {
+            throw new IllegalArgumentException("Gross amount must not be null");
         }
         if (dto.getIsRecurring() == null) {
             throw new IllegalArgumentException("Is recurring must not be null");
@@ -293,7 +290,7 @@ public class IncomeSourceService {
     }
 
     private void validateAmount(final IncomeSourceDTO dto) {
-        if (dto.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+        if (dto.getGrossAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Amount must be greater than zero");
         }
     }

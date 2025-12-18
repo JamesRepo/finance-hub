@@ -20,9 +20,7 @@ public class IncomeSourceDTO {
     private Long incomeSourceId;
     private Long userId;
     private String userName;
-    private String sourceName;
     private String description;
-    private BigDecimal amount;
     private BigDecimal grossAmount;
     private BigDecimal netAmount;
     @Builder.Default
