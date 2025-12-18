@@ -58,7 +58,7 @@ public class IncomeTrackingView extends VerticalLayout {
     private Span totalIncomeSpan;
     private Span recurringIncomeSpan;
     private Span postDeductionIncomeSpan;
-    private Span forecastedMonthlySpan;
+    private Span avgMonthlySpan;
 
     private ComboBox<String> yearFilterCombo;
     private Integer selectedYear = null; // null means "All Time"
@@ -162,7 +162,7 @@ public class IncomeTrackingView extends VerticalLayout {
                 postDeductionCard,
                 createSummaryCard("Gross Income", "£0.00", VaadinIcon.MONEY, "total-income"),
                 createSummaryCard("Recurring Income", "£0.00", VaadinIcon.REFRESH, "recurring-income"),
-                createSummaryCard("Forecasted Monthly", "£0.00", VaadinIcon.CALENDAR, "forecasted-monthly")
+                createSummaryCard("Avg Monthly", "£0.00", VaadinIcon.CALENDAR, "avg-monthly")
         );
 
         return cardsLayout;
@@ -217,8 +217,8 @@ public class IncomeTrackingView extends VerticalLayout {
             case "post-deduction-income":
                 postDeductionIncomeSpan = valueSpan;
                 break;
-            case "forecasted-monthly":
-                forecastedMonthlySpan = valueSpan;
+            case "avg-monthly":
+                avgMonthlySpan = valueSpan;
                 break;
         }
 
@@ -759,12 +759,13 @@ public class IncomeTrackingView extends VerticalLayout {
                 .filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        IncomeForecastDTO monthlyForecast = incomeForecastService.generateMonthlyForecast(user);
+        // Calculate average monthly income based on the number of distinct months in the data
+        BigDecimal avgMonthlyIncome = calculateAverageMonthlyIncome(filteredSources);
 
         postDeductionIncomeSpan.setText(String.format("£%.2f", totalNetIncome));
         totalIncomeSpan.setText(String.format("£%.2f", totalGrossIncome));
         recurringIncomeSpan.setText(String.format("£%.2f", recurringIncome));
-        forecastedMonthlySpan.setText(String.format("£%.2f", monthlyForecast.getAverageMonthlyIncome()));
+        avgMonthlySpan.setText(String.format("£%.2f", avgMonthlyIncome));
 
         refreshIncomeSourceGrid();
     }
@@ -777,6 +778,39 @@ public class IncomeTrackingView extends VerticalLayout {
         return sources.stream()
                 .filter(dto -> dto.getStartDate() != null && dto.getStartDate().getYear() == selectedYear)
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    private BigDecimal calculateAverageMonthlyIncome(List<IncomeSourceDTO> sources) {
+        if (sources.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        // Group income by month and sum
+        java.util.Map<String, BigDecimal> monthlyTotals = new java.util.HashMap<>();
+
+        for (IncomeSourceDTO source : sources) {
+            if (source.getStartDate() == null) continue;
+            if (source.getIsActive() == null || !source.getIsActive()) continue;
+
+            String monthKey = source.getStartDate().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+            BigDecimal amount = source.getNetAmount() != null ? source.getNetAmount() :
+                    (source.getAmount() != null ? source.getAmount() : BigDecimal.ZERO);
+            monthlyTotals.merge(monthKey, amount, BigDecimal::add);
+        }
+
+        if (monthlyTotals.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        // Calculate average across all months
+        BigDecimal totalAcrossMonths = monthlyTotals.values().stream()
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return totalAcrossMonths.divide(
+                BigDecimal.valueOf(monthlyTotals.size()),
+                2,
+                java.math.RoundingMode.HALF_UP
+        );
     }
 
     private void refreshIncomeSourceGrid() {
