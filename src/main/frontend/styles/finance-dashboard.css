@@ -389,6 +389,59 @@ vaadin-notification-card[theme~="error"] {
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* App Navigation Styles */
+.app-navigation {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 2rem;
+    padding-top: 1rem;
+}
+
+.app-navigation vaadin-side-nav {
+    --vaadin-side-nav-child-indent: 0;
+    padding: 0 0.5rem;
+    width: 100%;
+}
+
+.app-navigation vaadin-side-nav-item {
+    --lumo-primary-text-color: #374151;
+    --lumo-primary-color: #1e3a8a;
+    border-radius: 0.5rem;
+    margin-bottom: 0.25rem;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.app-navigation vaadin-side-nav-item::part(link) {
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.app-navigation vaadin-side-nav-item:not([active]):hover::part(link) {
+    background-color: #f1f5f9;
+}
+
+.app-navigation vaadin-side-nav-item[active]::part(link) {
+    background-color: #1e3a8a;
+    color: white;
+}
+
+.app-navigation vaadin-side-nav-item[active] vaadin-icon {
+    color: white;
+}
+
+.app-navigation vaadin-side-nav-item vaadin-icon {
+    color: #64748b;
+    width: 20px;
+    height: 20px;
+    margin-right: 0.75rem;
+}
+
 /* Utility Classes */
 .text-primary {
     color: var(--finance-text-primary);

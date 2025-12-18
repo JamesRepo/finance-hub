@@ -3,7 +3,6 @@ package com.jameselner.finance_hub.view.components;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -33,18 +32,13 @@ public class AppHeader extends HorizontalLayout {
         logo.setAlignItems(FlexComponent.Alignment.CENTER);
         logo.setSpacing(true);
 
-        Icon dollarIcon = VaadinIcon.DOLLAR.create();
-        dollarIcon.setColor("#2563eb");
-        dollarIcon.setSize("24px");
-
-        Span logoText = new Span("Finance Hub");
-        logoText.addClassName("logo-text");
+        Span logoText = new Span("\uD83D\uDCB0 FinanceHub");
         logoText.getStyle()
                 .set("font-size", "1.5rem")
                 .set("font-weight", "700")
-                .set("color", "#2563eb");
-
-        logo.add(dollarIcon, logoText);
+                .set("color", "#4F6BED")
+                .set("letter-spacing", "-0.025em");
+        logo.add(logoText);
         return logo;
     }
 

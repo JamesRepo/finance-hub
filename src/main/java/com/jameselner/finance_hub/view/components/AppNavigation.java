@@ -15,7 +15,6 @@ import com.jameselner.finance_hub.view.TransactionView;
 import com.jameselner.finance_hub.view.YearlySummaryView;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.sidenav.SideNav;
 import com.vaadin.flow.component.sidenav.SideNavItem;
@@ -25,14 +24,15 @@ public class AppNavigation extends VerticalLayout {
     public AppNavigation() {
         setSpacing(false);
         setPadding(false);
-        setWidth("260px");
+        setWidth("280px");
+        addClassName("app-navigation");
         getStyle()
                 .set("background-color", "white")
                 .set("border-right", "1px solid #e2e8f0");
 
         add(
-                createSection("MAIN", createMainNav()),
-                createSection("FINANCE", createFinanceNav()),
+                createSection("OVERVIEW", createMainNav()),
+                createSection("MANAGEMENT", createFinanceNav()),
                 createSection("ADMIN", createAdminNav())
         );
     }
@@ -41,16 +41,16 @@ public class AppNavigation extends VerticalLayout {
         VerticalLayout section = new VerticalLayout();
         section.setSpacing(false);
         section.setPadding(false);
-        section.getStyle().set("margin-bottom", "2rem");
+        section.getStyle().set("margin-bottom", "1.5rem");
 
         Span sectionTitle = new Span(title);
         sectionTitle.getStyle()
-                .set("font-size", "0.75rem")
-                .set("font-weight", "600")
+                .set("font-size", "0.7rem")
+                .set("font-weight", "700")
                 .set("text-transform", "uppercase")
-                .set("color", "#64748b")
-                .set("margin-bottom", "0.75rem")
-                .set("letter-spacing", "0.05em")
+                .set("color", "#9ca3af")
+                .set("margin-bottom", "0.5rem")
+                .set("letter-spacing", "0.08em")
                 .set("padding-left", "1rem");
 
         section.add(sectionTitle, nav);
@@ -60,16 +60,13 @@ public class AppNavigation extends VerticalLayout {
     private SideNav createMainNav() {
         SideNav nav = new SideNav();
 
-        SideNavItem dashboard = new SideNavItem("Dashboard", DashboardView.class);
-        dashboard.setPrefixComponent(VaadinIcon.DASHBOARD.create());
+        SideNavItem dashboard = new SideNavItem("\uD83D\uDCCA Dashboard", DashboardView.class);
         nav.addItem(dashboard);
 
-        SideNavItem monthlySummary = new SideNavItem("Monthly Summary", MonthlySummaryView.class);
-        monthlySummary.setPrefixComponent(VaadinIcon.CALENDAR_USER.create());
+        SideNavItem monthlySummary = new SideNavItem("\uD83D\uDCC5 Monthly Summary", MonthlySummaryView.class);
         nav.addItem(monthlySummary);
 
-        SideNavItem yearlySummary = new SideNavItem("Yearly Summary", YearlySummaryView.class);
-        yearlySummary.setPrefixComponent(VaadinIcon.CALENDAR.create());
+        SideNavItem yearlySummary = new SideNavItem("\uD83D\uDCC6 Yearly Summary", YearlySummaryView.class);
         nav.addItem(yearlySummary);
 
         return nav;
@@ -78,40 +75,31 @@ public class AppNavigation extends VerticalLayout {
     private SideNav createFinanceNav() {
         SideNav nav = new SideNav();
 
-        SideNavItem accounts = new SideNavItem("Accounts", AccountsView.class);
-        accounts.setPrefixComponent(VaadinIcon.WALLET.create());
+        SideNavItem accounts = new SideNavItem("\uD83E\uDEAA Accounts", AccountsView.class);
         nav.addItem(accounts);
 
-        SideNavItem transactions = new SideNavItem("Transactions", TransactionView.class);
-        transactions.setPrefixComponent(VaadinIcon.EXCHANGE.create());
+        SideNavItem transactions = new SideNavItem("\uD83D\uDCB3 Transactions", TransactionView.class);
         nav.addItem(transactions);
 
-        SideNavItem income = new SideNavItem("Income", IncomeTrackingView.class);
-        income.setPrefixComponent(VaadinIcon.DOLLAR.create());
+        SideNavItem income = new SideNavItem("\uD83D\uDCB5 Income", IncomeTrackingView.class);
         nav.addItem(income);
 
-        SideNavItem budget = new SideNavItem("Budget", BudgetTrackingView.class);
-        budget.setPrefixComponent(VaadinIcon.PIGGY_BANK.create());
+        SideNavItem budget = new SideNavItem("\uD83D\uDCB8 Budget", BudgetTrackingView.class);
         nav.addItem(budget);
 
-        SideNavItem housing = new SideNavItem("Housing", HousingExpensesView.class);
-        housing.setPrefixComponent(VaadinIcon.HOME.create());
+        SideNavItem housing = new SideNavItem("\uD83C\uDFE0 Housing", HousingExpensesView.class);
         nav.addItem(housing);
 
-        SideNavItem holidays = new SideNavItem("Holidays", HolidaysView.class);
-        holidays.setPrefixComponent(VaadinIcon.AIRPLANE.create());
+        SideNavItem holidays = new SideNavItem("✈\uFE0F Holidays", HolidaysView.class);
         nav.addItem(holidays);
 
-        SideNavItem savingsGoals = new SideNavItem("Savings Goals", SavingsGoalsView.class);
-        savingsGoals.setPrefixComponent(VaadinIcon.MONEY.create());
+        SideNavItem savingsGoals = new SideNavItem("\uD83D\uDC8E Savings Goals", SavingsGoalsView.class);
         nav.addItem(savingsGoals);
 
-        SideNavItem debts = new SideNavItem("Debts", DebtManagementView.class);
-        debts.setPrefixComponent(VaadinIcon.CREDIT_CARD.create());
+        SideNavItem debts = new SideNavItem("\uD83C\uDFE6 Debts", DebtManagementView.class);
         nav.addItem(debts);
 
-        SideNavItem subscriptions = new SideNavItem("Subscriptions", SubscriptionsView.class);
-        subscriptions.setPrefixComponent(VaadinIcon.REFRESH.create());
+        SideNavItem subscriptions = new SideNavItem("\uD83D\uDD16 Subscriptions", SubscriptionsView.class);
         nav.addItem(subscriptions);
 
         return nav;
@@ -120,8 +108,7 @@ public class AppNavigation extends VerticalLayout {
     private SideNav createAdminNav() {
         SideNav nav = new SideNav();
 
-        SideNavItem categories = new SideNavItem("Categories", CategoriesView.class);
-        categories.setPrefixComponent(VaadinIcon.TAG.create());
+        SideNavItem categories = new SideNavItem("\uD83D\uDDC2 Categories", CategoriesView.class);
         nav.addItem(categories);
 
         return nav;
