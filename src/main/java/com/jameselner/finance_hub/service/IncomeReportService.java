@@ -54,24 +54,34 @@ public class IncomeReportService {
 
         for (IncomeSource source : allIncomeSources) {
             if (source.getIsActive() && isSourceRelevantForPeriod(source, startDate, endDate)) {
-                BigDecimal amount = source.getAmount();
-                totalIncome = totalIncome.add(amount);
+                BigDecimal sourceAmount;
 
                 if (source.getIsRecurring()) {
-                    recurringIncome = recurringIncome.add(amount);
+                    // Calculate total for recurring sources based on occurrences in period
+                    int occurrences = countOccurrencesInPeriod(source, startDate, endDate);
+                    sourceAmount = source.getAmount().multiply(BigDecimal.valueOf(occurrences));
+                    recurringIncome = recurringIncome.add(sourceAmount);
                 } else {
-                    oneTimeIncome = oneTimeIncome.add(amount);
+                    // One-time income: only count if within period
+                    if (isDateWithinPeriod(source.getStartDate(), startDate, endDate)) {
+                        sourceAmount = source.getAmount();
+                        oneTimeIncome = oneTimeIncome.add(sourceAmount);
+                    } else {
+                        continue;
+                    }
                 }
+
+                totalIncome = totalIncome.add(sourceAmount);
 
                 if (source.getCategory() != null) {
                     String categoryName = source.getCategory().getCategoryName();
-                    incomeByCategory.merge(categoryName, amount, BigDecimal::add);
+                    incomeByCategory.merge(categoryName, sourceAmount, BigDecimal::add);
                 }
 
-                incomeBySource.put(source.getSourceName(), amount);
+                incomeBySource.merge(source.getSourceName(), sourceAmount, BigDecimal::add);
 
-                if (amount.compareTo(highestAmount) > 0) {
-                    highestAmount = amount;
+                if (sourceAmount.compareTo(highestAmount) > 0) {
+                    highestAmount = sourceAmount;
                     highestSourceName = source.getSourceName();
                 }
             }
@@ -121,8 +131,11 @@ public class IncomeReportService {
             throw new IllegalArgumentException("Start date must be before or equal to end date");
         }
 
+        // Use income sources to calculate expected income for the period
+        // This accounts for recurring income properly
         BigDecimal totalIncome = calculateTotalIncomeForPeriod(user, startDate, endDate);
 
+        // Get transactions for expenses only (don't double-count income from transactions)
         List<Transaction> transactions = transactionRepository.findByAccountUserAndTransactionDateBetween(
                 user, startDate, endDate);
 
@@ -132,10 +145,8 @@ public class IncomeReportService {
             if (transaction.getCategory() != null &&
                     transaction.getCategory().getCategoryType() == CategoryType.EXPENSE) {
                 totalExpenses = totalExpenses.add(transaction.getAmount());
-            } else if (transaction.getCategory() != null &&
-                    transaction.getCategory().getCategoryType() == CategoryType.INCOME) {
-                totalIncome = totalIncome.add(transaction.getAmount());
             }
+            // Note: We don't add income transactions here as income is calculated from income sources
         }
 
         BigDecimal netAmount = totalIncome.subtract(totalExpenses);

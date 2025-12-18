@@ -71,9 +71,7 @@ public class IncomeTrackingView extends VerticalLayout {
 
     private Tabs navigationTabs;
     private Tab sourcesTab;
-    private Tab forecastTab;
-    private Tab reportsTab;
-    private Tab comparisonTab;
+    private Tab analysisTab;
 
     public IncomeTrackingView(
             final IncomeSourceService incomeSourceService,
@@ -229,23 +227,17 @@ public class IncomeTrackingView extends VerticalLayout {
 
     private Tabs createNavigationTabs() {
         sourcesTab = new Tab(new Icon(VaadinIcon.LIST), new Span("Income Sources"));
-        forecastTab = new Tab(new Icon(VaadinIcon.TRENDING_UP), new Span("Forecast"));
-        reportsTab = new Tab(new Icon(VaadinIcon.CHART), new Span("Reports"));
-        comparisonTab = new Tab(new Icon(VaadinIcon.SPLIT), new Span("Income vs Expenses"));
+        analysisTab = new Tab(new Icon(VaadinIcon.CHART), new Span("Analysis"));
 
-        navigationTabs = new Tabs(sourcesTab, forecastTab, reportsTab, comparisonTab);
+        navigationTabs = new Tabs(sourcesTab, analysisTab);
         navigationTabs.setWidthFull();
 
         navigationTabs.addSelectedChangeListener(event -> {
             Tab selectedTab = event.getSelectedTab();
             if (selectedTab == sourcesTab) {
                 showSourcesView();
-            } else if (selectedTab == forecastTab) {
-                showForecastView();
-            } else if (selectedTab == reportsTab) {
-                showReportsView();
-            } else if (selectedTab == comparisonTab) {
-                showComparisonView();
+            } else if (selectedTab == analysisTab) {
+                showAnalysisView();
             }
         });
 
@@ -400,225 +392,269 @@ public class IncomeTrackingView extends VerticalLayout {
         formDialog.open();
     }
 
-    private void showForecastView() {
+    private void showAnalysisView() {
         contentLayout.removeAll();
 
         User user = getCurrentUser();
-        IncomeForecastDTO monthlyForecast = incomeForecastService.generateMonthlyForecast(user);
-        IncomeForecastDTO quarterlyForecast = incomeForecastService.generateQuarterlyForecast(user);
-        IncomeForecastDTO yearlyForecast = incomeForecastService.generateYearlyForecast(user);
+        List<IncomeSourceDTO> allSources = incomeSourceService.findByUserAsDto(user);
 
-        VerticalLayout forecastContent = new VerticalLayout();
-        forecastContent.setSpacing(true);
-        forecastContent.setPadding(false);
+        VerticalLayout analysisContent = new VerticalLayout();
+        analysisContent.setSpacing(true);
+        analysisContent.setPadding(false);
+        analysisContent.setWidthFull();
 
-        forecastContent.add(
-                createForecastSection("Next Month Forecast", monthlyForecast),
-                createForecastSection("Next Quarter Forecast", quarterlyForecast),
-                createForecastSection("Next Year Forecast", yearlyForecast)
-        );
+        // Monthly Breakdown Section
+        analysisContent.add(createMonthlyBreakdownSection(allSources));
 
-        contentLayout.add(forecastContent);
+        // Category Breakdown Section
+        analysisContent.add(createCategoryBreakdownSection(allSources));
+
+        // Year Comparison Section
+        analysisContent.add(createYearComparisonSection(allSources));
+
+        contentLayout.add(analysisContent);
     }
 
-    private VerticalLayout createForecastSection(final String title, final IncomeForecastDTO forecast) {
+    private VerticalLayout createMonthlyBreakdownSection(List<IncomeSourceDTO> allSources) {
         VerticalLayout section = new VerticalLayout();
         section.setSpacing(true);
         section.setPadding(true);
+        section.setWidthFull();
         section.getStyle()
                 .set("background-color", "var(--lumo-contrast-5pct)")
                 .set("border-radius", "var(--lumo-border-radius-m)");
 
-        H3 sectionTitle = new H3(title);
+        H3 sectionTitle = new H3("Monthly Breakdown" + (selectedYear != null ? " (" + selectedYear + ")" : " (All Time)"));
         sectionTitle.getStyle().set("margin-top", "0");
 
-        HorizontalLayout statsLayout = new HorizontalLayout();
-        statsLayout.setSpacing(true);
+        // Filter by selected year
+        List<IncomeSourceDTO> filteredSources = filterByYear(allSources);
 
-        statsLayout.add(
-                createStatLabel("Total Forecasted:", String.format("£%.2f", forecast.getTotalForecastedIncome())),
-                createStatLabel("Avg Monthly:", String.format("£%.2f", forecast.getAverageMonthlyIncome())),
-                createStatLabel("Avg Weekly:", String.format("£%.2f", forecast.getAverageWeeklyIncome()))
-        );
+        // Calculate monthly data
+        List<MonthlyIncomeData> monthlyData = calculateMonthlyBreakdown(filteredSources);
 
-        section.add(sectionTitle, statsLayout);
+        if (monthlyData.isEmpty()) {
+            Span noData = new Span("No income data available for this period");
+            noData.getStyle().set("color", "var(--lumo-secondary-text-color)");
+            section.add(sectionTitle, noData);
+        } else {
+            // Create a grid showing income by month
+            Grid<MonthlyIncomeData> monthlyGrid = new Grid<>();
+            monthlyGrid.setAllRowsVisible(true);
+            monthlyGrid.setWidthFull();
 
-        return section;
-    }
+            monthlyGrid.addColumn(MonthlyIncomeData::month).setHeader("Month").setAutoWidth(true);
+            monthlyGrid.addColumn(data -> String.format("£%.2f", data.grossIncome())).setHeader("Gross Income").setAutoWidth(true);
+            monthlyGrid.addColumn(data -> String.format("£%.2f", data.netIncome())).setHeader("Net Income").setAutoWidth(true);
+            monthlyGrid.addColumn(MonthlyIncomeData::count).setHeader("# Entries").setAutoWidth(true);
 
-    private Div createStatLabel(final String label, final String value) {
-        Div container = new Div();
-        Span labelSpan = new Span(label);
-        labelSpan.getStyle().set("color", "var(--lumo-secondary-text-color)");
-
-        Span valueSpan = new Span(" " + value);
-        valueSpan.getStyle().set("font-weight", "bold");
-
-        container.add(labelSpan, valueSpan);
-        return container;
-    }
-
-    private void showReportsView() {
-        contentLayout.removeAll();
-
-        User user = getCurrentUser();
-        LocalDate endDate = LocalDate.now();
-        LocalDate startDate = endDate.minusMonths(6);
-
-        IncomeReportDTO report = incomeReportService.generateIncomeReport(user, startDate, endDate);
-
-        VerticalLayout reportContent = new VerticalLayout();
-        reportContent.setSpacing(true);
-        reportContent.setPadding(true);
-        reportContent.getStyle()
-                .set("background-color", "var(--lumo-contrast-5pct)")
-                .set("border-radius", "var(--lumo-border-radius-m)");
-
-        H3 reportTitle = new H3("Income Report (Last 6 Months)");
-        reportTitle.getStyle().set("margin-top", "0");
-
-        HorizontalLayout statsLayout = new HorizontalLayout();
-        statsLayout.setWidthFull();
-        statsLayout.setSpacing(true);
-
-        statsLayout.add(
-                createReportCard("Total Income", String.format("£%.2f", report.getTotalIncome())),
-                createReportCard("Recurring Income", String.format("£%.2f", report.getRecurringIncome())),
-                createReportCard("One-time Income", String.format("£%.2f", report.getOneTimeIncome())),
-                createReportCard("Avg Monthly", String.format("£%.2f", report.getAverageMonthlyIncome()))
-        );
-
-        reportContent.add(reportTitle, statsLayout);
-        contentLayout.add(reportContent);
-    }
-
-    private VerticalLayout createReportCard(final String label, final String value) {
-        VerticalLayout card = new VerticalLayout();
-        card.setPadding(true);
-        card.setSpacing(false);
-        card.getStyle()
-                .set("background-color", "white")
-                .set("border-radius", "var(--lumo-border-radius-m)")
-                .set("flex", "1");
-
-        Span valueSpan = new Span(value);
-        valueSpan.getStyle()
-                .set("font-size", "var(--lumo-font-size-xl)")
-                .set("font-weight", "bold");
-
-        Span labelSpan = new Span(label);
-        labelSpan.getStyle()
-                .set("font-size", "var(--lumo-font-size-s)")
-                .set("color", "var(--lumo-secondary-text-color)");
-
-        card.add(valueSpan, labelSpan);
-        return card;
-    }
-
-    private void showComparisonView() {
-        contentLayout.removeAll();
-
-        User user = getCurrentUser();
-        IncomeVsExpenseDTO currentMonth = incomeReportService.compareCurrentMonth(user);
-        IncomeVsExpenseDTO lastMonth = incomeReportService.compareLastMonth(user);
-        IncomeVsExpenseDTO yearToDate = incomeReportService.compareYearToDate(user);
-
-        VerticalLayout comparisonContent = new VerticalLayout();
-        comparisonContent.setSpacing(true);
-        comparisonContent.setPadding(false);
-
-        comparisonContent.add(
-                createComparisonSection("Current Month", currentMonth),
-                createComparisonSection("Last Month", lastMonth),
-                createComparisonSection("Year to Date", yearToDate)
-        );
-
-        contentLayout.add(comparisonContent);
-    }
-
-    private VerticalLayout createComparisonSection(final String title, final IncomeVsExpenseDTO comparison) {
-        VerticalLayout section = new VerticalLayout();
-        section.setSpacing(true);
-        section.setPadding(true);
-        section.getStyle()
-                .set("background-color", "var(--lumo-contrast-5pct)")
-                .set("border-radius", "var(--lumo-border-radius-m)");
-
-        H3 sectionTitle = new H3(title);
-        sectionTitle.getStyle().set("margin-top", "0");
-
-        HorizontalLayout statsLayout = new HorizontalLayout();
-        statsLayout.setWidthFull();
-        statsLayout.setSpacing(true);
-
-        statsLayout.add(
-                createComparisonCard("Income", String.format("£%.2f", comparison.getTotalIncome()), "success"),
-                createComparisonCard("Expenses", String.format("£%.2f", comparison.getTotalExpenses()), "error"),
-                createComparisonCard("Net", String.format("£%.2f", comparison.getNetAmount()),
-                        comparison.getIsPositive() ? "success" : "error"),
-                createComparisonCard("Savings Rate", String.format("%.1f%%", comparison.getSavingsRate()),
-                        comparison.getIsPositive() ? "primary" : "contrast")
-        );
-
-        Span statusBadge = new Span(getStatusLabel(comparison.getStatus()));
-        statusBadge.getElement().getThemeList().add("badge");
-        statusBadge.getElement().getThemeList().add(getStatusTheme(comparison.getStatus()));
-        statusBadge.getStyle().set("margin-top", "0.5rem");
-
-        section.add(sectionTitle, statsLayout, statusBadge);
-
-        return section;
-    }
-
-    private VerticalLayout createComparisonCard(final String label, final String value, final String theme) {
-        VerticalLayout card = new VerticalLayout();
-        card.setPadding(true);
-        card.setSpacing(false);
-        card.getStyle()
-                .set("background-color", "white")
-                .set("border-radius", "var(--lumo-border-radius-m)")
-                .set("flex", "1");
-
-        Span valueSpan = new Span(value);
-        valueSpan.getStyle()
-                .set("font-size", "var(--lumo-font-size-xl)")
-                .set("font-weight", "bold");
-
-        switch (theme) {
-            case "success" -> valueSpan.getStyle().set("color", "var(--lumo-success-color)");
-            case "error" -> valueSpan.getStyle().set("color", "var(--lumo-error-color)");
-            case "primary" -> valueSpan.getStyle().set("color", "var(--lumo-primary-color)");
+            monthlyGrid.setItems(monthlyData);
+            section.add(sectionTitle, monthlyGrid);
         }
 
-        Span labelSpan = new Span(label);
-        labelSpan.getStyle()
-                .set("font-size", "var(--lumo-font-size-s)")
+        return section;
+    }
+
+    private List<MonthlyIncomeData> calculateMonthlyBreakdown(List<IncomeSourceDTO> sources) {
+        java.util.Map<String, MonthlyIncomeData> monthlyMap = new java.util.LinkedHashMap<>();
+
+        for (IncomeSourceDTO source : sources) {
+            if (source.getStartDate() == null) continue;
+
+            String monthKey = source.getStartDate().format(DateTimeFormatter.ofPattern("MMM yyyy"));
+            BigDecimal gross = source.getGrossAmount() != null ? source.getGrossAmount() :
+                    (source.getAmount() != null ? source.getAmount() : BigDecimal.ZERO);
+            BigDecimal net = source.getNetAmount() != null ? source.getNetAmount() : gross;
+
+            MonthlyIncomeData existing = monthlyMap.get(monthKey);
+            if (existing != null) {
+                monthlyMap.put(monthKey, new MonthlyIncomeData(
+                        monthKey,
+                        existing.grossIncome().add(gross),
+                        existing.netIncome().add(net),
+                        existing.count() + 1
+                ));
+            } else {
+                monthlyMap.put(monthKey, new MonthlyIncomeData(monthKey, gross, net, 1));
+            }
+        }
+
+        return new java.util.ArrayList<>(monthlyMap.values());
+    }
+
+    private VerticalLayout createCategoryBreakdownSection(List<IncomeSourceDTO> allSources) {
+        VerticalLayout section = new VerticalLayout();
+        section.setSpacing(true);
+        section.setPadding(true);
+        section.setWidthFull();
+        section.getStyle()
+                .set("background-color", "var(--lumo-contrast-5pct)")
+                .set("border-radius", "var(--lumo-border-radius-m)");
+
+        H3 sectionTitle = new H3("Income by Category" + (selectedYear != null ? " (" + selectedYear + ")" : " (All Time)"));
+        sectionTitle.getStyle().set("margin-top", "0");
+
+        // Filter by selected year
+        List<IncomeSourceDTO> filteredSources = filterByYear(allSources);
+
+        // Group by category
+        java.util.Map<String, BigDecimal> categoryTotals = new java.util.HashMap<>();
+        BigDecimal grandTotal = BigDecimal.ZERO;
+
+        for (IncomeSourceDTO source : filteredSources) {
+            String category = source.getCategoryName() != null ? source.getCategoryName() : "Uncategorised";
+            BigDecimal amount = source.getNetAmount() != null ? source.getNetAmount() :
+                    (source.getAmount() != null ? source.getAmount() : BigDecimal.ZERO);
+            categoryTotals.merge(category, amount, BigDecimal::add);
+            grandTotal = grandTotal.add(amount);
+        }
+
+        if (categoryTotals.isEmpty()) {
+            Span noData = new Span("No income data available for this period");
+            noData.getStyle().set("color", "var(--lumo-secondary-text-color)");
+            section.add(sectionTitle, noData);
+        } else {
+            // Display as cards
+            HorizontalLayout cardsLayout = new HorizontalLayout();
+            cardsLayout.setSpacing(true);
+            cardsLayout.setWidthFull();
+            cardsLayout.getStyle().set("flex-wrap", "wrap");
+
+            final BigDecimal total = grandTotal;
+            categoryTotals.entrySet().stream()
+                    .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
+                    .forEach(entry -> {
+                        BigDecimal percentage = total.compareTo(BigDecimal.ZERO) > 0
+                                ? entry.getValue().multiply(BigDecimal.valueOf(100)).divide(total, 1, java.math.RoundingMode.HALF_UP)
+                                : BigDecimal.ZERO;
+                        cardsLayout.add(createCategoryCard(entry.getKey(), entry.getValue(), percentage));
+                    });
+
+            section.add(sectionTitle, cardsLayout);
+        }
+
+        return section;
+    }
+
+    private VerticalLayout createCategoryCard(String category, BigDecimal amount, BigDecimal percentage) {
+        VerticalLayout card = new VerticalLayout();
+        card.setPadding(true);
+        card.setSpacing(false);
+        card.setWidth("200px");
+        card.getStyle()
+                .set("background-color", "var(--lumo-base-color)")
+                .set("border-radius", "var(--lumo-border-radius-m)")
+                .set("border", "1px solid var(--lumo-contrast-10pct)");
+
+        Span categorySpan = new Span(category);
+        categorySpan.getStyle()
+                .set("font-weight", "bold")
+                .set("font-size", "var(--lumo-font-size-s)");
+
+        Span amountSpan = new Span(String.format("£%.2f", amount));
+        amountSpan.getStyle()
+                .set("font-size", "var(--lumo-font-size-xl)")
+                .set("font-weight", "bold")
+                .set("color", "var(--lumo-success-color)");
+
+        Span percentSpan = new Span(String.format("%.1f%% of total", percentage));
+        percentSpan.getStyle()
+                .set("font-size", "var(--lumo-font-size-xs)")
                 .set("color", "var(--lumo-secondary-text-color)");
 
-        card.add(valueSpan, labelSpan);
+        card.add(categorySpan, amountSpan, percentSpan);
         return card;
     }
 
-    private String getStatusLabel(final String status) {
-        return switch (status) {
-            case "EXCELLENT" -> "Excellent";
-            case "GOOD" -> "Good";
-            case "MODERATE" -> "Moderate";
-            case "BREAK_EVEN" -> "Break Even";
-            case "DEFICIT" -> "Deficit";
-            default -> "Unknown";
-        };
+    private VerticalLayout createYearComparisonSection(List<IncomeSourceDTO> allSources) {
+        VerticalLayout section = new VerticalLayout();
+        section.setSpacing(true);
+        section.setPadding(true);
+        section.setWidthFull();
+        section.getStyle()
+                .set("background-color", "var(--lumo-contrast-5pct)")
+                .set("border-radius", "var(--lumo-border-radius-m)");
+
+        H3 sectionTitle = new H3("Year Comparison");
+        sectionTitle.getStyle().set("margin-top", "0");
+
+        int currentYear = LocalDate.now().getYear();
+
+        // Calculate totals for each year
+        java.util.Map<Integer, BigDecimal> yearTotals = new java.util.TreeMap<>(java.util.Collections.reverseOrder());
+        for (IncomeSourceDTO source : allSources) {
+            if (source.getStartDate() == null) continue;
+            int year = source.getStartDate().getYear();
+            BigDecimal amount = source.getNetAmount() != null ? source.getNetAmount() :
+                    (source.getAmount() != null ? source.getAmount() : BigDecimal.ZERO);
+            yearTotals.merge(year, amount, BigDecimal::add);
+        }
+
+        if (yearTotals.isEmpty()) {
+            Span noData = new Span("No income data available");
+            noData.getStyle().set("color", "var(--lumo-secondary-text-color)");
+            section.add(sectionTitle, noData);
+        } else {
+            HorizontalLayout yearCardsLayout = new HorizontalLayout();
+            yearCardsLayout.setSpacing(true);
+
+            Integer previousYear = null;
+            BigDecimal previousYearTotal = null;
+
+            for (java.util.Map.Entry<Integer, BigDecimal> entry : yearTotals.entrySet()) {
+                String change = "";
+                if (previousYearTotal != null && previousYearTotal.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal diff = entry.getValue().subtract(previousYearTotal);
+                    BigDecimal changePercent = diff.multiply(BigDecimal.valueOf(100))
+                            .divide(previousYearTotal, 1, java.math.RoundingMode.HALF_UP);
+                    change = (diff.compareTo(BigDecimal.ZERO) >= 0 ? "+" : "") + changePercent + "% vs " + previousYear;
+                }
+                yearCardsLayout.add(createYearCard(entry.getKey(), entry.getValue(), change, entry.getKey() == currentYear));
+                previousYear = entry.getKey();
+                previousYearTotal = entry.getValue();
+            }
+
+            section.add(sectionTitle, yearCardsLayout);
+        }
+
+        return section;
     }
 
-    private String getStatusTheme(final String status) {
-        return switch (status) {
-            case "EXCELLENT", "GOOD" -> "success";
-            case "MODERATE" -> "primary";
-            case "BREAK_EVEN" -> "contrast";
-            case "DEFICIT" -> "error";
-            default -> "contrast";
-        };
+    private VerticalLayout createYearCard(int year, BigDecimal total, String change, boolean isCurrentYear) {
+        VerticalLayout card = new VerticalLayout();
+        card.setPadding(true);
+        card.setSpacing(false);
+        card.setWidth("180px");
+        card.getStyle()
+                .set("background-color", "var(--lumo-base-color)")
+                .set("border-radius", "var(--lumo-border-radius-m)")
+                .set("border", isCurrentYear ? "2px solid var(--lumo-primary-color)" : "1px solid var(--lumo-contrast-10pct)");
+
+        Span yearSpan = new Span(String.valueOf(year) + (isCurrentYear ? " (Current)" : ""));
+        yearSpan.getStyle()
+                .set("font-weight", "bold")
+                .set("font-size", "var(--lumo-font-size-s)")
+                .set("color", isCurrentYear ? "var(--lumo-primary-color)" : "var(--lumo-body-text-color)");
+
+        Span amountSpan = new Span(String.format("£%.2f", total));
+        amountSpan.getStyle()
+                .set("font-size", "var(--lumo-font-size-xl)")
+                .set("font-weight", "bold");
+
+        card.add(yearSpan, amountSpan);
+
+        if (!change.isEmpty()) {
+            Span changeSpan = new Span(change);
+            changeSpan.getStyle()
+                    .set("font-size", "var(--lumo-font-size-xs)")
+                    .set("color", change.startsWith("+") ? "var(--lumo-success-color)" : "var(--lumo-error-color)");
+            card.add(changeSpan);
+        }
+
+        return card;
     }
+
+    private record MonthlyIncomeData(String month, BigDecimal grossIncome, BigDecimal netIncome, int count) {}
 
     private void setupDialogs() {
         incomeSourceForm = new IncomeSourceForm(
