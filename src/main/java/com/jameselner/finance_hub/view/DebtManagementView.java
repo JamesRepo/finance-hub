@@ -18,7 +18,6 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
@@ -41,6 +40,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Route(value = "debts", layout = MainLayout.class)
@@ -381,10 +381,14 @@ public class DebtManagementView extends VerticalLayout {
 
         BigDecimal totalMinimumPayment = debts.stream()
                 .map(DebtDTO::getMinimumPayment)
-                .filter(mp -> mp != null)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        monthlyPaymentField.setValue(totalMinimumPayment.multiply(BigDecimal.valueOf(1.2)));
+        // Set a sensible default: minimum payments * 1.2, or 100 if no minimum payments are set
+        BigDecimal defaultPayment = totalMinimumPayment.compareTo(BigDecimal.ZERO) > 0
+                ? totalMinimumPayment.multiply(BigDecimal.valueOf(1.2)).setScale(2, RoundingMode.HALF_UP)
+                : BigDecimal.valueOf(100);
+        monthlyPaymentField.setValue(defaultPayment);
 
         Button calculateButton = new Button("Calculate");
         calculateButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -393,7 +397,8 @@ public class DebtManagementView extends VerticalLayout {
         resultsLayout.setSpacing(true);
         resultsLayout.setPadding(false);
 
-        calculateButton.addClickListener(event -> {
+        // Helper to run the calculation
+        Runnable runCalculation = () -> {
             try {
                 BigDecimal monthlyPayment = monthlyPaymentField.getValue();
                 if (monthlyPayment == null || monthlyPayment.compareTo(BigDecimal.ZERO) <= 0) {
@@ -403,8 +408,15 @@ public class DebtManagementView extends VerticalLayout {
 
                 List<Debt> debtEntities = debts.stream()
                         .map(dto -> debtRepository.findById(dto.getDebtId()).orElse(null))
-                        .filter(d -> d != null)
+                        .filter(Objects::nonNull)
                         .collect(Collectors.toList());
+
+                // Ensure all debts have a minimum payment for calculation (use 0 if null)
+                for (Debt debt : debtEntities) {
+                    if (debt.getMinimumPayment() == null) {
+                        debt.setMinimumPayment(BigDecimal.ZERO);
+                    }
+                }
 
                 DebtPayoffPlan avalanchePlan = payoffCalculatorService.calculateAvalancheMethod(
                         debtEntities, monthlyPayment
@@ -423,13 +435,23 @@ public class DebtManagementView extends VerticalLayout {
             } catch (Exception e) {
                 showErrorNotification("Error calculating payoff: " + e.getMessage());
             }
-        });
+        };
+
+        calculateButton.addClickListener(event -> runCalculation.run());
 
         HorizontalLayout inputLayout = new HorizontalLayout(monthlyPaymentField, calculateButton);
         inputLayout.setAlignItems(FlexComponent.Alignment.END);
 
         content.add(inputLayout, resultsLayout);
         calculatorDialog.add(content);
+
+        // Auto-calculate on open
+        calculatorDialog.addOpenedChangeListener(event -> {
+            if (event.isOpened()) {
+                runCalculation.run();
+            }
+        });
+
         calculatorDialog.open();
     }
 

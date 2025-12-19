@@ -180,13 +180,13 @@ public class DebtPaymentDialog extends Dialog {
             BigDecimal paymentAmount = paymentAmountField.getValue();
             LocalDate paymentDate = paymentDateField.getValue();
 
-            debtPaymentService.recordPaymentWithInterestCalculation(
+            DebtPaymentDTO result = debtPaymentService.recordPaymentWithInterestCalculation(
                     currentDebt.getDebtId(),
                     paymentAmount,
                     paymentDate
             );
 
-            showSuccessNotification("Payment recorded successfully");
+            showPaymentBreakdownNotification(result);
             close();
 
             if (onSuccessCallback != null) {
@@ -196,6 +196,37 @@ public class DebtPaymentDialog extends Dialog {
         } catch (Exception e) {
             showErrorNotification("Error recording payment: " + e.getMessage());
         }
+    }
+
+    private void showPaymentBreakdownNotification(final DebtPaymentDTO payment) {
+        VerticalLayout content = new VerticalLayout();
+        content.setSpacing(false);
+        content.setPadding(false);
+
+        Span title = new Span("Payment recorded successfully");
+        title.getStyle()
+                .set("font-weight", "600")
+                .set("display", "block")
+                .set("margin-bottom", "0.5rem");
+
+        Span principalLine = new Span(String.format("Principal paid: £%.2f", payment.getPrincipalPaid()));
+        principalLine.getStyle()
+                .set("display", "block")
+                .set("color", "#10b981");
+
+        Span interestLine = new Span(String.format("Interest paid: £%.2f", payment.getInterestPaid()));
+        interestLine.getStyle()
+                .set("display", "block")
+                .set("color", "#f59e0b");
+
+        content.add(title, principalLine, interestLine);
+
+        Notification notification = new Notification();
+        notification.add(content);
+        notification.setDuration(5000);
+        notification.setPosition(Notification.Position.TOP_CENTER);
+        notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        notification.open();
     }
 
     public void openForDebt(final DebtDTO debt, final Runnable onSuccess) {
