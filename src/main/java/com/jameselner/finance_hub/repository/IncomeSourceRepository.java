@@ -21,7 +21,8 @@ public interface IncomeSourceRepository extends JpaRepository<IncomeSource, Long
     List<IncomeSource> findByUserAndIsRecurringOrderByStartDateDesc(User user, Boolean isRecurring);
 
     List<IncomeSource> findByUserAndIsActiveAndIsRecurringOrderByNextExpectedDateAsc(
-            User user, Boolean isActive, Boolean isRecurring);
+            User user, Boolean isActive, Boolean isRecurring
+    );
 
     @Query("SELECT i FROM IncomeSource i WHERE i.user = :user AND i.isActive = true " +
             "AND i.isRecurring = true AND i.nextExpectedDate <= :date " +
@@ -41,4 +42,15 @@ public interface IncomeSourceRepository extends JpaRepository<IncomeSource, Long
 
     @Query("SELECT COUNT(i) FROM IncomeSource i WHERE i.user = :user AND i.isActive = true AND i.isRecurring = true")
     long countRecurringIncomeSourcesByUser(@Param("user") User user);
+
+    @Query("SELECT i FROM IncomeSource i " +
+            "WHERE i.user = :user " +
+            "AND i.startDate >= :startMonth " +
+            "AND i.startDate <= :endMonth " +
+            "ORDER BY i.startDate DESC")
+    List<IncomeSource> findByUserAndMonthRange(
+            @Param("user") User user,
+            @Param("startMonth") LocalDate startMonth,
+            @Param("endMonth") LocalDate endMonth
+    );
 }

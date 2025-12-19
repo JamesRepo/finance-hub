@@ -48,10 +48,10 @@ public class HousingExpensesView extends VerticalLayout {
     private ComboBox<Month> monthFilter;
     private ComboBox<Integer> yearFilter;
 
-    private Span totalMonthlyCard;
-    private Span totalAnnualCard;
+    private Span yearTotalCard;
+    private Span avgMonthlyCard;
     private Span housingRatioCard;
-    private Span expenseCountCard;
+    private Span monthsTrackedCard;
 
     private VerticalLayout expensesContainer;
 
@@ -100,16 +100,16 @@ public class HousingExpensesView extends VerticalLayout {
         cardsLayout.setWidthFull();
         cardsLayout.setSpacing(true);
 
-        totalMonthlyCard = createSummaryCard("This Month", "£0.00", "var(--lumo-primary-color)", VaadinIcon.CALC);
-        totalAnnualCard = createSummaryCard("Annual Estimate", "£0.00", "var(--lumo-success-color)", VaadinIcon.CALENDAR);
-        housingRatioCard = createSummaryCard("Housing Ratio", "0%", "var(--lumo-warning-color)", VaadinIcon.PIE_CHART);
-        expenseCountCard = createSummaryCard("This Month's Items", "0", "var(--lumo-contrast-color)", VaadinIcon.LIST);
+        yearTotalCard = createSummaryCard("Year Total", "£0.00", "var(--lumo-primary-color)", VaadinIcon.CALC);
+        avgMonthlyCard = createSummaryCard("Avg Monthly", "£0.00", "var(--lumo-success-color)", VaadinIcon.TRENDING_UP);
+        housingRatioCard = createSummaryCard("% of Net Income", "0%", "var(--lumo-warning-color)", VaadinIcon.PIE_CHART);
+        monthsTrackedCard = createSummaryCard("Months Tracked", "0", "var(--lumo-contrast-color)", VaadinIcon.CALENDAR);
 
         cardsLayout.add(
-                createCardContainer(totalMonthlyCard),
-                createCardContainer(totalAnnualCard),
+                createCardContainer(yearTotalCard),
+                createCardContainer(avgMonthlyCard),
                 createCardContainer(housingRatioCard),
-                createCardContainer(expenseCountCard)
+                createCardContainer(monthsTrackedCard)
         );
 
         return cardsLayout;
@@ -165,7 +165,7 @@ public class HousingExpensesView extends VerticalLayout {
         int currentYear = LocalDate.now().getYear();
         yearFilter.setItems(IntStream.rangeClosed(currentYear - 5, currentYear + 1).boxed().toList());
         yearFilter.setValue(currentYear);
-        yearFilter.addValueChangeListener(event -> refreshExpenses());
+        yearFilter.addValueChangeListener(event -> refreshData());
 
         HorizontalLayout toolbar = new HorizontalLayout(monthFilter, yearFilter);
         toolbar.setSpacing(true);
@@ -248,15 +248,20 @@ public class HousingExpensesView extends VerticalLayout {
         User currentUser = getCurrentUser();
         Long userId = currentUser.getUserId();
 
-        BigDecimal totalMonthly = housingExpenseService.calculateTotalMonthlyHousingCosts(userId);
-        BigDecimal totalAnnual = housingExpenseService.calculateTotalAnnualHousingCosts(userId);
-        BigDecimal housingRatio = housingExpenseService.calculateHousingToIncomeRatio(userId);
-        long expenseCount = housingExpenseService.countExpensesForCurrentMonth(userId);
+        Integer selectedYear = yearFilter.getValue();
+        if (selectedYear == null) {
+            selectedYear = LocalDate.now().getYear();
+        }
 
-        updateCardValue(totalMonthlyCard, String.format("£%.2f", totalMonthly));
-        updateCardValue(totalAnnualCard, String.format("£%.2f", totalAnnual));
+        BigDecimal yearTotal = housingExpenseService.calculateTotalForYear(userId, selectedYear);
+        BigDecimal avgMonthly = housingExpenseService.calculateAverageMonthlyForYear(userId, selectedYear);
+        BigDecimal housingRatio = housingExpenseService.calculateHousingToIncomeRatioForYear(userId, selectedYear);
+        long monthsTracked = housingExpenseService.countMonthsWithExpensesForYear(userId, selectedYear);
+
+        updateCardValue(yearTotalCard, String.format("£%.2f", yearTotal));
+        updateCardValue(avgMonthlyCard, String.format("£%.2f", avgMonthly));
         updateCardValue(housingRatioCard, String.format("%.1f%%", housingRatio));
-        updateCardValue(expenseCountCard, String.valueOf(expenseCount));
+        updateCardValue(monthsTrackedCard, String.valueOf(monthsTracked));
     }
 
     private void refreshExpenses() {

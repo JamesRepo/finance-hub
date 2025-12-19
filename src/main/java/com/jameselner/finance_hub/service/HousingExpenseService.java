@@ -240,25 +240,6 @@ public class HousingExpenseService {
     }
 
     /**
-     * Calculate housing-to-income ratio as a percentage
-     */
-    public BigDecimal calculateHousingToIncomeRatio(final Long userId) {
-        validateIdNotNull(userId);
-        User user = getUserById(userId);
-
-        BigDecimal monthlyHousingCosts = calculateTotalMonthlyHousingCosts(userId);
-        BigDecimal monthlyIncome = calculateMonthlyIncome(user);
-
-        if (monthlyIncome.compareTo(BigDecimal.ZERO) == 0) {
-            return BigDecimal.ZERO;
-        }
-
-        return monthlyHousingCosts
-                .multiply(BigDecimal.valueOf(100))
-                .divide(monthlyIncome, 2, RoundingMode.HALF_UP);
-    }
-
-    /**
      * Get expenses grouped by month
      */
     public Map<String, List<HousingExpenseDTO>> getExpensesGroupedByMonth(final Long userId) {
@@ -317,30 +298,109 @@ public class HousingExpenseService {
         return currentMonthExpenses.size();
     }
 
+    /**
+     * Calculate total housing expenses for a specific year
+     */
+    public BigDecimal calculateTotalForYear(final Long userId, final int year) {
+        validateIdNotNull(userId);
+        User user = getUserById(userId);
+
+        LocalDate startOfYear = LocalDate.of(year, 1, 1);
+        LocalDate endOfYear = LocalDate.of(year, 12, 1);
+
+        List<HousingExpense> expenses = housingExpenseRepository.findByUserAndMonthRange(user, startOfYear, endOfYear);
+
+        return expenses.stream()
+                .map(HousingExpense::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Calculate average monthly housing expenses for a specific year
+     */
+    public BigDecimal calculateAverageMonthlyForYear(final Long userId, final int year) {
+        validateIdNotNull(userId);
+        User user = getUserById(userId);
+
+        LocalDate startOfYear = LocalDate.of(year, 1, 1);
+        LocalDate endOfYear = LocalDate.of(year, 12, 1);
+
+        List<HousingExpense> expenses = housingExpenseRepository.findByUserAndMonthRange(user, startOfYear, endOfYear);
+
+        if (expenses.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        // Count distinct months that have expenses
+        long monthsWithExpenses = expenses.stream()
+                .map(HousingExpense::getExpenseMonth)
+                .distinct()
+                .count();
+
+        if (monthsWithExpenses == 0) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal total = expenses.stream()
+                .map(HousingExpense::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return total.divide(BigDecimal.valueOf(monthsWithExpenses), 2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Count distinct months with expenses for a specific year
+     */
+    public long countMonthsWithExpensesForYear(final Long userId, final int year) {
+        validateIdNotNull(userId);
+        User user = getUserById(userId);
+
+        LocalDate startOfYear = LocalDate.of(year, 1, 1);
+        LocalDate endOfYear = LocalDate.of(year, 12, 1);
+
+        List<HousingExpense> expenses = housingExpenseRepository.findByUserAndMonthRange(user, startOfYear, endOfYear);
+
+        return expenses.stream()
+                .map(HousingExpense::getExpenseMonth)
+                .distinct()
+                .count();
+    }
+
+    /**
+     * Calculate housing-to-income ratio as a percentage based on total housing costs
+     * and total net income (matching Take-Home Income calculation from Income Tracking)
+     */
+    public BigDecimal calculateHousingToIncomeRatioForYear(final Long userId, final int year) {
+        validateIdNotNull(userId);
+        User user = getUserById(userId);
+
+        BigDecimal yearlyHousing = calculateTotalForYear(userId, year);
+        BigDecimal totalNetIncome = getTakeHomeIncomeForYear(user, year);
+
+        if (totalNetIncome.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ZERO;
+        }
+
+        return yearlyHousing
+                .multiply(BigDecimal.valueOf(100))
+                .divide(totalNetIncome, 1, RoundingMode.HALF_UP);
+    }
+
     // Private helper methods
 
-    private BigDecimal calculateMonthlyIncome(final User user) {
+    /**
+     * Get total take-home income matching the Income Tracking view calculation
+     */
+    private BigDecimal getTakeHomeIncomeForYear(final User user, final int year) {
+        LocalDate startOfYear = LocalDate.of(year, 1, 1);
+        LocalDate endOfYear = LocalDate.of(year, 12, 1);
+
         List<IncomeSource> activeSources = incomeSourceRepository
-                .findByUserAndIsActiveOrderByStartDateDesc(user, true);
+                .findByUserAndMonthRange(user, startOfYear, endOfYear);
 
         return activeSources.stream()
-                .map(source -> {
-                    if (source.getRecurrenceFrequency() != null && source.getNetAmount() != null) {
-                        BigDecimal amount = source.getNetAmount();
-                        return switch (source.getRecurrenceFrequency()) {
-                            case WEEKLY -> amount.multiply(BigDecimal.valueOf(52))
-                                    .divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
-                            case BI_WEEKLY -> amount.multiply(BigDecimal.valueOf(26))
-                                    .divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
-                            case MONTHLY -> amount;
-                            case QUARTERLY -> amount.divide(BigDecimal.valueOf(3), 2, RoundingMode.HALF_UP);
-                            case SEMI_ANNUALLY -> amount.divide(BigDecimal.valueOf(6), 2, RoundingMode.HALF_UP);
-                            case ANNUALLY -> amount.divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
-                            default -> BigDecimal.ZERO;
-                        };
-                    }
-                    return BigDecimal.ZERO;
-                })
+                .map(source -> source.getNetAmount() != null ? source.getNetAmount() : source.getGrossAmount())
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 

@@ -79,7 +79,7 @@ public class MonthlySummaryService {
 
         // Housing costs
         BigDecimal housingCosts = housingExpenseService.calculateTotalMonthlyHousingCosts(userId);
-        BigDecimal housingRatio = housingExpenseService.calculateHousingToIncomeRatio(userId);
+        BigDecimal housingRatio = housingExpenseService.calculateHousingToIncomeRatioForYear(userId, LocalDate.now().getYear());
 
         // Transaction statistics
         List<Transaction> transactions = transactionRepository.findByAccountUserAndTransactionDateBetween(
