@@ -1,6 +1,5 @@
 package com.jameselner.finance_hub.domain;
 
-import com.jameselner.finance_hub.domain.enums.Frequency;
 import com.jameselner.finance_hub.domain.enums.HousingExpenseType;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -18,7 +17,7 @@ import java.time.OffsetDateTime;
 @Table(name = "housing_expenses",
     indexes = {
         @Index(name = "idx_housing_expenses_user_id", columnList = "user_id"),
-        @Index(name = "idx_housing_expenses_user_active", columnList = "user_id, is_active")
+        @Index(name = "idx_housing_expenses_user_month", columnList = "user_id, expense_month")
     }
 )
 public class HousingExpense {
@@ -39,18 +38,8 @@ public class HousingExpense {
     @Column(name = "amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "frequency", nullable = false, length = 20)
-    private Frequency frequency;
-
-    @Column(name = "start_date", nullable = false)
-    private LocalDate startDate;
-
-    @Column(name = "end_date")
-    private LocalDate endDate;
-
-    @Column(name = "is_active", nullable = false)
-    private Boolean isActive = true;
+    @Column(name = "expense_month", nullable = false)
+    private LocalDate expenseMonth;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

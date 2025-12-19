@@ -17,6 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -47,16 +50,16 @@ public class HousingExpenseService {
 
         validateDtoRequiredFields(dto);
         validateAmount(dto);
-        validateDates(dto);
 
-        if (dto.getIsActive() == null) {
-            dto.setIsActive(true);
+        // Ensure expense month is set to first of month
+        if (dto.getExpenseMonth() != null) {
+            dto.setExpenseMonth(dto.getExpenseMonth().withDayOfMonth(1));
         }
 
         HousingExpense expense = housingExpenseMapper.toEntity(dto);
         HousingExpense savedExpense = housingExpenseRepository.save(expense);
 
-        return enrichWithCalculatedFields(housingExpenseMapper.toDto(savedExpense));
+        return housingExpenseMapper.toDto(savedExpense);
     }
 
     /**
@@ -76,12 +79,16 @@ public class HousingExpenseService {
 
         validateDtoRequiredFields(dto);
         validateAmount(dto);
-        validateDates(dto);
+
+        // Ensure expense month is set to first of month
+        if (dto.getExpenseMonth() != null) {
+            dto.setExpenseMonth(dto.getExpenseMonth().withDayOfMonth(1));
+        }
 
         housingExpenseMapper.updateEntityFromDto(existingExpense, dto);
         HousingExpense savedExpense = housingExpenseRepository.save(existingExpense);
 
-        return enrichWithCalculatedFields(housingExpenseMapper.toDto(savedExpense));
+        return housingExpenseMapper.toDto(savedExpense);
     }
 
     /**
@@ -90,8 +97,7 @@ public class HousingExpenseService {
     public Optional<HousingExpenseDTO> findByIdAsDto(final Long id) {
         validateIdNotNull(id);
         return housingExpenseRepository.findById(id)
-                .map(housingExpenseMapper::toDto)
-                .map(this::enrichWithCalculatedFields);
+                .map(housingExpenseMapper::toDto);
     }
 
     /**
@@ -101,22 +107,22 @@ public class HousingExpenseService {
         validateIdNotNull(userId);
         User user = getUserById(userId);
 
-        return housingExpenseRepository.findByUserOrderByStartDateDesc(user).stream()
+        return housingExpenseRepository.findByUserOrderByExpenseMonthDesc(user).stream()
                 .map(housingExpenseMapper::toDto)
-                .map(this::enrichWithCalculatedFields)
                 .collect(Collectors.toList());
     }
 
     /**
-     * Find active housing expenses for a user
+     * Find housing expenses for a specific month
      */
-    public List<HousingExpenseDTO> findActiveByUserIdAsDto(final Long userId) {
+    public List<HousingExpenseDTO> findByUserIdAndMonthAsDto(final Long userId, final LocalDate month) {
         validateIdNotNull(userId);
+        Objects.requireNonNull(month, "Month must not be null");
         User user = getUserById(userId);
 
-        return housingExpenseRepository.findByUserAndIsActiveTrueOrderByStartDateDesc(user).stream()
+        LocalDate firstOfMonth = month.withDayOfMonth(1);
+        return housingExpenseRepository.findByUserAndExpenseMonthOrderByExpenseTypeAsc(user, firstOfMonth).stream()
                 .map(housingExpenseMapper::toDto)
-                .map(this::enrichWithCalculatedFields)
                 .collect(Collectors.toList());
     }
 
@@ -128,27 +134,25 @@ public class HousingExpenseService {
         Objects.requireNonNull(type, "Expense type must not be null");
         User user = getUserById(userId);
 
-        return housingExpenseRepository.findByUserAndExpenseTypeOrderByStartDateDesc(user, type).stream()
+        return housingExpenseRepository.findByUserAndExpenseTypeOrderByExpenseMonthDesc(user, type).stream()
                 .map(housingExpenseMapper::toDto)
-                .map(this::enrichWithCalculatedFields)
                 .collect(Collectors.toList());
     }
 
     /**
-     * Find housing expenses within a date range
+     * Find housing expenses within a month range
      */
-    public List<HousingExpenseDTO> findByUserIdAndDateRangeAsDto(
+    public List<HousingExpenseDTO> findByUserIdAndMonthRangeAsDto(
             final Long userId,
-            final LocalDate startDate,
-            final LocalDate endDate) {
+            final LocalDate startMonth,
+            final LocalDate endMonth) {
         validateIdNotNull(userId);
-        Objects.requireNonNull(startDate, "Start date must not be null");
-        Objects.requireNonNull(endDate, "End date must not be null");
+        Objects.requireNonNull(startMonth, "Start month must not be null");
+        Objects.requireNonNull(endMonth, "End month must not be null");
         User user = getUserById(userId);
 
-        return housingExpenseRepository.findByUserAndDateRange(user, startDate, endDate).stream()
+        return housingExpenseRepository.findByUserAndMonthRange(user, startMonth.withDayOfMonth(1), endMonth.withDayOfMonth(1)).stream()
                 .map(housingExpenseMapper::toDto)
-                .map(this::enrichWithCalculatedFields)
                 .collect(Collectors.toList());
     }
 
@@ -169,83 +173,107 @@ public class HousingExpenseService {
     }
 
     /**
-     * Calculate total monthly housing costs for a user
+     * Copy all expenses from one month to the next month
+     */
+    @Transactional
+    public List<HousingExpenseDTO> copyMonthToNext(final Long userId, final LocalDate sourceMonth) {
+        validateIdNotNull(userId);
+        Objects.requireNonNull(sourceMonth, "Source month must not be null");
+
+        LocalDate sourceMonthFirst = sourceMonth.withDayOfMonth(1);
+        LocalDate targetMonth = sourceMonthFirst.plusMonths(1);
+
+        List<HousingExpenseDTO> sourceExpenses = findByUserIdAndMonthAsDto(userId, sourceMonthFirst);
+        List<HousingExpenseDTO> copiedExpenses = new ArrayList<>();
+
+        for (HousingExpenseDTO source : sourceExpenses) {
+            HousingExpenseDTO copy = HousingExpenseDTO.builder()
+                    .userId(userId)
+                    .expenseType(source.getExpenseType())
+                    .amount(source.getAmount())
+                    .expenseMonth(targetMonth)
+                    .build();
+
+            HousingExpenseDTO saved = createFromDto(copy);
+            copiedExpenses.add(saved);
+        }
+
+        log.info("Copied {} expenses from {} to {}", copiedExpenses.size(),
+                sourceMonthFirst.format(DateTimeFormatter.ofPattern("MMM yyyy")),
+                targetMonth.format(DateTimeFormatter.ofPattern("MMM yyyy")));
+
+        return copiedExpenses;
+    }
+
+    /**
+     * Get all distinct months that have expenses
+     */
+    public List<LocalDate> getDistinctMonths(final Long userId) {
+        validateIdNotNull(userId);
+        User user = getUserById(userId);
+        return housingExpenseRepository.findDistinctMonthsByUser(user);
+    }
+
+    /**
+     * Calculate total for a specific month
+     */
+    public BigDecimal calculateTotalForMonth(final Long userId, final LocalDate month) {
+        validateIdNotNull(userId);
+        User user = getUserById(userId);
+        LocalDate firstOfMonth = month.withDayOfMonth(1);
+        return housingExpenseRepository.getTotalForMonth(user, firstOfMonth);
+    }
+
+    /**
+     * Calculate total monthly housing costs (current month)
      */
     public BigDecimal calculateTotalMonthlyHousingCosts(final Long userId) {
-        List<HousingExpenseDTO> activeExpenses = findActiveByUserIdAsDto(userId);
-
-        return activeExpenses.stream()
-                .map(HousingExpenseDTO::getMonthlyEquivalent)
-                .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return calculateTotalForMonth(userId, LocalDate.now());
     }
 
     /**
-     * Calculate total annual housing costs for a user
+     * Calculate total annual housing costs (sum of last 12 months or current month * 12)
      */
     public BigDecimal calculateTotalAnnualHousingCosts(final Long userId) {
-        List<HousingExpenseDTO> activeExpenses = findActiveByUserIdAsDto(userId);
-
-        return activeExpenses.stream()
-                .map(HousingExpenseDTO::getAnnualEquivalent)
-                .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
-    /**
-     * Calculate monthly housing costs by type
-     */
-    public Map<HousingExpenseType, BigDecimal> calculateMonthlyHousingCostsByType(final Long userId) {
-        List<HousingExpenseDTO> activeExpenses = findActiveByUserIdAsDto(userId);
-
-        return activeExpenses.stream()
-                .collect(Collectors.groupingBy(
-                        HousingExpenseDTO::getExpenseType,
-                        Collectors.reducing(
-                                BigDecimal.ZERO,
-                                HousingExpenseDTO::getMonthlyEquivalent,
-                                BigDecimal::add
-                        )
-                ));
-    }
-
-    /**
-     * Calculate total monthly utilities costs separately
-     */
-    public BigDecimal calculateTotalMonthlyUtilities(final Long userId) {
-        List<HousingExpenseDTO> utilities = findByUserIdAndTypeAsDto(userId, HousingExpenseType.UTILITIES).stream()
-                .filter(HousingExpenseDTO::getIsActive)
-                .toList();
-
-        return utilities.stream()
-                .map(HousingExpenseDTO::getMonthlyEquivalent)
-                .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal currentMonthTotal = calculateTotalMonthlyHousingCosts(userId);
+        return currentMonthTotal.multiply(BigDecimal.valueOf(12));
     }
 
     /**
      * Calculate housing-to-income ratio as a percentage
-     * Returns the percentage of monthly income that goes to housing costs
      */
     public BigDecimal calculateHousingToIncomeRatio(final Long userId) {
         validateIdNotNull(userId);
         User user = getUserById(userId);
 
-        // Calculate total monthly housing costs
         BigDecimal monthlyHousingCosts = calculateTotalMonthlyHousingCosts(userId);
-
-        // Calculate total monthly income from active income sources
         BigDecimal monthlyIncome = calculateMonthlyIncome(user);
 
-        // Avoid division by zero
         if (monthlyIncome.compareTo(BigDecimal.ZERO) == 0) {
             return BigDecimal.ZERO;
         }
 
-        // Calculate ratio as percentage
         return monthlyHousingCosts
                 .multiply(BigDecimal.valueOf(100))
                 .divide(monthlyIncome, 2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Get expenses grouped by month
+     */
+    public Map<String, List<HousingExpenseDTO>> getExpensesGroupedByMonth(final Long userId) {
+        validateIdNotNull(userId);
+        List<HousingExpenseDTO> allExpenses = findByUserIdAsDto(userId);
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM yyyy");
+        Map<String, List<HousingExpenseDTO>> grouped = new LinkedHashMap<>();
+
+        for (HousingExpenseDTO expense : allExpenses) {
+            String monthKey = expense.getExpenseMonth().format(formatter);
+            grouped.computeIfAbsent(monthKey, k -> new ArrayList<>()).add(expense);
+        }
+
+        return grouped;
     }
 
     /**
@@ -258,62 +286,39 @@ public class HousingExpenseService {
         }
 
         User user = getUserById(userId);
-        Map<String, BigDecimal> historicalCosts = new java.util.LinkedHashMap<>();
-
-        LocalDate endDate = LocalDate.now();
+        Map<String, BigDecimal> historicalCosts = new LinkedHashMap<>();
+        LocalDate today = LocalDate.now();
 
         for (int i = 0; i < months; i++) {
-            LocalDate monthStart = endDate.minusMonths(i).withDayOfMonth(1);
-            LocalDate monthEnd = monthStart.plusMonths(1).minusDays(1);
+            LocalDate month = today.minusMonths(i).withDayOfMonth(1);
+            BigDecimal total = housingExpenseRepository.getTotalForMonth(user, month);
 
-            List<HousingExpenseDTO> expensesForMonth = housingExpenseRepository
-                    .findActiveByUserAndDateRange(user, monthStart, monthEnd).stream()
-                    .map(housingExpenseMapper::toDto)
-                    .map(this::enrichWithCalculatedFields)
-                    .toList();
-
-            BigDecimal monthlyTotal = expensesForMonth.stream()
-                    .map(HousingExpenseDTO::getMonthlyEquivalent)
-                    .filter(Objects::nonNull)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            String monthKey = monthStart.getYear() + "-" +
-                    String.format("%02d", monthStart.getMonthValue());
-            historicalCosts.put(monthKey, monthlyTotal);
+            String monthKey = month.getYear() + "-" + String.format("%02d", month.getMonthValue());
+            historicalCosts.put(monthKey, total);
         }
 
         return historicalCosts;
     }
 
     /**
-     * Count active housing expenses for a user
+     * Count housing expenses for a user
      */
-    public long countActiveExpenses(final Long userId) {
+    public long countExpenses(final Long userId) {
         validateIdNotNull(userId);
         User user = getUserById(userId);
-        return housingExpenseRepository.countByUserAndIsActiveTrue(user);
+        return housingExpenseRepository.countByUser(user);
+    }
+
+    /**
+     * Count expenses for current month
+     */
+    public long countExpensesForCurrentMonth(final Long userId) {
+        List<HousingExpenseDTO> currentMonthExpenses = findByUserIdAndMonthAsDto(userId, LocalDate.now());
+        return currentMonthExpenses.size();
     }
 
     // Private helper methods
 
-    /**
-     * Enrich DTO with calculated fields
-     */
-    private HousingExpenseDTO enrichWithCalculatedFields(final HousingExpenseDTO dto) {
-        if (dto == null || dto.getAmount() == null || dto.getFrequency() == null) {
-            return dto;
-        }
-
-        // Calculate monthly and annual equivalents
-        dto.setMonthlyEquivalent(dto.getFrequency().toMonthlyEquivalent(dto.getAmount()));
-        dto.setAnnualEquivalent(dto.getFrequency().toAnnualEquivalent(dto.getAmount()));
-
-        return dto;
-    }
-
-    /**
-     * Calculate total monthly income for a user
-     */
     private BigDecimal calculateMonthlyIncome(final User user) {
         List<IncomeSource> activeSources = incomeSourceRepository
                 .findByUserAndIsActiveOrderByStartDateDesc(user, true);
@@ -321,7 +326,6 @@ public class HousingExpenseService {
         return activeSources.stream()
                 .map(source -> {
                     if (source.getRecurrenceFrequency() != null && source.getNetAmount() != null) {
-                        // Convert to monthly based on frequency
                         BigDecimal amount = source.getNetAmount();
                         return switch (source.getRecurrenceFrequency()) {
                             case WEEKLY -> amount.multiply(BigDecimal.valueOf(52))
@@ -367,25 +371,14 @@ public class HousingExpenseService {
         if (dto.getAmount() == null) {
             throw new IllegalArgumentException("Amount must not be null");
         }
-        if (dto.getFrequency() == null) {
-            throw new IllegalArgumentException("Frequency must not be null");
-        }
-        if (dto.getStartDate() == null) {
-            throw new IllegalArgumentException("Start date must not be null");
+        if (dto.getExpenseMonth() == null) {
+            throw new IllegalArgumentException("Expense month must not be null");
         }
     }
 
     private void validateAmount(final HousingExpenseDTO dto) {
         if (dto.getAmount() != null && dto.getAmount().compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Amount must not be negative");
-        }
-    }
-
-    private void validateDates(final HousingExpenseDTO dto) {
-        if (dto.getEndDate() != null && dto.getStartDate() != null) {
-            if (dto.getEndDate().isBefore(dto.getStartDate())) {
-                throw new IllegalArgumentException("End date must not be before start date");
-            }
         }
     }
 }

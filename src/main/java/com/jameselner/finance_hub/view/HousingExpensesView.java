@@ -1,7 +1,6 @@
 package com.jameselner.finance_hub.view;
 
 import com.jameselner.finance_hub.domain.User;
-import com.jameselner.finance_hub.domain.enums.HousingExpenseType;
 import com.jameselner.finance_hub.dto.HousingExpenseDTO;
 import com.jameselner.finance_hub.repository.UserRepository;
 import com.jameselner.finance_hub.service.HousingExpenseService;
@@ -10,10 +9,9 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
-import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -29,8 +27,13 @@ import jakarta.annotation.security.PermitAll;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.Month;
+import java.time.format.TextStyle;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 @Route(value = "housing", layout = MainLayout.class)
 @PageTitle("Housing Expenses | Finance Hub")
@@ -41,17 +44,16 @@ public class HousingExpensesView extends VerticalLayout {
     private final AuthenticationContext authenticationContext;
     private final UserRepository userRepository;
 
-    private Grid<HousingExpenseDTO> grid;
     private HousingExpenseFormDialog formDialog;
-    private ComboBox<String> filterCombo;
+    private ComboBox<Month> monthFilter;
+    private ComboBox<Integer> yearFilter;
 
     private Span totalMonthlyCard;
     private Span totalAnnualCard;
     private Span housingRatioCard;
-    private Span activeCountCard;
-    private Span utilitiesCard;
+    private Span expenseCountCard;
 
-    private VerticalLayout historicalSection;
+    private VerticalLayout expensesContainer;
 
     public HousingExpensesView(
             final HousingExpenseService housingExpenseService,
@@ -69,10 +71,8 @@ public class HousingExpensesView extends VerticalLayout {
         add(
                 createHeader(),
                 createSummaryCards(),
-                createUtilitiesSection(),
                 createToolbar(),
-                createGrid(),
-                createHistoricalSection()
+                createExpensesContainer()
         );
 
         setupFormDialog();
@@ -100,37 +100,19 @@ public class HousingExpensesView extends VerticalLayout {
         cardsLayout.setWidthFull();
         cardsLayout.setSpacing(true);
 
-        totalMonthlyCard = createSummaryCard("Total Monthly", "£0.00", "var(--lumo-primary-color)", VaadinIcon.CALC);
-        totalAnnualCard = createSummaryCard("Total Annual", "£0.00", "var(--lumo-success-color)", VaadinIcon.CALENDAR);
+        totalMonthlyCard = createSummaryCard("This Month", "£0.00", "var(--lumo-primary-color)", VaadinIcon.CALC);
+        totalAnnualCard = createSummaryCard("Annual Estimate", "£0.00", "var(--lumo-success-color)", VaadinIcon.CALENDAR);
         housingRatioCard = createSummaryCard("Housing Ratio", "0%", "var(--lumo-warning-color)", VaadinIcon.PIE_CHART);
-        activeCountCard = createSummaryCard("Active Expenses", "0", "var(--lumo-contrast-color)", VaadinIcon.LIST);
+        expenseCountCard = createSummaryCard("This Month's Items", "0", "var(--lumo-contrast-color)", VaadinIcon.LIST);
 
         cardsLayout.add(
                 createCardContainer(totalMonthlyCard),
                 createCardContainer(totalAnnualCard),
                 createCardContainer(housingRatioCard),
-                createCardContainer(activeCountCard)
+                createCardContainer(expenseCountCard)
         );
 
         return cardsLayout;
-    }
-
-    private VerticalLayout createUtilitiesSection() {
-        VerticalLayout section = new VerticalLayout();
-        section.setPadding(true);
-        section.setSpacing(false);
-        section.getStyle()
-                .set("background-color", "var(--lumo-contrast-5pct)")
-                .set("border-radius", "var(--lumo-border-radius-m)");
-
-        H3 sectionTitle = new H3("Utilities Breakdown");
-        sectionTitle.getStyle().set("margin", "0 0 0.5rem 0");
-
-        utilitiesCard = createSummaryCard("Monthly Utilities", "£0.00", "var(--lumo-primary-color)", VaadinIcon.PLUG);
-
-        section.add(sectionTitle, createCardContainer(utilitiesCard));
-
-        return section;
     }
 
     private Div createCardContainer(final Span card) {
@@ -172,96 +154,32 @@ public class HousingExpensesView extends VerticalLayout {
     }
 
     private HorizontalLayout createToolbar() {
-        filterCombo = new ComboBox<>("Filter by Type");
-        filterCombo.setItems("All", "Rent", "Mortgage", "Property Tax", "Insurance",
-                "Utilities", "Maintenance", "HOA Fees", "Other");
-        filterCombo.setValue("All");
-        filterCombo.addValueChangeListener(event -> refreshGrid());
+        monthFilter = new ComboBox<>("Month");
+        monthFilter.setItems(Month.values());
+        monthFilter.setItemLabelGenerator(m -> m.getDisplayName(TextStyle.FULL, Locale.UK));
+        monthFilter.setClearButtonVisible(true);
+        monthFilter.setPlaceholder("All months");
+        monthFilter.addValueChangeListener(event -> refreshExpenses());
 
-        HorizontalLayout toolbar = new HorizontalLayout(filterCombo);
-        toolbar.setWidthFull();
+        yearFilter = new ComboBox<>("Year");
+        int currentYear = LocalDate.now().getYear();
+        yearFilter.setItems(IntStream.rangeClosed(currentYear - 5, currentYear + 1).boxed().toList());
+        yearFilter.setValue(currentYear);
+        yearFilter.addValueChangeListener(event -> refreshExpenses());
+
+        HorizontalLayout toolbar = new HorizontalLayout(monthFilter, yearFilter);
         toolbar.setSpacing(true);
         toolbar.setAlignItems(FlexComponent.Alignment.END);
 
         return toolbar;
     }
 
-    private Grid<HousingExpenseDTO> createGrid() {
-        grid = new Grid<>(HousingExpenseDTO.class, false);
-        grid.setAllRowsVisible(true);
-        grid.setMaxHeight("400px");
-
-        grid.addColumn(dto -> dto.getExpenseType().getDisplayName())
-                .setHeader("Type")
-                .setAutoWidth(true)
-                .setFlexGrow(1);
-
-        grid.addColumn(dto -> String.format("£%.2f", dto.getAmount()))
-                .setHeader("Amount")
-                .setAutoWidth(true);
-
-        grid.addColumn(dto -> dto.getFrequency().getDisplayName())
-                .setHeader("Frequency")
-                .setAutoWidth(true);
-
-        grid.addColumn(dto -> String.format("£%.2f", dto.getMonthlyEquivalent()))
-                .setHeader("Monthly")
-                .setAutoWidth(true);
-
-        grid.addColumn(dto -> String.format("£%.2f", dto.getAnnualEquivalent()))
-                .setHeader("Annual")
-                .setAutoWidth(true);
-
-        grid.addColumn(HousingExpenseDTO::getStartDate)
-                .setHeader("Start Date")
-                .setAutoWidth(true);
-
-        grid.addColumn(HousingExpenseDTO::getEndDate)
-                .setHeader("End Date")
-                .setAutoWidth(true);
-
-        grid.addComponentColumn(dto -> {
-            Span badge = new Span(dto.getIsActive() ? "Active" : "Inactive");
-            badge.getElement().getThemeList().add("badge");
-            badge.getElement().getThemeList().add(dto.getIsActive() ? "success" : "contrast");
-            return badge;
-        })
-                .setHeader("Status")
-                .setAutoWidth(true);
-
-        grid.addComponentColumn(dto -> {
-            Button editButton = new Button(new Icon(VaadinIcon.EDIT));
-            editButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_SMALL);
-            editButton.addClickListener(event -> openFormDialog(dto));
-
-            Button deleteButton = new Button(new Icon(VaadinIcon.TRASH));
-            deleteButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR);
-            deleteButton.addClickListener(event -> confirmDelete(dto));
-
-            HorizontalLayout actions = new HorizontalLayout(editButton, deleteButton);
-            actions.setSpacing(true);
-            return actions;
-        })
-                .setHeader("Actions")
-                .setAutoWidth(true);
-
-        return grid;
-    }
-
-    private VerticalLayout createHistoricalSection() {
-        historicalSection = new VerticalLayout();
-        historicalSection.setPadding(true);
-        historicalSection.setSpacing(true);
-        historicalSection.getStyle()
-                .set("background-color", "var(--lumo-contrast-5pct)")
-                .set("border-radius", "var(--lumo-border-radius-m)");
-
-        H3 sectionTitle = new H3("Historical Housing Costs (Last 12 Months)");
-        sectionTitle.getStyle().set("margin", "0 0 1rem 0");
-
-        historicalSection.add(sectionTitle);
-
-        return historicalSection;
+    private VerticalLayout createExpensesContainer() {
+        expensesContainer = new VerticalLayout();
+        expensesContainer.setPadding(false);
+        expensesContainer.setSpacing(true);
+        expensesContainer.setWidthFull();
+        return expensesContainer;
     }
 
     private void setupFormDialog() {
@@ -272,6 +190,13 @@ public class HousingExpensesView extends VerticalLayout {
     private void openFormDialog(final HousingExpenseDTO expense) {
         User currentUser = getCurrentUser();
         formDialog.open(currentUser.getUserId(), expense);
+    }
+
+    private void openFormDialogForMonth(final LocalDate month) {
+        User currentUser = getCurrentUser();
+        HousingExpenseDTO dto = new HousingExpenseDTO();
+        dto.setExpenseMonth(month);
+        formDialog.open(currentUser.getUserId(), dto);
     }
 
     private void confirmDelete(final HousingExpenseDTO expense) {
@@ -299,11 +224,24 @@ public class HousingExpensesView extends VerticalLayout {
         }
     }
 
+    private void copyMonthToNext(final LocalDate sourceMonth) {
+        try {
+            User currentUser = getCurrentUser();
+            List<HousingExpenseDTO> copied = housingExpenseService.copyMonthToNext(currentUser.getUserId(), sourceMonth);
+
+            LocalDate targetMonth = sourceMonth.plusMonths(1);
+            String targetMonthName = targetMonth.getMonth().getDisplayName(TextStyle.FULL, Locale.UK) + " " + targetMonth.getYear();
+
+            showSuccessNotification("Copied " + copied.size() + " expenses to " + targetMonthName);
+            refreshData();
+        } catch (Exception e) {
+            showErrorNotification("Error copying expenses: " + e.getMessage());
+        }
+    }
+
     private void refreshData() {
         refreshSummaryCards();
-        refreshUtilities();
-        refreshGrid();
-        refreshHistoricalData();
+        refreshExpenses();
     }
 
     private void refreshSummaryCards() {
@@ -313,85 +251,192 @@ public class HousingExpensesView extends VerticalLayout {
         BigDecimal totalMonthly = housingExpenseService.calculateTotalMonthlyHousingCosts(userId);
         BigDecimal totalAnnual = housingExpenseService.calculateTotalAnnualHousingCosts(userId);
         BigDecimal housingRatio = housingExpenseService.calculateHousingToIncomeRatio(userId);
-        long activeCount = housingExpenseService.countActiveExpenses(userId);
+        long expenseCount = housingExpenseService.countExpensesForCurrentMonth(userId);
 
         updateCardValue(totalMonthlyCard, String.format("£%.2f", totalMonthly));
         updateCardValue(totalAnnualCard, String.format("£%.2f", totalAnnual));
         updateCardValue(housingRatioCard, String.format("%.1f%%", housingRatio));
-        updateCardValue(activeCountCard, String.valueOf(activeCount));
+        updateCardValue(expenseCountCard, String.valueOf(expenseCount));
     }
 
-    private void refreshUtilities() {
+    private void refreshExpenses() {
+        expensesContainer.removeAll();
+
         User currentUser = getCurrentUser();
         Long userId = currentUser.getUserId();
 
-        BigDecimal utilitiesTotal = housingExpenseService.calculateTotalMonthlyUtilities(userId);
-        updateCardValue(utilitiesCard, String.format("£%.2f", utilitiesTotal));
+        Month selectedMonth = monthFilter.getValue();
+        Integer selectedYear = yearFilter.getValue();
+
+        if (selectedMonth != null && selectedYear != null) {
+            // Show specific month only
+            LocalDate month = LocalDate.of(selectedYear, selectedMonth, 1);
+            List<HousingExpenseDTO> expenses = housingExpenseService.findByUserIdAndMonthAsDto(userId, month);
+            if (!expenses.isEmpty()) {
+                expensesContainer.add(createMonthSection(month, expenses));
+            } else {
+                expensesContainer.add(createEmptyMonthSection(month));
+            }
+        } else if (selectedYear != null) {
+            // Show all months for the selected year that have expenses
+            Map<String, List<HousingExpenseDTO>> grouped = housingExpenseService.getExpensesGroupedByMonth(userId);
+
+            grouped.forEach((monthKey, expenses) -> {
+                if (!expenses.isEmpty()) {
+                    LocalDate expenseMonth = expenses.get(0).getExpenseMonth();
+                    if (expenseMonth.getYear() == selectedYear) {
+                        expensesContainer.add(createMonthSection(expenseMonth, expenses));
+                    }
+                }
+            });
+
+            if (expensesContainer.getComponentCount() == 0) {
+                Span noData = new Span("No housing expenses found for " + selectedYear);
+                noData.getStyle()
+                        .set("color", "var(--lumo-secondary-text-color)")
+                        .set("padding", "2rem")
+                        .set("text-align", "center");
+                expensesContainer.add(noData);
+            }
+        }
     }
 
-    private void refreshGrid() {
-        User currentUser = getCurrentUser();
-        Long userId = currentUser.getUserId();
+    private VerticalLayout createMonthSection(final LocalDate month, final List<HousingExpenseDTO> expenses) {
+        VerticalLayout section = new VerticalLayout();
+        section.setPadding(true);
+        section.setSpacing(true);
+        section.getStyle()
+                .set("background-color", "var(--lumo-contrast-5pct)")
+                .set("border-radius", "var(--lumo-border-radius-m)");
 
-        String filter = filterCombo.getValue();
-        List<HousingExpenseDTO> expenses;
+        // Month header with total and actions
+        String monthName = month.getMonth().getDisplayName(TextStyle.FULL, Locale.UK) + " " + month.getYear();
+        BigDecimal monthTotal = expenses.stream()
+                .map(HousingExpenseDTO::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        if ("All".equals(filter)) {
-            expenses = housingExpenseService.findByUserIdAsDto(userId);
-        } else {
-            HousingExpenseType type = mapFilterToType(filter);
-            expenses = housingExpenseService.findByUserIdAndTypeAsDto(userId, type);
+        H4 monthTitle = new H4(monthName);
+        monthTitle.getStyle().set("margin", "0");
+
+        Span totalSpan = new Span(String.format("Total: £%.2f", monthTotal));
+        totalSpan.getStyle()
+                .set("font-weight", "bold")
+                .set("color", "var(--lumo-primary-color)");
+
+        Button addToMonthButton = new Button(new Icon(VaadinIcon.PLUS));
+        addToMonthButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_SMALL);
+        addToMonthButton.setTooltipText("Add expense to " + monthName);
+        addToMonthButton.addClickListener(event -> openFormDialogForMonth(month));
+
+        Button copyButton = new Button("Copy to Next Month", new Icon(VaadinIcon.COPY));
+        copyButton.addThemeVariants(ButtonVariant.LUMO_SMALL);
+        copyButton.addClickListener(event -> confirmCopyMonth(month));
+
+        HorizontalLayout headerLeft = new HorizontalLayout(monthTitle, totalSpan);
+        headerLeft.setAlignItems(FlexComponent.Alignment.CENTER);
+        headerLeft.setSpacing(true);
+
+        HorizontalLayout headerRight = new HorizontalLayout(addToMonthButton, copyButton);
+        headerRight.setSpacing(true);
+
+        HorizontalLayout header = new HorizontalLayout(headerLeft, headerRight);
+        header.setWidthFull();
+        header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+        header.setAlignItems(FlexComponent.Alignment.CENTER);
+
+        section.add(header);
+
+        // Expense items
+        for (HousingExpenseDTO expense : expenses) {
+            section.add(createExpenseRow(expense));
         }
 
-        grid.setItems(expenses);
+        return section;
     }
 
-    private void refreshHistoricalData() {
-        User currentUser = getCurrentUser();
-        Long userId = currentUser.getUserId();
+    private VerticalLayout createEmptyMonthSection(final LocalDate month) {
+        VerticalLayout section = new VerticalLayout();
+        section.setPadding(true);
+        section.setSpacing(true);
+        section.getStyle()
+                .set("background-color", "var(--lumo-contrast-5pct)")
+                .set("border-radius", "var(--lumo-border-radius-m)");
 
-        Map<String, BigDecimal> historicalCosts = housingExpenseService.getHistoricalHousingCosts(userId, 12);
+        String monthName = month.getMonth().getDisplayName(TextStyle.FULL, Locale.UK) + " " + month.getYear();
 
-        // Clear existing content except title
-        historicalSection.removeAll();
-        H3 sectionTitle = new H3("Historical Housing Costs (Last 12 Months)");
-        sectionTitle.getStyle().set("margin", "0 0 1rem 0");
-        historicalSection.add(sectionTitle);
+        H4 monthTitle = new H4(monthName);
+        monthTitle.getStyle().set("margin", "0");
 
-        // Create a grid layout for historical data
-        historicalCosts.forEach((month, amount) -> {
-            HorizontalLayout row = new HorizontalLayout();
-            row.setWidthFull();
-            row.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
-            row.getStyle().set("padding", "0.5rem 0");
+        Button addButton = new Button("Add First Expense", new Icon(VaadinIcon.PLUS));
+        addButton.addThemeVariants(ButtonVariant.LUMO_SMALL);
+        addButton.addClickListener(event -> openFormDialogForMonth(month));
 
-            Span monthLabel = new Span(month);
-            monthLabel.getStyle().set("font-weight", "500");
+        HorizontalLayout header = new HorizontalLayout(monthTitle, addButton);
+        header.setWidthFull();
+        header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+        header.setAlignItems(FlexComponent.Alignment.CENTER);
 
-            Span amountLabel = new Span(String.format("£%.2f", amount));
-            amountLabel.getStyle()
-                    .set("font-weight", "bold")
-                    .set("color", "var(--lumo-primary-text-color)");
+        Span noExpenses = new Span("No expenses for this month");
+        noExpenses.getStyle().set("color", "var(--lumo-secondary-text-color)");
 
-            row.add(monthLabel, amountLabel);
-            historicalSection.add(row);
-        });
+        section.add(header, noExpenses);
+
+        return section;
     }
 
-    private HousingExpenseType mapFilterToType(final String filter) {
-        return switch (filter) {
-            case "Rent" -> HousingExpenseType.RENT;
-            case "Mortgage" -> HousingExpenseType.MORTGAGE;
-            case "Council Tax" -> HousingExpenseType.COUNCIL_TAX;
-            case "Energy" -> HousingExpenseType.ENERGY;
-            case "Internet" -> HousingExpenseType.INTERNET;
-            case "Water" -> HousingExpenseType.WATER;
-            case "Insurance" -> HousingExpenseType.INSURANCE;
-            case "Utilities" -> HousingExpenseType.UTILITIES;
-            case "Maintenance" -> HousingExpenseType.MAINTENANCE;
-            case "HOA Fees" -> HousingExpenseType.HOA_FEES;
-            default -> HousingExpenseType.OTHER;
-        };
+    private HorizontalLayout createExpenseRow(final HousingExpenseDTO expense) {
+        HorizontalLayout row = new HorizontalLayout();
+        row.setWidthFull();
+        row.setAlignItems(FlexComponent.Alignment.CENTER);
+        row.getStyle()
+                .set("padding", "0.5rem")
+                .set("background-color", "var(--lumo-base-color)")
+                .set("border-radius", "var(--lumo-border-radius-s)");
+
+        Span typeSpan = new Span(expense.getExpenseType().getDisplayName());
+        typeSpan.getStyle()
+                .set("flex", "1")
+                .set("font-weight", "500");
+
+        Span amountSpan = new Span(String.format("£%.2f", expense.getAmount()));
+        amountSpan.getStyle()
+                .set("font-weight", "bold")
+                .set("min-width", "100px")
+                .set("text-align", "right");
+
+        Button editButton = new Button(new Icon(VaadinIcon.EDIT));
+        editButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
+        editButton.addClickListener(event -> openFormDialog(expense));
+
+        Button deleteButton = new Button(new Icon(VaadinIcon.TRASH));
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ERROR);
+        deleteButton.addClickListener(event -> confirmDelete(expense));
+
+        HorizontalLayout actions = new HorizontalLayout(editButton, deleteButton);
+        actions.setSpacing(false);
+
+        row.add(typeSpan, amountSpan, actions);
+
+        return row;
+    }
+
+    private void confirmCopyMonth(final LocalDate sourceMonth) {
+        LocalDate targetMonth = sourceMonth.plusMonths(1);
+        String sourceMonthName = sourceMonth.getMonth().getDisplayName(TextStyle.FULL, Locale.UK) + " " + sourceMonth.getYear();
+        String targetMonthName = targetMonth.getMonth().getDisplayName(TextStyle.FULL, Locale.UK) + " " + targetMonth.getYear();
+
+        ConfirmDialog dialog = new ConfirmDialog();
+        dialog.setHeader("Copy Expenses");
+        dialog.setText("Copy all expenses from " + sourceMonthName + " to " + targetMonthName + "?");
+
+        dialog.setCancelable(true);
+        dialog.setCancelText("Cancel");
+
+        dialog.setConfirmText("Copy");
+        dialog.setConfirmButtonTheme("primary");
+        dialog.addConfirmListener(event -> copyMonthToNext(sourceMonth));
+
+        dialog.open();
     }
 
     private void updateCardValue(final Span card, final String newValue) {

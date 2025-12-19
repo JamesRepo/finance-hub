@@ -24,10 +24,7 @@ public class HousingExpenseMapper {
                 .userEmail(expense.getUser() != null ? expense.getUser().getEmail() : null)
                 .expenseType(expense.getExpenseType())
                 .amount(expense.getAmount())
-                .frequency(expense.getFrequency())
-                .startDate(expense.getStartDate())
-                .endDate(expense.getEndDate())
-                .isActive(expense.getIsActive())
+                .expenseMonth(expense.getExpenseMonth())
                 .createdAt(expense.getCreatedAt())
                 .updatedAt(expense.getUpdatedAt())
                 .build();
@@ -57,9 +54,6 @@ public class HousingExpenseMapper {
 
         expense.setExpenseType(dto.getExpenseType());
         expense.setAmount(dto.getAmount());
-        expense.setFrequency(dto.getFrequency());
-        expense.setStartDate(dto.getStartDate());
-        expense.setEndDate(dto.getEndDate());
-        expense.setIsActive(dto.getIsActive());
+        expense.setExpenseMonth(dto.getExpenseMonth());
     }
 }

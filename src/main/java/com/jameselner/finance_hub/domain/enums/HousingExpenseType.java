@@ -14,6 +14,8 @@ public enum HousingExpenseType {
     UTILITIES("Utilities"),
     MAINTENANCE("Maintenance & Repairs"),
     HOA_FEES("HOA Fees"),
+    CLEANER("Cleaner"),
+    FURNITURE("Furniture"),
     OTHER("Other Housing Expense");
 
     private final String displayName;
