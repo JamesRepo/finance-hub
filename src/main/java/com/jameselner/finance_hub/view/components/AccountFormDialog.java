@@ -50,7 +50,8 @@ public class AccountFormDialog extends Dialog {
         setCloseOnEsc(true);
         setCloseOnOutsideClick(false);
         setModal(true);
-        setWidth("500px");
+        setWidth("min(500px, 95vw)");
+        setMaxHeight("90vh");
 
         createFormFields();
         setupBinder();
@@ -92,16 +93,14 @@ public class AccountFormDialog extends Dialog {
 
         accountTypeCombo = new ComboBox<>("Account Type");
         accountTypeCombo.setItems(AccountType.values());
-        accountTypeCombo.setItemLabelGenerator(type -> {
-            return switch (type) {
-                case CURRENT -> "Current Account";
-                case SAVINGS -> "Savings Account";
-                case CREDIT_CARD -> "Credit Card";
-                case INVESTMENT -> "Investment Account";
-                case CASH -> "Cash";
-                case IMPORTED -> "Imported Account";
-                case OTHER -> "Other";
-            };
+        accountTypeCombo.setItemLabelGenerator(type -> switch (type) {
+            case CURRENT -> "Current Account";
+            case SAVINGS -> "Savings Account";
+            case CREDIT_CARD -> "Credit Card";
+            case INVESTMENT -> "Investment Account";
+            case CASH -> "Cash";
+            case IMPORTED -> "Imported Account";
+            case OTHER -> "Other";
         });
         accountTypeCombo.setRequiredIndicatorVisible(true);
         accountTypeCombo.setHelperText("Select the type of account");

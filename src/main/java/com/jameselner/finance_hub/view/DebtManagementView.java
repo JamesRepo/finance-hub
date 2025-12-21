@@ -112,6 +112,7 @@ public class DebtManagementView extends VerticalLayout {
         toolbar.setJustifyContentMode(JustifyContentMode.START);
         toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
         toolbar.setSpacing(true);
+        toolbar.addClassName("mobile-toolbar");
 
         return toolbar;
     }
@@ -190,19 +191,23 @@ public class DebtManagementView extends VerticalLayout {
         HorizontalLayout layout = new HorizontalLayout();
         layout.setSpacing(true);
         layout.setPadding(false);
+        layout.addClassName("action-buttons");
 
         Button paymentButton = new Button(new Icon(VaadinIcon.MONEY));
-        paymentButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS, ButtonVariant.LUMO_SMALL);
+        paymentButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS, ButtonVariant.LUMO_TERTIARY);
+        paymentButton.addClassName("mobile-touch-target");
         paymentButton.getElement().setAttribute("aria-label", "Record payment");
         paymentButton.addClickListener(event -> openPaymentDialog(debt));
 
         Button editButton = new Button(new Icon(VaadinIcon.EDIT));
-        editButton.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
+        editButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        editButton.addClassName("mobile-touch-target");
         editButton.getElement().setAttribute("aria-label", "Edit debt");
         editButton.addClickListener(event -> openFormForEdit(debt));
 
         Button deleteButton = new Button(new Icon(VaadinIcon.TRASH));
-        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
+        deleteButton.addClassName("mobile-touch-target");
         deleteButton.getElement().setAttribute("aria-label", "Delete debt");
         deleteButton.addClickListener(event -> showDeleteConfirmation(debt));
 
@@ -214,6 +219,7 @@ public class DebtManagementView extends VerticalLayout {
         HorizontalLayout cards = new HorizontalLayout();
         cards.setWidthFull();
         cards.setSpacing(true);
+        cards.addClassName("mobile-stack");
 
         List<DebtDTO> debts = getAllDebts();
 
@@ -290,8 +296,8 @@ public class DebtManagementView extends VerticalLayout {
     private void createFormDialog() {
         formDialog = new Dialog();
         formDialog.setHeaderTitle("Debt");
-        formDialog.setWidth("800px");
-        formDialog.setMaxWidth("90%");
+        formDialog.setWidth("min(800px, 95vw)");
+        formDialog.setMaxHeight("90vh");
 
         debtForm = new DebtForm(debtService, authenticationContext, userRepository);
 
@@ -300,9 +306,7 @@ public class DebtManagementView extends VerticalLayout {
             refreshGrid();
         });
 
-        debtForm.setCancelListener(() -> {
-            formDialog.close();
-        });
+        debtForm.setCancelListener(() -> formDialog.close());
 
         formDialog.add(debtForm);
     }

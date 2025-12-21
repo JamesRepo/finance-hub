@@ -85,6 +85,7 @@ public class SubscriptionsView extends VerticalLayout {
         header.setWidthFull();
         header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
         header.setAlignItems(FlexComponent.Alignment.CENTER);
+        header.addClassName("mobile-toolbar");
 
         return header;
     }
@@ -93,6 +94,7 @@ public class SubscriptionsView extends VerticalLayout {
         HorizontalLayout cardsLayout = new HorizontalLayout();
         cardsLayout.setWidthFull();
         cardsLayout.setSpacing(true);
+        cardsLayout.addClassName("mobile-stack");
 
         currentMonthTotalCard = createSummaryCard("Current Month Total", "£0.00", "var(--lumo-primary-color)", VaadinIcon.CALENDAR_CLOCK);
         subscriptionCountCard = createSummaryCard("This Month's Subscriptions", "0", "var(--lumo-success-color)", VaadinIcon.LIST);

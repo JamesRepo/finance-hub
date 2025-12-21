@@ -81,6 +81,7 @@ public class AccountsView extends VerticalLayout {
         header.setWidthFull();
         header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
         header.setAlignItems(FlexComponent.Alignment.CENTER);
+        header.addClassName("mobile-toolbar");
 
         return header;
     }
@@ -89,6 +90,7 @@ public class AccountsView extends VerticalLayout {
         HorizontalLayout cardsLayout = new HorizontalLayout();
         cardsLayout.setWidthFull();
         cardsLayout.setSpacing(true);
+        cardsLayout.addClassName("mobile-stack");
 
         totalBalanceCard = createSummaryCard("Total Balance", "£0.00", "var(--lumo-success-color)", VaadinIcon.MONEY);
         accountCountCard = createSummaryCard("Total Accounts", "0", "var(--lumo-primary-color)", VaadinIcon.BRIEFCASE);
@@ -158,15 +160,20 @@ public class AccountsView extends VerticalLayout {
 
         grid.addComponentColumn(dto -> {
             Button editButton = new Button(new Icon(VaadinIcon.EDIT));
-            editButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_SMALL);
+            editButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            editButton.addClassName("mobile-touch-target");
+            editButton.getElement().setAttribute("aria-label", "Edit account");
             editButton.addClickListener(event -> openFormDialog(dto));
 
             Button deleteButton = new Button(new Icon(VaadinIcon.TRASH));
-            deleteButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR);
+            deleteButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ERROR);
+            deleteButton.addClassName("mobile-touch-target");
+            deleteButton.getElement().setAttribute("aria-label", "Delete account");
             deleteButton.addClickListener(event -> confirmDelete(dto));
 
             HorizontalLayout actions = new HorizontalLayout(editButton, deleteButton);
             actions.setSpacing(true);
+            actions.addClassName("action-buttons");
             return actions;
         })
                 .setHeader("Actions")

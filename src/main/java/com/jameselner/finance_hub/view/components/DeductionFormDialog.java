@@ -52,7 +52,8 @@ public class DeductionFormDialog extends Dialog {
         setCloseOnEsc(true);
         setCloseOnOutsideClick(false);
         setModal(true);
-        setWidth("500px");
+        setWidth("min(500px, 95vw)");
+        setMaxHeight("90vh");
 
         createFormFields();
         setupBinder();

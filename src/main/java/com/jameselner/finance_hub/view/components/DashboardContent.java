@@ -36,6 +36,7 @@ public class DashboardContent extends VerticalLayout {
 
     private VerticalLayout createPageHeader() {
         H1 pageTitle = new H1("Financial Overview");
+        pageTitle.addClassName("page-title");
         pageTitle.getStyle()
                 .set("font-size", "2rem")
                 .set("margin-bottom", "0.5rem");

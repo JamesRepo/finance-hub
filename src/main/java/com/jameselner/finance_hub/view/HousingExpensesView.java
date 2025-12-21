@@ -91,6 +91,7 @@ public class HousingExpensesView extends VerticalLayout {
         header.setWidthFull();
         header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
         header.setAlignItems(FlexComponent.Alignment.CENTER);
+        header.addClassName("mobile-toolbar");
 
         return header;
     }
@@ -99,6 +100,7 @@ public class HousingExpensesView extends VerticalLayout {
         HorizontalLayout cardsLayout = new HorizontalLayout();
         cardsLayout.setWidthFull();
         cardsLayout.setSpacing(true);
+        cardsLayout.addClassName("mobile-stack");
 
         yearTotalCard = createSummaryCard("Year Total", "£0.00", "var(--lumo-primary-color)", VaadinIcon.CALC);
         avgMonthlyCard = createSummaryCard("Avg Monthly", "£0.00", "var(--lumo-success-color)", VaadinIcon.TRENDING_UP);
@@ -288,7 +290,7 @@ public class HousingExpensesView extends VerticalLayout {
 
             grouped.forEach((monthKey, expenses) -> {
                 if (!expenses.isEmpty()) {
-                    LocalDate expenseMonth = expenses.get(0).getExpenseMonth();
+                    LocalDate expenseMonth = expenses.getFirst().getExpenseMonth();
                     if (expenseMonth.getYear() == selectedYear) {
                         expensesContainer.add(createMonthSection(expenseMonth, expenses));
                     }

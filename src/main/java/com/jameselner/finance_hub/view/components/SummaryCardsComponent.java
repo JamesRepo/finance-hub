@@ -31,6 +31,8 @@ public class SummaryCardsComponent extends HorizontalLayout {
     ) {
         setWidthFull();
         setSpacing(true);
+        addClassName("responsive-cards");
+        addClassName("summary-cards-grid");
         getStyle()
                 .set("display", "grid")
                 .set("grid-template-columns", "repeat(auto-fit, minmax(250px, 1fr))")

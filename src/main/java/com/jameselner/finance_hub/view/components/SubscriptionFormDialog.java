@@ -56,7 +56,8 @@ public class SubscriptionFormDialog extends Dialog {
         setCloseOnEsc(true);
         setCloseOnOutsideClick(false);
         setModal(true);
-        setWidth("600px");
+        setWidth("min(600px, 95vw)");
+        setMaxHeight("90vh");
 
         createFormFields();
         setupBinder();

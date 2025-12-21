@@ -54,7 +54,8 @@ public class HolidayFormDialog extends Dialog {
         setCloseOnEsc(true);
         setCloseOnOutsideClick(false);
         setModal(true);
-        setWidth("700px");
+        setWidth("min(700px, 95vw)");
+        setMaxHeight("90vh");
 
         createFormFields();
         setupBinder();

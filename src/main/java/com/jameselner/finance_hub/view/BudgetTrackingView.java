@@ -32,7 +32,6 @@ import jakarta.annotation.security.PermitAll;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -99,11 +98,13 @@ public class BudgetTrackingView extends VerticalLayout {
         HorizontalLayout rightSection = new HorizontalLayout(copyFromPreviousMonth, addButton);
         rightSection.setSpacing(true);
         rightSection.setAlignItems(FlexComponent.Alignment.CENTER);
+        rightSection.addClassName("mobile-stack");
 
         HorizontalLayout toolbar = new HorizontalLayout(leftSection, rightSection);
         toolbar.setWidthFull();
         toolbar.setJustifyContentMode(JustifyContentMode.BETWEEN);
         toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
+        toolbar.addClassName("mobile-toolbar");
 
         return toolbar;
     }
@@ -266,14 +267,17 @@ public class BudgetTrackingView extends VerticalLayout {
         HorizontalLayout layout = new HorizontalLayout();
         layout.setSpacing(true);
         layout.setPadding(false);
+        layout.addClassName("action-buttons");
 
         Button editButton = new Button(new Icon(VaadinIcon.EDIT));
-        editButton.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
+        editButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        editButton.addClassName("mobile-touch-target");
         editButton.getElement().setAttribute("aria-label", "Edit budget");
         editButton.addClickListener(event -> openFormForEdit(budget));
 
         Button deleteButton = new Button(new Icon(VaadinIcon.TRASH));
-        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
+        deleteButton.addClassName("mobile-touch-target");
         deleteButton.getElement().setAttribute("aria-label", "Delete budget");
         deleteButton.addClickListener(event -> showDeleteConfirmation(budget));
 
@@ -295,6 +299,7 @@ public class BudgetTrackingView extends VerticalLayout {
         HorizontalLayout cards = new HorizontalLayout();
         cards.setWidthFull();
         cards.setSpacing(true);
+        cards.addClassName("mobile-stack");
 
         List<BudgetDTO> budgets = getCurrentMonthBudgets();
 
@@ -372,8 +377,8 @@ public class BudgetTrackingView extends VerticalLayout {
     private void createFormDialog() {
         formDialog = new Dialog();
         formDialog.setHeaderTitle("Budget");
-        formDialog.setWidth("600px");
-        formDialog.setMaxWidth("90%");
+        formDialog.setWidth("min(600px, 95vw)");
+        formDialog.setMaxHeight("90vh");
 
         budgetForm = new BudgetForm(budgetService, categoryService, authenticationContext, userRepository);
 
@@ -382,9 +387,7 @@ public class BudgetTrackingView extends VerticalLayout {
             refreshGrid();
         });
 
-        budgetForm.setCancelListener(() -> {
-            formDialog.close();
-        });
+        budgetForm.setCancelListener(() -> formDialog.close());
 
         formDialog.add(budgetForm);
     }
@@ -405,8 +408,11 @@ public class BudgetTrackingView extends VerticalLayout {
         ConfirmDialog dialog = new ConfirmDialog();
         dialog.setHeader("Delete Budget");
         dialog.setText(
-                String.format("Are you sure you want to delete the budget for %s?\n\n" +
-                                "Budget Amount: £%s\nPeriod: %s to %s",
+                String.format("""
+                                Are you sure you want to delete the budget for %s?
+                                
+                                Budget Amount: £%s
+                                Period: %s to %s""",
                         budget.getCategoryName(),
                         budget.getAmount(),
                         budget.getStartDate(),
@@ -479,7 +485,6 @@ public class BudgetTrackingView extends VerticalLayout {
                     copiedCount++;
                 } catch (Exception ex) {
                     // Skip if budget already exists for this category
-                    continue;
                 }
             }
 

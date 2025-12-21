@@ -83,11 +83,13 @@ public class TransactionView extends VerticalLayout {
         HorizontalLayout leftSection = new HorizontalLayout(monthFilter, categoryFilter);
         leftSection.setSpacing(true);
         leftSection.setAlignItems(FlexComponent.Alignment.CENTER);
+        leftSection.addClassName("mobile-stack");
 
         HorizontalLayout toolbar = new HorizontalLayout(leftSection, addButton);
         toolbar.setWidthFull();
         toolbar.setJustifyContentMode(JustifyContentMode.BETWEEN);
         toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
+        toolbar.addClassName("mobile-toolbar");
 
         return toolbar;
     }
@@ -139,8 +141,8 @@ public class TransactionView extends VerticalLayout {
     private void createFormDialog() {
         formDialog = new Dialog();
         formDialog.setHeaderTitle("Transaction");
-        formDialog.setWidth("800px");
-        formDialog.setMaxWidth("90%");
+        formDialog.setWidth("min(800px, 95vw)");
+        formDialog.setMaxHeight("90vh");
 
         transactionForm = new TransactionForm(transactionService, accountService, categoryService);
 
@@ -149,9 +151,7 @@ public class TransactionView extends VerticalLayout {
             refreshGrid();
         });
 
-        transactionForm.setCancelListener(() -> {
-            formDialog.close();
-        });
+        transactionForm.setCancelListener(() -> formDialog.close());
 
         formDialog.add(transactionForm);
     }
@@ -266,14 +266,11 @@ public class TransactionView extends VerticalLayout {
 
     private Button createDeleteButton(final TransactionDTO transaction) {
         Button deleteButton = new Button(new Icon(VaadinIcon.TRASH));
-        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_SMALL);
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
+        deleteButton.addClassName("mobile-touch-target");
         deleteButton.getElement().setAttribute("aria-label", "Delete transaction");
 
-        deleteButton.addClickListener(event -> {
-            event.getSource().getUI().ifPresent(ui -> ui.access(() -> {
-                showDeleteConfirmation(transaction);
-            }));
-        });
+        deleteButton.addClickListener(event -> event.getSource().getUI().ifPresent(ui -> ui.access(() -> showDeleteConfirmation(transaction))));
 
         return deleteButton;
     }
@@ -282,8 +279,13 @@ public class TransactionView extends VerticalLayout {
         ConfirmDialog dialog = new ConfirmDialog();
         dialog.setHeader("Delete Transaction");
         dialog.setText(
-            String.format("Are you sure you want to delete this transaction?\n\n" +
-                "Date: %s\nCategory: %s\nAmount: £%s\nPlace: %s",
+            String.format("""
+                            Are you sure you want to delete this transaction?
+                            
+                            Date: %s
+                            Category: %s
+                            Amount: £%s
+                            Place: %s""",
                 transaction.getTransactionDate(),
                 transaction.getCategoryName(),
                 transaction.getAmount(),

@@ -81,6 +81,7 @@ public class CategoriesView extends VerticalLayout {
         header.setWidthFull();
         header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
         header.setAlignItems(FlexComponent.Alignment.CENTER);
+        header.addClassName("mobile-toolbar");
 
         return header;
     }
@@ -89,6 +90,7 @@ public class CategoriesView extends VerticalLayout {
         HorizontalLayout cardsLayout = new HorizontalLayout();
         cardsLayout.setWidthFull();
         cardsLayout.setSpacing(true);
+        cardsLayout.addClassName("mobile-stack");
 
         incomeCountCard = createSummaryCard("Income Categories", "0", "var(--lumo-success-color)", VaadinIcon.ARROW_DOWN);
         expenseCountCard = createSummaryCard("Expense Categories", "0", "var(--lumo-error-color)", VaadinIcon.ARROW_UP);

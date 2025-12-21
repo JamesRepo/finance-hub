@@ -2,10 +2,7 @@ package com.jameselner.finance_hub.view;
 
 import com.jameselner.finance_hub.domain.User;
 import com.jameselner.finance_hub.dto.IncomeDeductionDTO;
-import com.jameselner.finance_hub.dto.IncomeForecastDTO;
-import com.jameselner.finance_hub.dto.IncomeReportDTO;
 import com.jameselner.finance_hub.dto.IncomeSourceDTO;
-import com.jameselner.finance_hub.dto.IncomeVsExpenseDTO;
 import com.jameselner.finance_hub.repository.CategoryRepository;
 import com.jameselner.finance_hub.repository.UserRepository;
 import com.jameselner.finance_hub.service.IncomeDeductionService;
@@ -18,7 +15,6 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
@@ -49,8 +45,6 @@ public class IncomeTrackingView extends VerticalLayout {
 
     private final IncomeSourceService incomeSourceService;
     private final IncomeDeductionService incomeDeductionService;
-    private final IncomeForecastService incomeForecastService;
-    private final IncomeReportService incomeReportService;
     private final AuthenticationContext authenticationContext;
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
@@ -76,16 +70,12 @@ public class IncomeTrackingView extends VerticalLayout {
     public IncomeTrackingView(
             final IncomeSourceService incomeSourceService,
             final IncomeDeductionService incomeDeductionService,
-            final IncomeForecastService incomeForecastService,
-            final IncomeReportService incomeReportService,
             final AuthenticationContext authenticationContext,
             final UserRepository userRepository,
             final CategoryRepository categoryRepository
     ) {
         this.incomeSourceService = incomeSourceService;
         this.incomeDeductionService = incomeDeductionService;
-        this.incomeForecastService = incomeForecastService;
-        this.incomeReportService = incomeReportService;
         this.authenticationContext = authenticationContext;
         this.userRepository = userRepository;
         this.categoryRepository = categoryRepository;
@@ -142,6 +132,7 @@ public class IncomeTrackingView extends VerticalLayout {
         header.setWidthFull();
         header.setAlignItems(FlexComponent.Alignment.CENTER);
         header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+        header.addClassName("mobile-toolbar");
 
         return header;
     }
@@ -150,6 +141,7 @@ public class IncomeTrackingView extends VerticalLayout {
         HorizontalLayout cardsLayout = new HorizontalLayout();
         cardsLayout.setWidthFull();
         cardsLayout.setSpacing(true);
+        cardsLayout.addClassName("mobile-stack");
 
         // Post-deduction card is first and prominent
         VerticalLayout postDeductionCard = createSummaryCard("Take-Home Income", "£0.00", VaadinIcon.WALLET, "post-deduction-income");
@@ -302,37 +294,31 @@ public class IncomeTrackingView extends VerticalLayout {
         return grid;
     }
 
-    private Span createStatusBadge(final IncomeSourceDTO dto) {
-        Span badge = new Span(dto.getIsActive() ? "Active" : "Inactive");
-        badge.getElement().getThemeList().add("badge");
-
-        if (dto.getIsActive()) {
-            badge.getElement().getThemeList().add("success");
-        } else {
-            badge.getElement().getThemeList().add("contrast");
-        }
-
-        return badge;
-    }
-
     private HorizontalLayout createActionButtons(final IncomeSourceDTO dto) {
         Button copyButton = new Button(new Icon(VaadinIcon.COPY));
-        copyButton.addThemeVariants(ButtonVariant.LUMO_ICON);
+        copyButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        copyButton.addClassName("mobile-touch-target");
         copyButton.getElement().setAttribute("title", "Copy to next month");
+        copyButton.getElement().setAttribute("aria-label", "Copy to next month");
         copyButton.addClickListener(event -> copyToNextMonth(dto));
 
         Button editButton = new Button(new Icon(VaadinIcon.EDIT));
-        editButton.addThemeVariants(ButtonVariant.LUMO_ICON);
+        editButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        editButton.addClassName("mobile-touch-target");
         editButton.getElement().setAttribute("title", "Edit");
+        editButton.getElement().setAttribute("aria-label", "Edit income source");
         editButton.addClickListener(event -> openIncomeSourceForm(dto));
 
         Button deleteButton = new Button(new Icon(VaadinIcon.TRASH));
-        deleteButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_ERROR);
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ERROR);
+        deleteButton.addClassName("mobile-touch-target");
         deleteButton.getElement().setAttribute("title", "Delete");
+        deleteButton.getElement().setAttribute("aria-label", "Delete income source");
         deleteButton.addClickListener(event -> deleteIncomeSource(dto));
 
         HorizontalLayout actions = new HorizontalLayout(copyButton, editButton, deleteButton);
         actions.setSpacing(true);
+        actions.addClassName("action-buttons");
 
         return actions;
     }
@@ -616,7 +602,7 @@ public class IncomeTrackingView extends VerticalLayout {
                 .set("border-radius", "var(--lumo-border-radius-m)")
                 .set("border", isCurrentYear ? "2px solid var(--lumo-primary-color)" : "1px solid var(--lumo-contrast-10pct)");
 
-        Span yearSpan = new Span(String.valueOf(year) + (isCurrentYear ? " (Current)" : ""));
+        Span yearSpan = new Span(year + (isCurrentYear ? " (Current)" : ""));
         yearSpan.getStyle()
                 .set("font-weight", "bold")
                 .set("font-size", "var(--lumo-font-size-s)")
@@ -660,7 +646,8 @@ public class IncomeTrackingView extends VerticalLayout {
         formDialog.setCloseOnEsc(true);
         formDialog.setCloseOnOutsideClick(false);
         formDialog.setModal(true);
-        formDialog.setWidth("700px");
+        formDialog.setWidth("min(700px, 95vw)");
+        formDialog.setMaxHeight("90vh");
 
         H3 formTitle = new H3("Income Source");
         formTitle.getStyle().set("margin", "0");

@@ -53,7 +53,8 @@ public class SavingsGoalContributionDialog extends Dialog {
         setCloseOnEsc(true);
         setCloseOnOutsideClick(false);
         setModal(true);
-        setWidth("500px");
+        setWidth("min(500px, 95vw)");
+        setMaxHeight("90vh");
     }
 
     public void open(final Long goalId, final String goalName) {

@@ -319,33 +319,224 @@ vaadin-notification-card[theme~="error"] {
     background-color: var(--finance-danger);
 }
 
-/* Responsive Design */
+/* ===================================
+   RESPONSIVE DESIGN - MOBILE OPTIMIZATION
+   =================================== */
+
+/* Extra small phones (320px - 480px) */
+@media (max-width: 480px) {
+    /* Typography scaling */
+    .summary-card-value {
+        font-size: 1.25rem;
+    }
+
+    h2, .page-title {
+        font-size: 1.5rem;
+    }
+
+    /* Reduce card padding */
+    .finance-card {
+        padding: 1rem;
+    }
+
+    /* Force single column for summary cards */
+    .summary-cards-grid,
+    .responsive-cards {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* Mobile devices (up to 768px) */
 @media (max-width: 768px) {
+    /* === TOUCH TARGETS (44px minimum per Apple HIG) === */
+    vaadin-button {
+        min-height: 44px;
+    }
+
+    vaadin-button[theme~="small"],
+    vaadin-button[theme~="icon"] {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 0.5rem;
+    }
+
+    /* Grid action buttons */
+    .action-buttons {
+        gap: 0.5rem;
+    }
+
+    .action-buttons vaadin-button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .mobile-touch-target {
+        min-height: 44px;
+        min-width: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* === NAVIGATION === */
+    .app-navigation {
+        width: 100% !important;
+        max-width: 280px;
+    }
+
+    .app-navigation vaadin-side-nav-item::part(link) {
+        min-height: 48px;
+        padding: 0.875rem 1rem;
+    }
+
+    /* === DIALOGS === */
+    vaadin-dialog-overlay::part(overlay) {
+        width: 95vw !important;
+        max-width: 95vw !important;
+        max-height: 90vh;
+    }
+
+    vaadin-dialog-overlay::part(content) {
+        padding: 1rem;
+        overflow-y: auto;
+    }
+
+    /* === GRIDS === */
+    vaadin-grid {
+        font-size: 0.875rem;
+    }
+
+    /* Horizontal scroll container for grids */
+    .grid-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        position: relative;
+    }
+
+    .grid-container::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 20px;
+        background: linear-gradient(to left, rgba(255,255,255,0.8), transparent);
+        pointer-events: none;
+    }
+
+    /* === TOOLBARS === */
+    .mobile-toolbar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.75rem;
+    }
+
+    .mobile-toolbar > * {
+        width: 100% !important;
+    }
+
+    .mobile-toolbar vaadin-combo-box,
+    .mobile-toolbar vaadin-button,
+    .mobile-toolbar vaadin-text-field {
+        width: 100% !important;
+    }
+
+    /* === SUMMARY CARDS === */
     .summary-card-value {
         font-size: 1.5rem;
     }
 
+    /* Grid-based cards - adjust minmax */
+    .responsive-cards {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* HorizontalLayout cards - convert to vertical */
+    .mobile-stack {
+        flex-direction: column !important;
+        gap: 1rem;
+    }
+
+    .mobile-stack > * {
+        width: 100% !important;
+        min-width: unset !important;
+    }
+
+    /* === FORMS === */
+    vaadin-form-layout {
+        --vaadin-form-layout-column-spacing: 0.5rem;
+    }
+
+    /* === TABS === */
+    vaadin-tabs {
+        --vaadin-tabs-max-width: 100%;
+    }
+
+    vaadin-tab {
+        min-height: 44px;
+        padding: 0.75rem 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    /* === COMBO BOXES === */
+    vaadin-combo-box {
+        width: 100%;
+    }
+
+    vaadin-combo-box-item {
+        min-height: 44px;
+    }
+
+    /* === NOTIFICATIONS === */
+    vaadin-notification-card {
+        width: 90vw;
+        max-width: 320px;
+    }
+
+    /* === EXISTING MOBILE STYLES === */
     .logo-text {
         font-size: 1.25rem;
     }
 
     .nav-tabs {
-        display: none !important; /* Hide on mobile, use hamburger menu instead */
+        display: none !important;
     }
 
-    /* Show hamburger button on mobile */
     .drawer-toggle {
         display: flex !important;
     }
 
-    /* Hide "Logout" text on mobile, keep icon */
     .logout-btn span {
         display: none;
     }
 
-    /* Adjust notification button on mobile */
     .notification-btn {
         padding: 0.5rem !important;
+    }
+
+    /* Hide non-essential grid columns */
+    .hide-on-mobile {
+        display: none !important;
+    }
+}
+
+/* === UTILITY CLASSES === */
+.mobile-full-width {
+    width: 100% !important;
+}
+
+.responsive-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+/* Touch feedback for mobile */
+@media (hover: none) and (pointer: coarse) {
+    vaadin-button:active,
+    vaadin-side-nav-item:active {
+        opacity: 0.7;
+        transform: scale(0.98);
     }
 }
 
@@ -353,6 +544,10 @@ vaadin-notification-card[theme~="error"] {
 @media (min-width: 769px) {
     .drawer-toggle {
         display: none !important;
+    }
+
+    .mobile-toolbar {
+        flex-direction: row !important;
     }
 }
 

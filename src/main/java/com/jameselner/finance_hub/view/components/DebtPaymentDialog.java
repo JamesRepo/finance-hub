@@ -36,8 +36,8 @@ public class DebtPaymentDialog extends Dialog {
         this.debtPaymentService = debtPaymentService;
 
         setHeaderTitle("Record Payment");
-        setWidth("500px");
-        setMaxWidth("90%");
+        setWidth("min(500px, 95vw)");
+        setMaxHeight("90vh");
 
         createFormFields();
         createButtons();

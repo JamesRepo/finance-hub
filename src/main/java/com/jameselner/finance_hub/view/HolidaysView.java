@@ -93,6 +93,7 @@ public class HolidaysView extends VerticalLayout {
         header.setWidthFull();
         header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
         header.setAlignItems(FlexComponent.Alignment.CENTER);
+        header.addClassName("mobile-toolbar");
 
         return header;
     }
@@ -101,6 +102,7 @@ public class HolidaysView extends VerticalLayout {
         HorizontalLayout cardsLayout = new HorizontalLayout();
         cardsLayout.setWidthFull();
         cardsLayout.setSpacing(true);
+        cardsLayout.addClassName("mobile-stack");
 
         totalBudgetCard = createSummaryCard("Total Budget", "£0.00", "var(--lumo-primary-color)", VaadinIcon.PIGGY_BANK);
         totalSpentCard = createSummaryCard("Total Spent", "£0.00", "var(--lumo-error-color)", VaadinIcon.CREDIT_CARD);

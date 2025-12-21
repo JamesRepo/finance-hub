@@ -14,7 +14,6 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
@@ -102,6 +101,7 @@ public class SavingsGoalsView extends VerticalLayout {
         HorizontalLayout cardsLayout = new HorizontalLayout();
         cardsLayout.setWidthFull();
         cardsLayout.setSpacing(true);
+        cardsLayout.addClassName("mobile-stack");
 
         cardsLayout.add(
                 createSummaryCard("Total Target", "£0.00", VaadinIcon.BULLSEYE, "total-target"),
@@ -180,6 +180,7 @@ public class SavingsGoalsView extends VerticalLayout {
         toolbar.setWidthFull();
         toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
         toolbar.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+        toolbar.addClassName("mobile-toolbar");
 
         return toolbar;
     }
@@ -317,23 +318,30 @@ public class SavingsGoalsView extends VerticalLayout {
 
     private HorizontalLayout createActionButtons(final SavingsGoalProgressDTO progress) {
         Button contributeButton = new Button(new Icon(VaadinIcon.PLUS_CIRCLE));
-        contributeButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_SUCCESS);
+        contributeButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SUCCESS);
+        contributeButton.addClassName("mobile-touch-target");
         contributeButton.getElement().setAttribute("title", "Record Contribution");
+        contributeButton.getElement().setAttribute("aria-label", "Record contribution");
         contributeButton.addClickListener(event -> openContributionDialog(progress));
 
         Button editButton = new Button(new Icon(VaadinIcon.EDIT));
-        editButton.addThemeVariants(ButtonVariant.LUMO_ICON);
+        editButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        editButton.addClassName("mobile-touch-target");
         editButton.getElement().setAttribute("title", "Edit Goal");
+        editButton.getElement().setAttribute("aria-label", "Edit goal");
         editButton.addClickListener(event -> savingsGoalService.findByIdAsDto(progress.getGoalId())
                 .ifPresent(this::openGoalForm));
 
         Button deleteButton = new Button(new Icon(VaadinIcon.TRASH));
-        deleteButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_ERROR);
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ERROR);
+        deleteButton.addClassName("mobile-touch-target");
         deleteButton.getElement().setAttribute("title", "Delete Goal");
+        deleteButton.getElement().setAttribute("aria-label", "Delete goal");
         deleteButton.addClickListener(event -> deleteGoal(progress.getGoalId(), progress.getGoalName()));
 
         HorizontalLayout actions = new HorizontalLayout(contributeButton, editButton, deleteButton);
         actions.setSpacing(true);
+        actions.addClassName("action-buttons");
 
         return actions;
     }
@@ -350,7 +358,8 @@ public class SavingsGoalsView extends VerticalLayout {
         formDialog.setCloseOnEsc(true);
         formDialog.setCloseOnOutsideClick(false);
         formDialog.setModal(true);
-        formDialog.setWidth("600px");
+        formDialog.setWidth("min(600px, 95vw)");
+        formDialog.setMaxHeight("90vh");
 
         H3 formTitle = new H3("Savings Goal");
         formTitle.getStyle().set("margin", "0");

@@ -144,6 +144,7 @@ public class MonthlySummaryView extends VerticalLayout {
         HorizontalLayout cardsLayout = new HorizontalLayout();
         cardsLayout.setWidthFull();
         cardsLayout.setSpacing(true);
+        cardsLayout.addClassName("mobile-stack");
 
         Div incomeCard = createMetricCard("Total Income", summary.getTotalIncome(),
                 "var(--lumo-success-color)", VaadinIcon.ARROW_DOWN, false);
@@ -177,6 +178,7 @@ public class MonthlySummaryView extends VerticalLayout {
         HorizontalLayout budgetCards = new HorizontalLayout();
         budgetCards.setWidthFull();
         budgetCards.setSpacing(true);
+        budgetCards.addClassName("mobile-stack");
 
         Div budgetedCard = createMetricCard("Total Budgeted", summary.getTotalBudgeted(),
                 "var(--lumo-primary-color)", VaadinIcon.PIGGY_BANK, true);
@@ -336,6 +338,7 @@ public class MonthlySummaryView extends VerticalLayout {
             HorizontalLayout comparisonCards = new HorizontalLayout();
             comparisonCards.setWidthFull();
             comparisonCards.setSpacing(true);
+            comparisonCards.addClassName("mobile-stack");
 
             Div incomeChangeCard = createChangeCard("Income Change",
                     comparison.getIncomeChange(),
@@ -384,6 +387,7 @@ public class MonthlySummaryView extends VerticalLayout {
         HorizontalLayout statsCards = new HorizontalLayout();
         statsCards.setWidthFull();
         statsCards.setSpacing(true);
+        statsCards.addClassName("mobile-stack");
 
         Div transactionCountCard = createStatCard("Transactions",
                 String.valueOf(summary.getTransactionCount()),
