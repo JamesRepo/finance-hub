@@ -1,6 +1,7 @@
 package com.jameselner.finance_hub.service;
 
 import com.jameselner.finance_hub.domain.Category;
+import com.jameselner.finance_hub.domain.IncomeSource;
 import com.jameselner.finance_hub.domain.Transaction;
 import com.jameselner.finance_hub.domain.User;
 import com.jameselner.finance_hub.domain.enums.TransactionType;
@@ -9,6 +10,7 @@ import com.jameselner.finance_hub.dto.CategorySpendingDTO;
 import com.jameselner.finance_hub.dto.MonthComparisonDTO;
 import com.jameselner.finance_hub.dto.MonthlySummaryDTO;
 import com.jameselner.finance_hub.repository.CategoryRepository;
+import com.jameselner.finance_hub.repository.IncomeSourceRepository;
 import com.jameselner.finance_hub.repository.TransactionRepository;
 import com.jameselner.finance_hub.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +37,7 @@ public class MonthlySummaryService {
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
+    private final IncomeSourceRepository incomeSourceRepository;
     private final BudgetService budgetService;
     private final HousingExpenseService housingExpenseService;
 
@@ -74,8 +77,8 @@ public class MonthlySummaryService {
                 .filter(b -> b.getOverage() == null || b.getOverage().compareTo(BigDecimal.ZERO) <= 0)
                 .count();
 
-        // Top spending categories
-        List<CategorySpendingDTO> topCategories = calculateTopSpendingCategories(user, startDate, endDate, totalExpenses, 5);
+        // All spending categories with at least £1 spent
+        List<CategorySpendingDTO> topCategories = calculateSpendingCategories(user, startDate, endDate, totalExpenses);
 
         // Housing costs
         BigDecimal housingCosts = housingExpenseService.calculateTotalMonthlyHousingCosts(userId);
@@ -121,12 +124,15 @@ public class MonthlySummaryService {
     }
 
     /**
-     * Calculate total income for a period
+     * Calculate total income for a period using IncomeSource data
      */
     private BigDecimal calculateTotalIncome(final User user, final LocalDate startDate, final LocalDate endDate) {
-        BigDecimal income = transactionRepository.sumByUserAndTypeAndDateRange(
-                user, TransactionType.INCOME, startDate, endDate);
-        return income != null ? income : BigDecimal.ZERO;
+        List<IncomeSource> incomeSources = incomeSourceRepository.findByUserAndMonthRange(user, startDate, endDate);
+
+        return incomeSources.stream()
+                .map(source -> source.getNetAmount() != null ? source.getNetAmount() : source.getGrossAmount())
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     /**
@@ -150,16 +156,14 @@ public class MonthlySummaryService {
     }
 
     /**
-     * Calculate top spending categories
+     * Calculate all spending categories with at least £1 spent
      */
-    private List<CategorySpendingDTO> calculateTopSpendingCategories(
+    private List<CategorySpendingDTO> calculateSpendingCategories(
             final User user,
             final LocalDate startDate,
             final LocalDate endDate,
-            final BigDecimal totalExpenses,
-            final int limit
+            final BigDecimal totalExpenses
     ) {
-
         List<Transaction> expenseTransactions = transactionRepository
                 .findByAccountUserAndTransactionDateBetween(user, startDate, endDate)
                 .stream()
@@ -201,8 +205,9 @@ public class MonthlySummaryService {
                             .transactionCount(categoryTransactions.size())
                             .build();
                 })
+                // Filter for categories with at least £1 spent
+                .filter(c -> c.getTotalSpent().compareTo(BigDecimal.ONE) >= 0)
                 .sorted(Comparator.comparing(CategorySpendingDTO::getTotalSpent).reversed())
-                .limit(limit)
                 .collect(Collectors.toList());
     }
 

@@ -217,7 +217,7 @@ public class MonthlySummaryView extends VerticalLayout {
                 .set("background-color", "var(--lumo-contrast-5pct)")
                 .set("border-radius", "var(--lumo-border-radius-m)");
 
-        H3 sectionTitle = new H3("Top Spending Categories");
+        H3 sectionTitle = new H3("Spending Categories");
         sectionTitle.getStyle().set("margin", "0 0 1rem 0");
 
         topCategoriesSection.add(sectionTitle);
