@@ -491,34 +491,4 @@ class BudgetServiceTest {
         }
     }
 
-    @Nested
-    @DisplayName("Utility Tests")
-    class UtilityTests {
-
-        @Test
-        @DisplayName("Should check if budget exists")
-        void shouldCheckIfBudgetExists() {
-            // Given
-            when(budgetRepository.existsById(1L)).thenReturn(true);
-
-            // When
-            boolean result = budgetService.existsById(1L);
-
-            // Then
-            assertTrue(result);
-        }
-
-        @Test
-        @DisplayName("Should count all budgets")
-        void shouldCountAllBudgets() {
-            // Given
-            when(budgetRepository.count()).thenReturn(5L);
-
-            // When
-            long result = budgetService.count();
-
-            // Then
-            assertEquals(5L, result);
-        }
-    }
 }

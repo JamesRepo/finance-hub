@@ -37,8 +37,8 @@ public class SecurityConfig {
         http.headers(headers -> headers
                 // Prevent clickjacking attacks
                 .frameOptions(HeadersConfigurer.FrameOptionsConfig::deny)
-                // Prevent MIME type sniffing
-                .contentTypeOptions(HeadersConfigurer.ContentTypeOptionsConfig::disable)
+                // Prevent MIME type sniffing - adds X-Content-Type-Options: nosniff
+                .contentTypeOptions(contentTypeOptions -> {})
                 // Add Referrer-Policy header
                 .referrerPolicy(referrer -> referrer
                         .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
@@ -62,6 +62,15 @@ public class SecurityConfig {
                         .includeSubDomains(true)
                         .maxAgeInSeconds(31536000) // 1 year
                 )
+                // Add Permissions-Policy header to restrict browser features
+                .permissionsPolicy(permissions -> permissions
+                        .policy("geolocation=(), microphone=(), camera=(), payment=(self)")
+                )
+        )
+
+        // Add cache control for sensitive pages
+        .headers(headers -> headers
+                .cacheControl(cache -> {})
         );
 
         // Configure session management
