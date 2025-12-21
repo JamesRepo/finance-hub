@@ -169,21 +169,6 @@ public class BudgetService {
     }
 
     /**
-     * Check if a budget exists by ID
-     */
-    public boolean existsById(final Long id) {
-        validateIdNotNull(id);
-        return budgetRepository.existsById(id);
-    }
-
-    /**
-     * Count all budgets
-     */
-    public long count() {
-        return budgetRepository.count();
-    }
-
-    /**
      * Calculate budget usage based on transactions
      * This enriches the DTO with spent, remaining, overage, and percentage used
      */

@@ -201,15 +201,6 @@ public class IncomeSourceService {
         return incomeSourceMapper.toDto(savedIncomeSource);
     }
 
-    public boolean existsById(final Long id) {
-        validateIdNotNull(id);
-        return incomeSourceRepository.existsById(id);
-    }
-
-    public long count() {
-        return incomeSourceRepository.count();
-    }
-
     public BigDecimal getTotalActiveIncomeByUser(final User user) {
         validateUserNotNull(user);
         return incomeSourceRepository.getTotalActiveIncomeByUser(user);

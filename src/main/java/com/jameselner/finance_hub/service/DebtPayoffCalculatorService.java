@@ -13,7 +13,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -127,58 +126,114 @@ public class DebtPayoffCalculatorService {
             final BigDecimal totalMonthlyPayment,
             final String strategyName
     ) {
-        List<DebtPayoffProjection> projections = new ArrayList<>();
-        BigDecimal remainingPayment = totalMonthlyPayment;
+        // Create working copies of balances and track interest paid per debt
+        List<BigDecimal> balances = new ArrayList<>();
+        List<BigDecimal> interestPaid = new ArrayList<>();
+        List<BigDecimal> originalBalances = new ArrayList<>();
+        List<Integer> monthsPaidOff = new ArrayList<>();
 
-        BigDecimal totalMinimumPayment = sortedDebts.stream()
-                .map(Debt::getMinimumPayment)
-                .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        if (totalMonthlyPayment.compareTo(totalMinimumPayment) < 0) {
-            throw new IllegalArgumentException(
-                    "Total monthly payment must be at least the sum of all minimum payments: " + totalMinimumPayment);
+        for (Debt debt : sortedDebts) {
+            balances.add(debt.getCurrentBalance());
+            originalBalances.add(debt.getCurrentBalance());
+            interestPaid.add(BigDecimal.ZERO);
+            monthsPaidOff.add(0);
         }
 
-        BigDecimal extraPayment = totalMonthlyPayment.subtract(totalMinimumPayment);
+        int months = 0;
+        LocalDate currentDate = LocalDate.now();
 
+        // Simulate month by month until all debts are paid off (max 100 years)
+        while (months < 1200) {
+            // Check if all debts are paid off
+            boolean allPaidOff = balances.stream()
+                    .allMatch(b -> b.compareTo(BigDecimal.ZERO) <= 0);
+            if (allPaidOff) {
+                break;
+            }
+
+            months++;
+            BigDecimal remainingPayment = totalMonthlyPayment;
+
+            // First pass: add interest to all debts with balance
+            for (int i = 0; i < sortedDebts.size(); i++) {
+                if (balances.get(i).compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal monthlyInterest = debtService.calculateMonthlyInterest(
+                            balances.get(i), sortedDebts.get(i).getInterestRate());
+                    balances.set(i, balances.get(i).add(monthlyInterest));
+                    interestPaid.set(i, interestPaid.get(i).add(monthlyInterest));
+                }
+            }
+
+            // Second pass: pay minimum payments on all debts
+            for (int i = 0; i < sortedDebts.size(); i++) {
+                if (balances.get(i).compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal minimum = sortedDebts.get(i).getMinimumPayment();
+                    if (minimum == null) {
+                        minimum = BigDecimal.ZERO;
+                    }
+                    BigDecimal payment = minimum.min(balances.get(i)).min(remainingPayment);
+                    balances.set(i, balances.get(i).subtract(payment));
+                    remainingPayment = remainingPayment.subtract(payment);
+
+                    if (balances.get(i).compareTo(BigDecimal.ZERO) <= 0) {
+                        balances.set(i, BigDecimal.ZERO);
+                        if (monthsPaidOff.get(i) == 0) {
+                            monthsPaidOff.set(i, months);
+                        }
+                    }
+                }
+            }
+
+            // Third pass: apply extra payment to highest priority debt with balance
+            for (int i = 0; i < sortedDebts.size() && remainingPayment.compareTo(BigDecimal.ZERO) > 0; i++) {
+                if (balances.get(i).compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal extraPayment = remainingPayment.min(balances.get(i));
+                    balances.set(i, balances.get(i).subtract(extraPayment));
+                    remainingPayment = remainingPayment.subtract(extraPayment);
+
+                    if (balances.get(i).compareTo(BigDecimal.ZERO) <= 0) {
+                        balances.set(i, BigDecimal.ZERO);
+                        if (monthsPaidOff.get(i) == 0) {
+                            monthsPaidOff.set(i, months);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Build projections from simulation results
+        List<DebtPayoffProjection> projections = new ArrayList<>();
         for (int i = 0; i < sortedDebts.size(); i++) {
             Debt debt = sortedDebts.get(i);
-            BigDecimal minimumPayment = debt.getMinimumPayment() != null ?
-                    debt.getMinimumPayment() : BigDecimal.ZERO;
+            int debtMonths = monthsPaidOff.get(i) > 0 ? monthsPaidOff.get(i) : months;
+            BigDecimal totalPaidForDebt = originalBalances.get(i).add(interestPaid.get(i));
 
-            BigDecimal paymentForThisDebt;
-            if (i == 0) {
-                paymentForThisDebt = minimumPayment.add(extraPayment);
-            } else {
-                paymentForThisDebt = minimumPayment;
-            }
-
-            DebtPayoffProjection projection = calculatePayoffProjection(debt, paymentForThisDebt);
-            projections.add(projection);
-
-            if (i < sortedDebts.size() - 1) {
-                extraPayment = extraPayment.add(minimumPayment);
-            }
+            projections.add(DebtPayoffProjection.builder()
+                    .debtId(debt.getDebtId())
+                    .debtName(debt.getDebtName())
+                    .currentBalance(originalBalances.get(i))
+                    .interestRate(debt.getInterestRate())
+                    .monthlyPayment(debt.getMinimumPayment() != null ? debt.getMinimumPayment() : BigDecimal.ZERO)
+                    .monthsToPayoff(debtMonths)
+                    .projectedPayoffDate(currentDate.plusMonths(debtMonths))
+                    .totalInterestPaid(interestPaid.get(i))
+                    .totalPaid(totalPaidForDebt)
+                    .build());
         }
 
-        int maxMonths = projections.stream()
-                .mapToInt(DebtPayoffProjection::getMonthsToPayoff)
+        int maxMonths = monthsPaidOff.stream()
+                .mapToInt(Integer::intValue)
                 .max()
-                .orElse(0);
+                .orElse(months);
 
-        LocalDate finalPayoffDate = projections.stream()
-                .map(DebtPayoffProjection::getProjectedPayoffDate)
-                .max(LocalDate::compareTo)
-                .orElse(LocalDate.now());
+        LocalDate finalPayoffDate = currentDate.plusMonths(maxMonths);
 
-        BigDecimal totalInterest = projections.stream()
-                .map(DebtPayoffProjection::getTotalInterestPaid)
+        BigDecimal totalInterest = interestPaid.stream()
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal totalPaid = projections.stream()
-                .map(DebtPayoffProjection::getTotalPaid)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalPaid = originalBalances.stream()
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .add(totalInterest);
 
         return DebtPayoffPlan.builder()
                 .strategyName(strategyName)

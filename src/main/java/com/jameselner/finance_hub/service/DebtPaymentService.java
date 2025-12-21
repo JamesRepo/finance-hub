@@ -197,15 +197,6 @@ public class DebtPaymentService {
         debtPaymentRepository.deleteById(id);
     }
 
-    public boolean existsById(final Long id) {
-        validateIdNotNull(id);
-        return debtPaymentRepository.existsById(id);
-    }
-
-    public long count() {
-        return debtPaymentRepository.count();
-    }
-
     public BigDecimal getTotalPaymentsByDebt(final Long debtId) {
         if (debtId == null) {
             throw new IllegalArgumentException("Debt ID must not be null");

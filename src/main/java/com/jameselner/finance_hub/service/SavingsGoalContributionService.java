@@ -176,15 +176,6 @@ public class SavingsGoalContributionService {
         contributionRepository.deleteById(id);
     }
 
-    public boolean existsById(final Long id) {
-        validateIdNotNull(id);
-        return contributionRepository.existsById(id);
-    }
-
-    public long count() {
-        return contributionRepository.count();
-    }
-
     public BigDecimal getTotalContributionsByGoal(final Long goalId) {
         if (goalId == null) {
             throw new IllegalArgumentException("Goal ID must not be null");

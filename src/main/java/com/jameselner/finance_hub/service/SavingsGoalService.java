@@ -133,15 +133,6 @@ public class SavingsGoalService {
         savingsGoalRepository.deleteById(id);
     }
 
-    public boolean existsById(final Long id) {
-        validateIdNotNull(id);
-        return savingsGoalRepository.existsById(id);
-    }
-
-    public long count() {
-        return savingsGoalRepository.count();
-    }
-
     public BigDecimal getTotalTargetAmountByUser(final User user) {
         if (user == null) {
             throw new IllegalArgumentException("User must not be null");

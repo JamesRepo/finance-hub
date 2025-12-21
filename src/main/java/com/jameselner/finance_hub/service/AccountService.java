@@ -133,23 +133,13 @@ public class AccountService {
         return accountRepository.countByUser(user);
     }
 
-    // Legacy methods for backward compatibility
+    // Legacy methods - still used by TransactionForm
     public List<Account> findAll() {
         return accountRepository.findAll();
     }
 
     public Optional<Account> findById(Long id) {
         return accountRepository.findById(id);
-    }
-
-    @Transactional
-    public Account save(Account account) {
-        return accountRepository.save(account);
-    }
-
-    @Transactional
-    public void delete(Account account) {
-        accountRepository.delete(account);
     }
 
     // Private helper methods

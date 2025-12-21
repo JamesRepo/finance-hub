@@ -139,7 +139,7 @@ public class CategoryService {
         return categoryRepository.countByUser(user);
     }
 
-    // Legacy methods for backward compatibility
+    // Legacy methods - still used by TransactionForm, BudgetForm, TransactionView
     public List<Category> findAll() {
         return categoryRepository.findAll();
     }
@@ -152,16 +152,6 @@ public class CategoryService {
 
     public Optional<Category> findById(final Long id) {
         return categoryRepository.findById(id);
-    }
-
-    @Transactional
-    public Category save(final Category category) {
-        return categoryRepository.save(category);
-    }
-
-    @Transactional
-    public void delete(final Category category) {
-        categoryRepository.delete(category);
     }
 
     // Private helper methods

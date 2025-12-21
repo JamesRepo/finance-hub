@@ -144,21 +144,6 @@ public class TransactionService {
     }
 
     /**
-     * Check if a transaction exists by ID
-     */
-    public boolean existsById(final Long id) {
-        validateIdNotNull(id);
-        return transactionRepository.existsById(id);
-    }
-
-    /**
-     * Count all transactions
-     */
-    public long count() {
-        return transactionRepository.count();
-    }
-
-    /**
      * Get sum of transactions by user, type and date range
      */
     public BigDecimal sumByUserAndTypeAndDateRange(

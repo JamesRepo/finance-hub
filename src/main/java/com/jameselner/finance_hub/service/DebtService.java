@@ -87,15 +87,6 @@ public class DebtService {
         debtRepository.deleteById(id);
     }
 
-    public boolean existsById(final Long id) {
-        validateIdNotNull(id);
-        return debtRepository.existsById(id);
-    }
-
-    public long count() {
-        return debtRepository.count();
-    }
-
     public BigDecimal getTotalDebtByUser(final User user) {
         if (user == null) {
             throw new IllegalArgumentException("User must not be null");
