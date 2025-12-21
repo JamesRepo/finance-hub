@@ -10,6 +10,7 @@ import com.jameselner.finance_hub.view.HousingExpensesView;
 import com.jameselner.finance_hub.view.IncomeTrackingView;
 import com.jameselner.finance_hub.view.MonthlySummaryView;
 import com.jameselner.finance_hub.view.SavingsGoalsView;
+import com.jameselner.finance_hub.view.SettingsView;
 import com.jameselner.finance_hub.view.SubscriptionsView;
 import com.jameselner.finance_hub.view.TransactionView;
 import com.jameselner.finance_hub.view.YearlySummaryView;
@@ -90,7 +91,7 @@ public class AppNavigation extends VerticalLayout {
         SideNavItem housing = new SideNavItem("\uD83C\uDFE0 Housing", HousingExpensesView.class);
         nav.addItem(housing);
 
-        SideNavItem holidays = new SideNavItem("✈\uFE0F Holidays", HolidaysView.class);
+        SideNavItem holidays = new SideNavItem("✈️ Holidays", HolidaysView.class);
         nav.addItem(holidays);
 
         SideNavItem savingsGoals = new SideNavItem("\uD83D\uDC8E Savings Goals", SavingsGoalsView.class);
@@ -110,6 +111,9 @@ public class AppNavigation extends VerticalLayout {
 
         SideNavItem categories = new SideNavItem("\uD83D\uDDC2 Categories", CategoriesView.class);
         nav.addItem(categories);
+
+        SideNavItem settings = new SideNavItem("⚙️ Settings", SettingsView.class);
+        nav.addItem(settings);
 
         return nav;
     }

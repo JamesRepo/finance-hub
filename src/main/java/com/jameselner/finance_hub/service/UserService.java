@@ -36,4 +36,34 @@ public class UserService {
 
         return userRepository.save(user);
     }
+
+    @Transactional
+    public User updateProfile(final User user, final String firstName, final String lastName, final String email) {
+        if (!user.getEmail().equalsIgnoreCase(email)
+                && userRepository.existsByEmail(email.toLowerCase())) {
+            throw new IllegalArgumentException("Email already exists");
+        }
+
+        user.setFirstName(firstName);
+        user.setLastName(lastName);
+        user.setEmail(email.toLowerCase());
+
+        return userRepository.save(user);
+    }
+
+    @Transactional
+    public void changePassword(final User user, final String currentPassword, final String newPassword) {
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new IllegalArgumentException("Current password is incorrect");
+        }
+
+        PasswordValidator.ValidationResult passwordValidation =
+            PasswordValidator.validate(newPassword);
+        if (!passwordValidation.isValid()) {
+            throw new IllegalArgumentException(passwordValidation.getErrorMessage());
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
 }
