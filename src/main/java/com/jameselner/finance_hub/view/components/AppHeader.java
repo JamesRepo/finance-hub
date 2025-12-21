@@ -1,11 +1,12 @@
 package com.jameselner.finance_hub.view.components;
 
+import com.jameselner.finance_hub.view.DashboardView;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.spring.security.AuthenticationContext;
 
 public class AppHeader extends HorizontalLayout {
@@ -38,21 +39,23 @@ public class AppHeader extends HorizontalLayout {
                 .set("font-weight", "700")
                 .set("color", "#4F6BED")
                 .set("letter-spacing", "-0.025em");
-        logo.add(logoText);
+
+        RouterLink logoLink = new RouterLink("", DashboardView.class);
+        logoLink.add(logoText);
+        logoLink.getStyle()
+                .set("text-decoration", "none")
+                .set("cursor", "pointer");
+
+        logo.add(logoLink);
         return logo;
     }
 
     private HorizontalLayout createUserSection() {
-        Button notificationBtn = new Button(VaadinIcon.USER.create());
-        notificationBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        notificationBtn.addClassName("notification-btn");
-        notificationBtn.getStyle().set("color", "#64748b");
-
         Button logoutButton = new Button("Logout", VaadinIcon.SIGN_OUT.create(),
                 click -> authenticationContext.logout());
         logoutButton.addClassName("logout-btn");
 
-        HorizontalLayout userSection = new HorizontalLayout(notificationBtn, logoutButton);
+        HorizontalLayout userSection = new HorizontalLayout(logoutButton);
         userSection.setSpacing(true);
         userSection.setAlignItems(FlexComponent.Alignment.CENTER);
         userSection.getStyle()
