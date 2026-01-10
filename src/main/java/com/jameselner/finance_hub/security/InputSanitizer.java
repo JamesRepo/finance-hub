@@ -16,6 +16,11 @@ public class InputSanitizer {
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL
     );
 
+    private static final Pattern SCRIPT_TAG_PATTERN = Pattern.compile(
+            "<script",
+            Pattern.CASE_INSENSITIVE
+    );
+
     private static final Pattern EVENT_HANDLER_PATTERN = Pattern.compile(
             "\\s*on\\w+\\s*=",
             Pattern.CASE_INSENSITIVE
@@ -98,7 +103,7 @@ public class InputSanitizer {
             return false;
         }
 
-        return SCRIPT_PATTERN.matcher(input).find()
+        return SCRIPT_TAG_PATTERN.matcher(input).find()
                 || EVENT_HANDLER_PATTERN.matcher(input).find()
                 || JAVASCRIPT_PATTERN.matcher(input).find();
     }
@@ -115,6 +120,6 @@ public class InputSanitizer {
             return true;
         }
 
-        return input.matches("^[\\p{L}\\p{N}\\s.,'-]+$");
+        return input.matches("^[\\p{L}\\p{N} .,'-]+$");
     }
 }
