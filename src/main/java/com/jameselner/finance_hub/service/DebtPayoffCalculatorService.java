@@ -60,7 +60,6 @@ public class DebtPayoffCalculatorService {
             balance = balance.add(monthlyInterest);
 
             if (balance.compareTo(monthlyPayment) <= 0) {
-                balance = BigDecimal.ZERO;
                 months++;
                 break;
             }
@@ -126,6 +125,17 @@ public class DebtPayoffCalculatorService {
             final BigDecimal totalMonthlyPayment,
             final String strategyName
     ) {
+        // Validate total payment covers all minimum payments
+        BigDecimal totalMinimumPayments = sortedDebts.stream()
+                .map(d -> d.getMinimumPayment() != null ? d.getMinimumPayment() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (totalMonthlyPayment.compareTo(totalMinimumPayments) < 0) {
+            throw new IllegalArgumentException(
+                    "Total monthly payment must be at least the sum of all minimum payments ($" +
+                    totalMinimumPayments.setScale(2, RoundingMode.HALF_UP) + ")");
+        }
+
         // Create working copies of balances and track interest paid per debt
         List<BigDecimal> balances = new ArrayList<>();
         List<BigDecimal> interestPaid = new ArrayList<>();
@@ -202,18 +212,25 @@ public class DebtPayoffCalculatorService {
         }
 
         // Build projections from simulation results
+        // Calculate extra payment that goes to the first (prioritized) debt
+        BigDecimal extraPayment = totalMonthlyPayment.subtract(totalMinimumPayments);
+
         List<DebtPayoffProjection> projections = new ArrayList<>();
         for (int i = 0; i < sortedDebts.size(); i++) {
             Debt debt = sortedDebts.get(i);
             int debtMonths = monthsPaidOff.get(i) > 0 ? monthsPaidOff.get(i) : months;
             BigDecimal totalPaidForDebt = originalBalances.get(i).add(interestPaid.get(i));
 
+            // First debt gets minimum + extra, others get just minimum
+            BigDecimal minimumPayment = debt.getMinimumPayment() != null ? debt.getMinimumPayment() : BigDecimal.ZERO;
+            BigDecimal allocatedPayment = (i == 0) ? minimumPayment.add(extraPayment) : minimumPayment;
+
             projections.add(DebtPayoffProjection.builder()
                     .debtId(debt.getDebtId())
                     .debtName(debt.getDebtName())
                     .currentBalance(originalBalances.get(i))
                     .interestRate(debt.getInterestRate())
-                    .monthlyPayment(debt.getMinimumPayment() != null ? debt.getMinimumPayment() : BigDecimal.ZERO)
+                    .monthlyPayment(allocatedPayment)
                     .monthsToPayoff(debtMonths)
                     .projectedPayoffDate(currentDate.plusMonths(debtMonths))
                     .totalInterestPaid(interestPaid.get(i))
