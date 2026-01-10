@@ -60,3 +60,18 @@ vite.generated.ts
 
 # Production bundles
 src/main/bundles/
+
+data/
+
+designs/
+
+### Environment / Secrets ###
+.env
+.env.*
+*.env
+application-local-secrets.properties
+application-prod-secrets.properties
+
+### Logs ###
+*.log
+logs/
