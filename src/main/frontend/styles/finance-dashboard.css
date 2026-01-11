@@ -3,22 +3,24 @@
  * These styles complement Vaadin's Lumo theme with finance-specific colors and components.
  */
 
-/* Color Variables - Finance Theme */
+/* Color Variables - Finance Theme (Dark Mode) */
 :root {
-    --finance-primary: #2563eb;
-    --finance-primary-dark: #1e40af;
-    --finance-secondary: #10b981;
-    --finance-danger: #ef4444;
-    --finance-warning: #f59e0b;
-    --finance-bg: #f8fafc;
-    --finance-card-bg: #ffffff;
-    --finance-text-primary: #1e293b;
-    --finance-text-secondary: #64748b;
-    --finance-border: #e2e8f0;
-    --finance-success-light: #d1fae5;
-    --finance-danger-light: #fee2e2;
-    --finance-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    --finance-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --finance-primary: #3b82f6;
+    --finance-primary-dark: #2563eb;
+    --finance-secondary: #34d399;
+    --finance-danger: #f87171;
+    --finance-warning: #fbbf24;
+    --finance-bg: #0f172a;
+    --finance-card-bg: #1e293b;
+    --finance-text-primary: #f1f5f9;
+    --finance-text-secondary: #94a3b8;
+    --finance-border: #334155;
+    --finance-success-light: #064e3b;
+    --finance-danger-light: #7f1d1d;
+    --finance-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --finance-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+    --finance-input-bg: #1e293b;
+    --finance-hover-bg: #334155;
 }
 
 /* Global Styles */
@@ -147,7 +149,7 @@
     align-items: center;
     gap: 1rem;
     padding: 0.75rem 0;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--finance-border);
     transition: background-color 0.2s ease;
 }
 
@@ -224,7 +226,7 @@
 .finance-dashboard vaadin-select::part(input-field) {
     border-radius: 0.5rem;
     border: 1px solid var(--finance-border);
-    background-color: white;
+    background-color: var(--finance-input-bg);
 }
 
 .finance-dashboard vaadin-text-field:hover::part(input-field),
@@ -281,7 +283,7 @@
 
 /* Chart Bar Styles */
 .chart-bar {
-    background: linear-gradient(to top, var(--finance-primary), #60a5fa);
+    background: linear-gradient(to top, var(--finance-primary-dark), var(--finance-primary));
     border-radius: 0.375rem 0.375rem 0 0;
     transition: all 0.3s ease;
     cursor: pointer;
@@ -294,7 +296,7 @@
 
 /* Tab Navigation Styles - Scoped to finance-dashboard */
 .finance-dashboard vaadin-tabs {
-    background-color: white;
+    background-color: var(--finance-card-bg);
     border-radius: 0.75rem 0.75rem 0 0;
     border: 1px solid var(--finance-border);
     border-bottom: none;
@@ -420,7 +422,7 @@ vaadin-notification-card[theme~="error"] {
         right: 0;
         bottom: 0;
         width: 20px;
-        background: linear-gradient(to left, rgba(255,255,255,0.8), transparent);
+        background: linear-gradient(to left, var(--finance-bg), transparent);
         pointer-events: none;
     }
 
@@ -600,8 +602,8 @@ vaadin-notification-card[theme~="error"] {
 }
 
 .app-navigation vaadin-side-nav-item {
-    --lumo-primary-text-color: #374151;
-    --lumo-primary-color: #1e3a8a;
+    --lumo-primary-text-color: var(--finance-text-secondary);
+    --lumo-primary-color: var(--finance-primary);
     border-radius: 0.5rem;
     margin-bottom: 0.25rem;
     font-size: 1rem;
@@ -618,11 +620,11 @@ vaadin-notification-card[theme~="error"] {
 }
 
 .app-navigation vaadin-side-nav-item:not([active]):hover::part(link) {
-    background-color: #f1f5f9;
+    background-color: var(--finance-hover-bg);
 }
 
 .app-navigation vaadin-side-nav-item[active]::part(link) {
-    background-color: #1e3a8a;
+    background-color: var(--finance-primary);
     color: white;
 }
 
@@ -631,7 +633,7 @@ vaadin-notification-card[theme~="error"] {
 }
 
 .app-navigation vaadin-side-nav-item vaadin-icon {
-    color: #64748b;
+    color: var(--finance-text-secondary);
     width: 20px;
     height: 20px;
     margin-right: 0.75rem;

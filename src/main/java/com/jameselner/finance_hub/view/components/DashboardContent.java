@@ -22,7 +22,7 @@ public class DashboardContent extends VerticalLayout {
         setPadding(true);
         setSizeFull();
         getStyle()
-                .set("background-color", "#f8fafc")
+                .set("background-color", "var(--finance-bg)")
                 .set("overflow-y", "auto");
 
         add(createPageHeader());
@@ -43,7 +43,7 @@ public class DashboardContent extends VerticalLayout {
 
         Span pageSubtitle = new Span("Welcome back! Here's your financial overview.");
         pageSubtitle.getStyle()
-                .set("color", "#64748b")
+                .set("color", "var(--finance-text-secondary)")
                 .set("margin-bottom", "2rem");
 
         VerticalLayout pageHeader = new VerticalLayout(pageTitle, pageSubtitle);

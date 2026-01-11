@@ -21,9 +21,9 @@ public class AppHeader extends HorizontalLayout {
         setPadding(true);
         setSpacing(true);
         getStyle()
-                .set("background-color", "white")
-                .set("border-bottom", "1px solid #e2e8f0")
-                .set("box-shadow", "0 1px 3px rgba(0, 0, 0, 0.1)");
+                .set("background-color", "var(--finance-card-bg)")
+                .set("border-bottom", "1px solid var(--finance-border)")
+                .set("box-shadow", "var(--finance-shadow)");
 
         add(createLogoAndHeader(), createUserSection());
     }
@@ -37,7 +37,7 @@ public class AppHeader extends HorizontalLayout {
         logoText.getStyle()
                 .set("font-size", "1.5rem")
                 .set("font-weight", "700")
-                .set("color", "#4F6BED")
+                .set("color", "var(--finance-primary)")
                 .set("letter-spacing", "-0.025em");
 
         RouterLink logoLink = new RouterLink("", DashboardView.class);

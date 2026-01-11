@@ -185,7 +185,7 @@ public class BudgetTrackingView extends VerticalLayout {
                 .set("height", "12px")
                 .set("border-radius", "50%")
                 .set("background-color", budget.getCategoryColorCode() != null ?
-                        budget.getCategoryColorCode() : "#94a3b8")
+                        budget.getCategoryColorCode() : "var(--finance-text-secondary)")
                 .set("flex-shrink", "0");
 
         Span categoryName = new Span(budget.getCategoryName());
@@ -215,7 +215,7 @@ public class BudgetTrackingView extends VerticalLayout {
         );
         percentageLabel.getStyle()
                 .set("font-size", "0.875rem")
-                .set("color", "#64748b");
+                .set("color", "var(--finance-text-secondary)");
 
         layout.add(progressBar, percentageLabel);
         return layout;
@@ -232,8 +232,8 @@ public class BudgetTrackingView extends VerticalLayout {
             badge.setText("Over Budget");
             badge.getElement().getThemeList().add("error");
             badge.getStyle()
-                    .set("background-color", "#fecaca")
-                    .set("color", "#991b1b")
+                    .set("background-color", "var(--finance-danger-light)")
+                    .set("color", "var(--finance-danger)")
                     .set("padding", "0.25rem 0.75rem")
                     .set("border-radius", "9999px")
                     .set("font-size", "0.75rem")
@@ -242,8 +242,8 @@ public class BudgetTrackingView extends VerticalLayout {
             badge.setText("Warning");
             badge.getElement().getThemeList().add("contrast");
             badge.getStyle()
-                    .set("background-color", "#fef3c7")
-                    .set("color", "#92400e")
+                    .set("background-color", "rgba(251, 191, 36, 0.2)")
+                    .set("color", "var(--finance-warning)")
                     .set("padding", "0.25rem 0.75rem")
                     .set("border-radius", "9999px")
                     .set("font-size", "0.75rem")
@@ -252,8 +252,8 @@ public class BudgetTrackingView extends VerticalLayout {
             badge.setText("On Track");
             badge.getElement().getThemeList().add("success");
             badge.getStyle()
-                    .set("background-color", "#d1fae5")
-                    .set("color", "#065f46")
+                    .set("background-color", "var(--finance-success-light)")
+                    .set("color", "var(--finance-secondary)")
                     .set("padding", "0.25rem 0.75rem")
                     .set("border-radius", "9999px")
                     .set("font-size", "0.75rem")
@@ -287,11 +287,11 @@ public class BudgetTrackingView extends VerticalLayout {
 
     private String getColorForPercentage(final double percentage) {
         if (percentage >= 100) {
-            return "#dc2626"; // Red
+            return "var(--finance-danger)";
         } else if (percentage >= 80) {
-            return "#f59e0b"; // Yellow/Orange
+            return "var(--finance-warning)";
         } else {
-            return "#10b981"; // Green
+            return "var(--finance-secondary)";
         }
     }
 
@@ -321,10 +321,10 @@ public class BudgetTrackingView extends VerticalLayout {
                 .count();
 
         cards.add(
-                createSummaryCard("Total Budgeted", "£" + totalBudgeted, VaadinIcon.WALLET, "#3b82f6"),
-                createSummaryCard("Total Spent", "£" + totalSpent, VaadinIcon.CASH, "#8b5cf6"),
-                createSummaryCard("Total Remaining", "£" + totalRemaining, VaadinIcon.PIGGY_BANK, "#10b981"),
-                createSummaryCard("Over Budget", String.valueOf(overBudgetCount), VaadinIcon.WARNING, "#ef4444")
+                createSummaryCard("Total Budgeted", "£" + totalBudgeted, VaadinIcon.WALLET, "var(--finance-primary)"),
+                createSummaryCard("Total Spent", "£" + totalSpent, VaadinIcon.CASH, "#a78bfa"),
+                createSummaryCard("Total Remaining", "£" + totalRemaining, VaadinIcon.PIGGY_BANK, "var(--finance-secondary)"),
+                createSummaryCard("Over Budget", String.valueOf(overBudgetCount), VaadinIcon.WARNING, "var(--finance-danger)")
         );
 
         return cards;
@@ -340,8 +340,8 @@ public class BudgetTrackingView extends VerticalLayout {
         card.setSpacing(false);
         card.setPadding(true);
         card.getStyle()
-                .set("background-color", "white")
-                .set("border", "1px solid #e2e8f0")
+                .set("background-color", "var(--finance-card-bg)")
+                .set("border", "1px solid var(--finance-border)")
                 .set("border-radius", "0.5rem")
                 .set("padding", "1.5rem")
                 .set("flex", "1");
@@ -354,11 +354,11 @@ public class BudgetTrackingView extends VerticalLayout {
         Span titleSpan = new Span(title);
         titleSpan.getStyle()
                 .set("font-size", "0.875rem")
-                .set("color", "#64748b")
+                .set("color", "var(--finance-text-secondary)")
                 .set("font-weight", "500");
 
         Icon iconComponent = icon.create();
-        iconComponent.setColor(color);
+        iconComponent.getStyle().set("color", color);
         iconComponent.setSize("20px");
 
         header.add(titleSpan, iconComponent);
@@ -368,7 +368,7 @@ public class BudgetTrackingView extends VerticalLayout {
                 .set("margin", "0.5rem 0 0 0")
                 .set("font-size", "1.875rem")
                 .set("font-weight", "700")
-                .set("color", "#1e293b");
+                .set("color", "var(--finance-text-primary)");
 
         card.add(header, valueHeading);
         return card;

@@ -52,7 +52,6 @@ public class DebtManagementView extends VerticalLayout {
     private final DebtPaymentService debtPaymentService;
     private final DebtPayoffCalculatorService payoffCalculatorService;
     private final DebtRepository debtRepository;
-    private final DebtMapper debtMapper;
     private final AuthenticationContext authenticationContext;
     private final UserRepository userRepository;
 
@@ -60,14 +59,12 @@ public class DebtManagementView extends VerticalLayout {
     private DebtForm debtForm;
     private Dialog formDialog;
     private DebtPaymentDialog paymentDialog;
-    private Dialog payoffProjectionDialog;
 
     public DebtManagementView(
             final DebtService debtService,
             final DebtPaymentService debtPaymentService,
             final DebtPayoffCalculatorService payoffCalculatorService,
             final DebtRepository debtRepository,
-            final DebtMapper debtMapper,
             final AuthenticationContext authenticationContext,
             final UserRepository userRepository
     ) {
@@ -75,7 +72,6 @@ public class DebtManagementView extends VerticalLayout {
         this.debtPaymentService = debtPaymentService;
         this.payoffCalculatorService = payoffCalculatorService;
         this.debtRepository = debtRepository;
-        this.debtMapper = debtMapper;
         this.authenticationContext = authenticationContext;
         this.userRepository = userRepository;
 
@@ -174,14 +170,14 @@ public class DebtManagementView extends VerticalLayout {
         }
 
         progressBar.setValue(Math.max(0, Math.min(paidPercentage / 100.0, 1.0)));
-        progressBar.getElement().getStyle().set("--vaadin-progress-value-color", "#10b981");
+        progressBar.getElement().getStyle().set("--vaadin-progress-value-color", "var(--finance-secondary)");
 
         Span progressLabel = new Span(
                 String.format("%.1f%% paid off", paidPercentage)
         );
         progressLabel.getStyle()
                 .set("font-size", "0.875rem")
-                .set("color", "#64748b");
+                .set("color", "var(--finance-text-secondary)");
 
         layout.add(progressBar, progressLabel);
         return layout;
@@ -240,10 +236,10 @@ public class DebtManagementView extends VerticalLayout {
         long debtCount = debts.size();
 
         cards.add(
-                createSummaryCard("Total Debt", "£" + totalDebt, VaadinIcon.CREDIT_CARD, "#ef4444"),
-                createSummaryCard("Total Paid", "£" + totalPaid, VaadinIcon.CHECK_CIRCLE, "#10b981"),
-                createSummaryCard("Avg. Interest Rate", avgInterestRate + "%", VaadinIcon.TRENDING_UP, "#f59e0b"),
-                createSummaryCard("Number of Debts", String.valueOf(debtCount), VaadinIcon.LIST, "#3b82f6")
+                createSummaryCard("Total Debt", "£" + totalDebt, VaadinIcon.CREDIT_CARD, "var(--finance-danger)"),
+                createSummaryCard("Total Paid", "£" + totalPaid, VaadinIcon.CHECK_CIRCLE, "var(--finance-secondary)"),
+                createSummaryCard("Avg. Interest Rate", avgInterestRate + "%", VaadinIcon.TRENDING_UP, "var(--finance-warning)"),
+                createSummaryCard("Number of Debts", String.valueOf(debtCount), VaadinIcon.LIST, "var(--finance-primary)")
         );
 
         return cards;
@@ -259,8 +255,8 @@ public class DebtManagementView extends VerticalLayout {
         card.setSpacing(false);
         card.setPadding(true);
         card.getStyle()
-                .set("background-color", "white")
-                .set("border", "1px solid #e2e8f0")
+                .set("background-color", "var(--finance-card-bg)")
+                .set("border", "1px solid var(--finance-border)")
                 .set("border-radius", "0.5rem")
                 .set("padding", "1.5rem")
                 .set("flex", "1");
@@ -273,11 +269,11 @@ public class DebtManagementView extends VerticalLayout {
         Span titleSpan = new Span(title);
         titleSpan.getStyle()
                 .set("font-size", "0.875rem")
-                .set("color", "#64748b")
+                .set("color", "var(--finance-text-secondary)")
                 .set("font-weight", "500");
 
         Icon iconComponent = icon.create();
-        iconComponent.setColor(color);
+        iconComponent.getStyle().set("color", color);
         iconComponent.setSize("20px");
 
         header.add(titleSpan, iconComponent);
@@ -287,7 +283,7 @@ public class DebtManagementView extends VerticalLayout {
                 .set("margin", "0.5rem 0 0 0")
                 .set("font-size", "1.875rem")
                 .set("font-weight", "700")
-                .set("color", "#1e293b");
+                .set("color", "var(--finance-text-primary)");
 
         card.add(header, valueHeading);
         return card;
@@ -335,8 +331,11 @@ public class DebtManagementView extends VerticalLayout {
         ConfirmDialog dialog = new ConfirmDialog();
         dialog.setHeader("Delete Debt");
         dialog.setText(
-                String.format("Are you sure you want to delete %s?\n\n" +
-                                "Current Balance: £%s\nInterest Rate: %s%%",
+                String.format("""
+                                Are you sure you want to delete %s?
+                                
+                                Current Balance: £%s
+                                Interest Rate: %s%%""",
                         debt.getDebtName(),
                         debt.getCurrentBalance(),
                         debt.getInterestRate())
@@ -464,15 +463,15 @@ public class DebtManagementView extends VerticalLayout {
         card.setSpacing(true);
         card.setPadding(true);
         card.getStyle()
-                .set("background-color", "white")
-                .set("border", "1px solid #e2e8f0")
+                .set("background-color", "var(--finance-card-bg)")
+                .set("border", "1px solid var(--finance-border)")
                 .set("border-radius", "0.5rem")
                 .set("padding", "1.5rem");
 
         H3 strategyName = new H3(plan.getStrategyName());
         strategyName.getStyle()
                 .set("margin", "0 0 1rem 0")
-                .set("color", "#1e293b");
+                .set("color", "var(--finance-text-primary)");
 
         HorizontalLayout summary = new HorizontalLayout();
         summary.setWidthFull();
@@ -506,7 +505,7 @@ public class DebtManagementView extends VerticalLayout {
         Span labelSpan = new Span(label);
         labelSpan.getStyle()
                 .set("font-size", "0.75rem")
-                .set("color", "#94a3b8")
+                .set("color", "var(--finance-text-secondary)")
                 .set("text-transform", "uppercase")
                 .set("font-weight", "600");
 
@@ -514,7 +513,7 @@ public class DebtManagementView extends VerticalLayout {
         valueSpan.getStyle()
                 .set("font-size", "1.25rem")
                 .set("font-weight", "700")
-                .set("color", "#1e293b");
+                .set("color", "var(--finance-text-primary)");
 
         metric.add(labelSpan, valueSpan);
         return metric;

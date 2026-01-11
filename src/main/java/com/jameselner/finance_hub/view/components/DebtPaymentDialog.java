@@ -91,7 +91,7 @@ public class DebtPaymentDialog extends Dialog {
         infoLayout.setSpacing(false);
         infoLayout.setPadding(false);
         infoLayout.getStyle()
-                .set("background-color", "#f8fafc")
+                .set("background-color", "var(--finance-bg)")
                 .set("border-radius", "0.5rem")
                 .set("padding", "1rem")
                 .set("margin-bottom", "1rem");
@@ -105,7 +105,7 @@ public class DebtPaymentDialog extends Dialog {
             Span debtType = new Span(currentDebt.getDebtType().toString());
             debtType.getStyle()
                     .set("font-size", "0.875rem")
-                    .set("color", "#64748b")
+                    .set("color", "var(--finance-text-secondary)")
                     .set("display", "block")
                     .set("margin-bottom", "0.75rem");
 
@@ -121,7 +121,7 @@ public class DebtPaymentDialog extends Dialog {
             Span balanceLabel = new Span("Current Balance");
             balanceLabel.getStyle()
                     .set("font-size", "0.75rem")
-                    .set("color", "#94a3b8")
+                    .set("color", "var(--finance-text-secondary)")
                     .set("text-transform", "uppercase")
                     .set("font-weight", "600");
 
@@ -129,7 +129,7 @@ public class DebtPaymentDialog extends Dialog {
             balanceValue.getStyle()
                     .set("font-size", "1.5rem")
                     .set("font-weight", "700")
-                    .set("color", "#1e293b");
+                    .set("color", "var(--finance-text-primary)");
 
             currentBalanceLayout.add(balanceLabel, balanceValue);
 
@@ -140,7 +140,7 @@ public class DebtPaymentDialog extends Dialog {
             Span rateLabel = new Span("Interest Rate");
             rateLabel.getStyle()
                     .set("font-size", "0.75rem")
-                    .set("color", "#94a3b8")
+                    .set("color", "var(--finance-text-secondary)")
                     .set("text-transform", "uppercase")
                     .set("font-weight", "600");
 
@@ -148,7 +148,7 @@ public class DebtPaymentDialog extends Dialog {
             rateValue.getStyle()
                     .set("font-size", "1.5rem")
                     .set("font-weight", "700")
-                    .set("color", "#1e293b");
+                    .set("color", "var(--finance-text-primary)");
 
             interestRateLayout.add(rateLabel, rateValue);
 
@@ -212,12 +212,12 @@ public class DebtPaymentDialog extends Dialog {
         Span principalLine = new Span(String.format("Principal paid: £%.2f", payment.getPrincipalPaid()));
         principalLine.getStyle()
                 .set("display", "block")
-                .set("color", "#10b981");
+                .set("color", "var(--finance-secondary)");
 
         Span interestLine = new Span(String.format("Interest paid: £%.2f", payment.getInterestPaid()));
         interestLine.getStyle()
                 .set("display", "block")
-                .set("color", "#f59e0b");
+                .set("color", "var(--finance-warning)");
 
         content.add(title, principalLine, interestLine);
 
@@ -244,11 +244,6 @@ public class DebtPaymentDialog extends Dialog {
         add(createContent());
 
         open();
-    }
-
-    private void showSuccessNotification(final String message) {
-        Notification notification = Notification.show(message, 3000, Notification.Position.TOP_CENTER);
-        notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
     }
 
     private void showErrorNotification(final String message) {

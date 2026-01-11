@@ -28,8 +28,8 @@ public class AppNavigation extends VerticalLayout {
         setWidth("280px");
         addClassName("app-navigation");
         getStyle()
-                .set("background-color", "white")
-                .set("border-right", "1px solid #e2e8f0");
+                .set("background-color", "var(--finance-card-bg)")
+                .set("border-right", "1px solid var(--finance-border)");
 
         add(
                 createSection("OVERVIEW", createMainNav()),
@@ -49,7 +49,7 @@ public class AppNavigation extends VerticalLayout {
                 .set("font-size", "0.7rem")
                 .set("font-weight", "700")
                 .set("text-transform", "uppercase")
-                .set("color", "#9ca3af")
+                .set("color", "var(--finance-text-secondary)")
                 .set("margin-bottom", "0.5rem")
                 .set("letter-spacing", "0.08em")
                 .set("padding-left", "1rem");

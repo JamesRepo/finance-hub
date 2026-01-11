@@ -42,15 +42,14 @@ public class YearlySummaryView extends VerticalLayout {
     private final AuthenticationContext authenticationContext;
     private final UserRepository userRepository;
 
-    private ComboBox<Integer> yearSelector;
     private Integer selectedYear;
 
-    private VerticalLayout summaryCardsLayout;
-    private VerticalLayout monthlyChartSection;
-    private VerticalLayout savingsRateSection;
-    private VerticalLayout yearComparisonSection;
-    private VerticalLayout topCategoriesSection;
-    private VerticalLayout statisticsSection;
+    private final VerticalLayout summaryCardsLayout;
+    private final VerticalLayout monthlyChartSection;
+    private final VerticalLayout savingsRateSection;
+    private final VerticalLayout yearComparisonSection;
+    private final VerticalLayout topCategoriesSection;
+    private final VerticalLayout statisticsSection;
 
     private YearlySummaryDTO currentSummary;
 
@@ -106,7 +105,7 @@ public class YearlySummaryView extends VerticalLayout {
     }
 
     private HorizontalLayout createYearSelector() {
-        yearSelector = new ComboBox<>("Select Year");
+        ComboBox<Integer> yearSelector = new ComboBox<>("Select Year");
         yearSelector.setItems(generateYearOptions());
         yearSelector.setValue(selectedYear);
         yearSelector.addValueChangeListener(event -> {
@@ -650,7 +649,7 @@ public class YearlySummaryView extends VerticalLayout {
         card.getStyle()
                 .set("flex", "1")
                 .set("padding", compact ? "0.75rem" : "1rem")
-                .set("background-color", "white")
+                .set("background-color", "var(--finance-card-bg)")
                 .set("border-radius", "var(--lumo-border-radius-m)")
                 .set("border-left", "4px solid " + color);
 
@@ -687,7 +686,7 @@ public class YearlySummaryView extends VerticalLayout {
         card.getStyle()
                 .set("flex", "1")
                 .set("padding", compact ? "0.75rem" : "1rem")
-                .set("background-color", "white")
+                .set("background-color", "var(--finance-card-bg)")
                 .set("border-radius", "var(--lumo-border-radius-m)")
                 .set("border-left", "4px solid " + color);
 
@@ -718,7 +717,7 @@ public class YearlySummaryView extends VerticalLayout {
         card.getStyle()
                 .set("flex", "1")
                 .set("padding", "0.75rem")
-                .set("background-color", "white")
+                .set("background-color", "var(--finance-card-bg)")
                 .set("border-radius", "var(--lumo-border-radius-m)")
                 .set("border-left", "4px solid var(--lumo-primary-color)");
 
@@ -749,7 +748,7 @@ public class YearlySummaryView extends VerticalLayout {
         card.getStyle()
                 .set("flex", "1")
                 .set("padding", "1rem")
-                .set("background-color", "white")
+                .set("background-color", "var(--finance-card-bg)")
                 .set("border-radius", "var(--lumo-border-radius-m)");
 
         boolean isPositive = change.compareTo(BigDecimal.ZERO) >= 0;
@@ -792,7 +791,7 @@ public class YearlySummaryView extends VerticalLayout {
         card.getStyle()
                 .set("flex", "1")
                 .set("padding", "1rem")
-                .set("background-color", "white")
+                .set("background-color", "var(--finance-card-bg)")
                 .set("border-radius", "var(--lumo-border-radius-m)")
                 .set("border-left", "4px solid " + color);
 

@@ -255,7 +255,7 @@ public class TransactionView extends VerticalLayout {
                 .set("height", "12px")
                 .set("border-radius", "50%")
                 .set("background-color", transaction.getCategoryColorCode() != null ?
-                        transaction.getCategoryColorCode() : "#94a3b8")
+                        transaction.getCategoryColorCode() : "var(--finance-text-secondary)")
                 .set("flex-shrink", "0");
 
         Span categoryName = new Span(transaction.getCategoryName());

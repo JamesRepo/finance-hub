@@ -53,7 +53,7 @@ public class SummaryCardsComponent extends HorizontalLayout {
                             formatCurrency(summary.totalBalance()),
                             "All active accounts",
                             VaadinIcon.WALLET,
-                            "#2563eb",
+                            "var(--finance-primary)",
                             true
                     ));
 
@@ -63,7 +63,7 @@ public class SummaryCardsComponent extends HorizontalLayout {
                             formatCurrency(summary.monthlyIncome()),
                             formatPercentageChange(incomeChange) + " from last month",
                             VaadinIcon.TRENDING_UP,
-                            "#10b981",
+                            "var(--finance-secondary)",
                             incomeChange.compareTo(BigDecimal.ZERO) >= 0
                     ));
 
@@ -73,7 +73,7 @@ public class SummaryCardsComponent extends HorizontalLayout {
                             formatCurrency(summary.monthlyExpenses()),
                             formatPercentageChange(expenseChange) + " from last month",
                             VaadinIcon.TRENDING_DOWN,
-                            "#ef4444",
+                            "var(--finance-danger)",
                             expenseChange.compareTo(BigDecimal.ZERO) <= 0  // Lower expenses is positive
                     ));
 
@@ -82,7 +82,7 @@ public class SummaryCardsComponent extends HorizontalLayout {
                             formatCurrency(summary.totalDebt()),
                             "Current month",
                             VaadinIcon.BAN,
-                            "#f59e0b",
+                            "var(--finance-warning)",
                             true
                     ));
                 });
@@ -122,11 +122,11 @@ public class SummaryCardsComponent extends HorizontalLayout {
                                   VaadinIcon iconType, String iconColor, boolean isPositive) {
         Div card = new Div();
         card.getStyle()
-                .set("background-color", "white")
+                .set("background-color", "var(--finance-card-bg)")
                 .set("border-radius", "0.75rem")
                 .set("padding", "1.5rem")
-                .set("box-shadow", "0 1px 3px rgba(0, 0, 0, 0.1)")
-                .set("border", "1px solid #e2e8f0");
+                .set("box-shadow", "var(--finance-shadow)")
+                .set("border", "1px solid var(--finance-border)");
 
         // Icon container with colored background
         Div iconContainer = new Div();
@@ -150,14 +150,14 @@ public class SummaryCardsComponent extends HorizontalLayout {
         valueSpan.getStyle()
                 .set("font-size", "1.875rem")
                 .set("font-weight", "700")
-                .set("color", "#1e293b")
+                .set("color", "var(--finance-text-primary)")
                 .set("display", "block")
                 .set("margin-bottom", "0.25rem");
 
         // Label text
         Span labelSpan = new Span(label);
         labelSpan.getStyle()
-                .set("color", "#64748b")
+                .set("color", "var(--finance-text-secondary)")
                 .set("font-size", "0.875rem")
                 .set("display", "block")
                 .set("margin-bottom", "0.75rem");
@@ -173,17 +173,17 @@ public class SummaryCardsComponent extends HorizontalLayout {
         Icon trendIcon;
         if (isPositive) {
             trendIcon = VaadinIcon.ARROW_UP.create();
-            trendIcon.setColor("#10b981");
+            trendIcon.getStyle().set("color", "var(--finance-secondary)");
         } else {
             trendIcon = VaadinIcon.ARROW_DOWN.create();
-            trendIcon.setColor("#ef4444");
+            trendIcon.getStyle().set("color", "var(--finance-danger)");
         }
         trendIcon.setSize("14px");
 
         Span trendText = new Span(trend);
         trendText.getStyle()
                 .set("font-size", "0.875rem")
-                .set("color", isPositive ? "#10b981" : "#ef4444");
+                .set("color", isPositive ? "var(--finance-secondary)" : "var(--finance-danger)");
 
         trendLayout.add(trendIcon, trendText);
 

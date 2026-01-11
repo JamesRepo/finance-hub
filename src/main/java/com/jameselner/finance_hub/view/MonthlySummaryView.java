@@ -37,14 +37,13 @@ public class MonthlySummaryView extends VerticalLayout {
     private final AuthenticationContext authenticationContext;
     private final UserRepository userRepository;
 
-    private ComboBox<YearMonth> monthSelector;
     private YearMonth selectedMonth;
 
-    private VerticalLayout summaryCardsLayout;
-    private VerticalLayout budgetPerformanceSection;
-    private VerticalLayout topCategoriesSection;
-    private VerticalLayout monthComparisonSection;
-    private VerticalLayout statisticsSection;
+    private final VerticalLayout summaryCardsLayout;
+    private final VerticalLayout budgetPerformanceSection;
+    private final VerticalLayout topCategoriesSection;
+    private final VerticalLayout monthComparisonSection;
+    private final VerticalLayout statisticsSection;
 
     public MonthlySummaryView(
             final MonthlySummaryService monthlySummaryService,
@@ -96,7 +95,7 @@ public class MonthlySummaryView extends VerticalLayout {
     }
 
     private HorizontalLayout createMonthSelector() {
-        monthSelector = new ComboBox<>("Select Month");
+        ComboBox<YearMonth> monthSelector = new ComboBox<>("Select Month");
         monthSelector.setItems(generateMonthOptions());
         monthSelector.setValue(selectedMonth);
         monthSelector.setItemLabelGenerator(month ->
@@ -434,7 +433,7 @@ public class MonthlySummaryView extends VerticalLayout {
         card.getStyle()
                 .set("flex", "1")
                 .set("padding", compact ? "0.75rem" : "1rem")
-                .set("background-color", "white")
+                .set("background-color", "var(--finance-card-bg)")
                 .set("border-radius", "var(--lumo-border-radius-m)")
                 .set("border-left", "4px solid " + color);
 
@@ -466,7 +465,7 @@ public class MonthlySummaryView extends VerticalLayout {
         card.getStyle()
                 .set("flex", "1")
                 .set("padding", "1rem")
-                .set("background-color", "white")
+                .set("background-color", "var(--finance-card-bg)")
                 .set("border-radius", "var(--lumo-border-radius-m)")
                 .set("border-left", "4px solid " + color);
 
@@ -497,7 +496,7 @@ public class MonthlySummaryView extends VerticalLayout {
         card.getStyle()
                 .set("flex", "1")
                 .set("padding", "0.75rem")
-                .set("background-color", "white")
+                .set("background-color", "var(--finance-card-bg)")
                 .set("border-radius", "var(--lumo-border-radius-m)")
                 .set("border-left", "4px solid var(--lumo-primary-color)");
 
@@ -528,7 +527,7 @@ public class MonthlySummaryView extends VerticalLayout {
         card.getStyle()
                 .set("flex", "1")
                 .set("padding", "1rem")
-                .set("background-color", "white")
+                .set("background-color", "var(--finance-card-bg)")
                 .set("border-radius", "var(--lumo-border-radius-m)");
 
         boolean isPositive = change.compareTo(BigDecimal.ZERO) >= 0;
