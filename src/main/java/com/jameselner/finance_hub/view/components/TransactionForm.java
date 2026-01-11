@@ -22,7 +22,6 @@ import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.textfield.BigDecimalField;
 import com.vaadin.flow.component.textfield.TextArea;
-import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
@@ -55,7 +54,7 @@ public class TransactionForm extends VerticalLayout {
     private ComboBox<Account> accountField;
     private ComboBox<Category> categoryField;
     private DatePicker transactionDateField;
-    private TextField placeVenueField;
+    private ComboBox<String> placeVenueField;
     private TextArea descriptionField;
 
     private Button saveButton;
@@ -141,8 +140,11 @@ public class TransactionForm extends VerticalLayout {
         categoryField.setItemLabelGenerator(Category::getCategoryName);
         categoryField.setRequiredIndicatorVisible(true);
 
-        placeVenueField = new TextField("Place/Venue");
+        placeVenueField = new ComboBox<>("Place/Venue");
         placeVenueField.setPlaceholder("Where was this?");
+        placeVenueField.setAllowCustomValue(true);
+        placeVenueField.setItems(transactionService.findDistinctPlaceVenues());
+        placeVenueField.addCustomValueSetListener(event -> placeVenueField.setValue(event.getDetail()));
 
         transactionDateField = new DatePicker("Transaction Date");
         transactionDateField.setRequiredIndicatorVisible(true);
@@ -318,6 +320,9 @@ public class TransactionForm extends VerticalLayout {
 
             // Remember the date for the next transaction
             lastSavedDate = currentTransaction.getTransactionDate();
+
+            // Refresh place/venue autocomplete list
+            placeVenueField.setItems(transactionService.findDistinctPlaceVenues());
 
             // Notify listener
             if (saveListener != null) {

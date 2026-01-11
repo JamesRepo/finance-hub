@@ -144,6 +144,13 @@ public class TransactionService {
     }
 
     /**
+     * Find all distinct place/venue values for autocomplete
+     */
+    public List<String> findDistinctPlaceVenues() {
+        return transactionRepository.findDistinctPlaceVenues();
+    }
+
+    /**
      * Get sum of transactions by user, type and date range
      */
     public BigDecimal sumByUserAndTypeAndDateRange(

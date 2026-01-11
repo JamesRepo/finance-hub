@@ -50,4 +50,9 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
     );
+
+    @Query("SELECT DISTINCT t.placeVenue FROM Transaction t " +
+           "WHERE t.placeVenue IS NOT NULL AND t.placeVenue <> '' " +
+           "ORDER BY t.placeVenue")
+    List<String> findDistinctPlaceVenues();
 }
