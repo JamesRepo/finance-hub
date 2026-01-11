@@ -14,17 +14,21 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
+import org.springframework.beans.factory.annotation.Value;
 
 @Route("register")
 @PageTitle("Register | Finance Hub")
 @AnonymousAllowed
-public class RegistrationView extends VerticalLayout {
+public class RegistrationView extends VerticalLayout implements BeforeEnterObserver {
 
     private final UserService userService;
+    private final boolean registrationEnabled;
 
     private final EmailField emailField = new EmailField("Email");
     private final PasswordField passwordField = new PasswordField("Password");
@@ -33,8 +37,12 @@ public class RegistrationView extends VerticalLayout {
     private final TextField lastNameField = new TextField("Last Name");
     private final Button registerButton = new Button("Register");
 
-    public RegistrationView(final UserService userService) {
+    public RegistrationView(
+            final UserService userService,
+            @Value("${app.registration.enabled:true}") final boolean registrationEnabled
+    ) {
         this.userService = userService;
+        this.registrationEnabled = registrationEnabled;
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -151,5 +159,12 @@ public class RegistrationView extends VerticalLayout {
     private void showNotification(final String message, final NotificationVariant variant) {
         Notification notification = Notification.show(message, 3000, Notification.Position.TOP_CENTER);
         notification.addThemeVariants(variant);
+    }
+
+    @Override
+    public void beforeEnter(final BeforeEnterEvent event) {
+        if (!registrationEnabled) {
+            event.forwardTo(LoginView.class);
+        }
     }
 }
