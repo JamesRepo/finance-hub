@@ -216,8 +216,8 @@ public class SettingsView extends VerticalLayout {
         section.setSpacing(true);
         section.setPadding(true);
         section.getStyle()
-                .set("background-color", "white")
-                .set("border", "1px solid #e2e8f0")
+                .set("background-color", "var(--finance-card-bg)")
+                .set("border", "1px solid var(--finance-border)")
                 .set("border-radius", "0.5rem");
 
         HorizontalLayout headerLayout = new HorizontalLayout();
