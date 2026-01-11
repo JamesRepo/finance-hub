@@ -15,6 +15,9 @@ jobs:
   full-test-suite:
     name: Complete Test Suite
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
     timeout-minutes: 60
     steps:
       - name: Checkout code
