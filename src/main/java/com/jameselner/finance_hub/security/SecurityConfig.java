@@ -84,7 +84,7 @@ public class SecurityConfig {
 
         // Apply Vaadin-specific security configuration
         http.with(vaadin(), vaadinConfig ->
-                vaadinConfig.loginView(LoginView.class)
+                vaadinConfig.loginView(LoginView.class, "/")
         );
 
         return http.build();
