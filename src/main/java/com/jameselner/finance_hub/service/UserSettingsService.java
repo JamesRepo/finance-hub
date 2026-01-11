@@ -13,7 +13,7 @@ public class UserSettingsService {
 
     private final UserSettingsRepository userSettingsRepository;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public UserSettings getSettingsForUser(final User user) {
         return userSettingsRepository.findByUserUserId(user.getUserId())
                 .orElseGet(() -> createDefaultSettings(user));
