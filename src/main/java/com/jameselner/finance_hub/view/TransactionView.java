@@ -303,5 +303,6 @@ public class TransactionView extends VerticalLayout {
 
     private void deleteTransaction(final TransactionDTO transaction) {
         transactionService.deleteById(transaction.getTransactionId());
+        refreshGrid();
     }
 }

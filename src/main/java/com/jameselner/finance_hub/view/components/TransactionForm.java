@@ -27,10 +27,12 @@ import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.validator.BigDecimalRangeValidator;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 public class TransactionForm extends VerticalLayout {
@@ -41,6 +43,7 @@ public class TransactionForm extends VerticalLayout {
 
     private final Binder<TransactionDTO> binder = new BeanValidationBinder<>(TransactionDTO.class);
     private TransactionDTO currentTransaction;
+    private LocalDate lastSavedDate;
 
     // Form components
     private Tabs transactionTypeTabs;
@@ -58,7 +61,9 @@ public class TransactionForm extends VerticalLayout {
     private Button saveButton;
     private Button cancelButton;
 
+    @Setter
     private Consumer<TransactionDTO> saveListener;
+    @Setter
     private Runnable cancelListener;
 
     public TransactionForm(
@@ -201,7 +206,7 @@ public class TransactionForm extends VerticalLayout {
 
         // Bind account field with validation
         binder.forField(accountField)
-                .withValidator(account -> account != null, "Account is required")
+                .withValidator(Objects::nonNull, "Account is required")
                 .bind(
                         dto -> dto.getAccountId() != null ?
                                 accountService.findById(dto.getAccountId()).orElse(null) : null,
@@ -215,7 +220,7 @@ public class TransactionForm extends VerticalLayout {
 
         // Bind category field with validation
         binder.forField(categoryField)
-                .withValidator(category -> category != null, "Category is required")
+                .withValidator(Objects::nonNull, "Category is required")
                 .bind(
                         dto -> dto.getCategoryId() != null ?
                                 categoryService.findById(dto.getCategoryId()).orElse(null) : null,
@@ -230,7 +235,7 @@ public class TransactionForm extends VerticalLayout {
 
         // Bind transaction date with validation
         binder.forField(transactionDateField)
-                .withValidator(date -> date != null, "Transaction date is required")
+                .withValidator(Objects::nonNull, "Transaction date is required")
                 .withValidator(date -> !date.isAfter(LocalDate.now().plusDays(1)),
                         "Transaction date cannot be in the future")
                 .bind(TransactionDTO::getTransactionDate, TransactionDTO::setTransactionDate);
@@ -280,11 +285,12 @@ public class TransactionForm extends VerticalLayout {
     public void clearForm() {
         this.currentTransaction = new TransactionDTO();
         this.currentTransaction.setTransactionType(TransactionType.EXPENSE);
-        this.currentTransaction.setTransactionDate(LocalDate.now());
+        this.currentTransaction.setTransactionDate(lastSavedDate != null ? lastSavedDate : LocalDate.now());
 
         binder.readBean(currentTransaction);
         transactionTypeTabs.setSelectedTab(expenseTab);
         updateCategoryFieldItems(TransactionType.EXPENSE);
+        amountField.focus();
     }
 
     private void saveTransaction() {
@@ -309,6 +315,9 @@ public class TransactionForm extends VerticalLayout {
                 savedTransaction = transactionService.updateTransactionFromDto(currentTransaction);
                 showSuccessNotification("Transaction updated successfully!");
             }
+
+            // Remember the date for the next transaction
+            lastSavedDate = currentTransaction.getTransactionDate();
 
             // Notify listener
             if (saveListener != null) {
@@ -341,11 +350,4 @@ public class TransactionForm extends VerticalLayout {
         notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
     }
 
-    public void setSaveListener(Consumer<TransactionDTO> saveListener) {
-        this.saveListener = saveListener;
-    }
-
-    public void setCancelListener(Runnable cancelListener) {
-        this.cancelListener = cancelListener;
-    }
 }
