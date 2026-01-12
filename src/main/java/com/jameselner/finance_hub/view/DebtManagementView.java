@@ -5,7 +5,6 @@ import com.jameselner.finance_hub.domain.User;
 import com.jameselner.finance_hub.dto.DebtDTO;
 import com.jameselner.finance_hub.dto.DebtPayoffPlan;
 import com.jameselner.finance_hub.dto.DebtPayoffProjection;
-import com.jameselner.finance_hub.mapper.DebtMapper;
 import com.jameselner.finance_hub.repository.DebtRepository;
 import com.jameselner.finance_hub.repository.UserRepository;
 import com.jameselner.finance_hub.service.DebtPaymentService;
@@ -138,6 +137,10 @@ public class DebtManagementView extends VerticalLayout {
                 .setHeader("Min. Payment")
                 .setAutoWidth(true);
 
+        debtGrid.addColumn(dto -> "£" + debtPaymentService.getLastMonthInterestPaidByDebt(dto.getDebtId()))
+                .setHeader("Last Month Interest")
+                .setAutoWidth(true);
+
         debtGrid.addColumn(new ComponentRenderer<>(this::createProgressBar))
                 .setHeader("Progress")
                 .setFlexGrow(2);
@@ -233,12 +236,17 @@ public class DebtManagementView extends VerticalLayout {
                         .reduce(BigDecimal.ZERO, BigDecimal::add)
                         .divide(BigDecimal.valueOf(debts.size()), 2, RoundingMode.HALF_UP);
 
+        BigDecimal lastMonthInterest = debts.stream()
+                .map(debt -> debtPaymentService.getLastMonthInterestPaidByDebt(debt.getDebtId()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
         long debtCount = debts.size();
 
         cards.add(
                 createSummaryCard("Total Debt", "£" + totalDebt, VaadinIcon.CREDIT_CARD, "var(--finance-danger)"),
                 createSummaryCard("Total Paid", "£" + totalPaid, VaadinIcon.CHECK_CIRCLE, "var(--finance-secondary)"),
                 createSummaryCard("Avg. Interest Rate", avgInterestRate + "%", VaadinIcon.TRENDING_UP, "var(--finance-warning)"),
+                createSummaryCard("Last Month Interest", "£" + lastMonthInterest, VaadinIcon.MONEY, "var(--finance-warning)"),
                 createSummaryCard("Number of Debts", String.valueOf(debtCount), VaadinIcon.LIST, "var(--finance-primary)")
         );
 

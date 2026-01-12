@@ -30,4 +30,12 @@ public interface DebtPaymentRepository extends JpaRepository<DebtPayment, Long> 
 
     @Query("SELECT COALESCE(SUM(dp.interestPaid), 0) FROM DebtPayment dp WHERE dp.debt = :debt")
     BigDecimal getTotalInterestPaidByDebt(@Param("debt") Debt debt);
+
+    @Query("SELECT COALESCE(SUM(dp.interestPaid), 0) FROM DebtPayment dp " +
+            "WHERE dp.debt = :debt AND dp.paymentDate BETWEEN :startDate AND :endDate")
+    BigDecimal getInterestPaidByDebtAndDateRange(
+            @Param("debt") Debt debt,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
 }

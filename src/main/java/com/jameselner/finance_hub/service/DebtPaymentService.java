@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -228,6 +229,21 @@ public class DebtPaymentService {
                 .orElseThrow(() -> new IllegalArgumentException("Debt with ID " + debtId + " does not exist"));
 
         return debtPaymentRepository.getTotalInterestPaidByDebt(debt);
+    }
+
+    public BigDecimal getLastMonthInterestPaidByDebt(final Long debtId) {
+        if (debtId == null) {
+            throw new IllegalArgumentException("Debt ID must not be null");
+        }
+
+        Debt debt = debtRepository.findById(debtId)
+                .orElseThrow(() -> new IllegalArgumentException("Debt with ID " + debtId + " does not exist"));
+
+        YearMonth lastMonth = YearMonth.now().minusMonths(1);
+        LocalDate startDate = lastMonth.atDay(1);
+        LocalDate endDate = lastMonth.atEndOfMonth();
+
+        return debtPaymentRepository.getInterestPaidByDebtAndDateRange(debt, startDate, endDate);
     }
 
     private void updateDebtBalance(final Debt debt, final BigDecimal principalPaid) {
