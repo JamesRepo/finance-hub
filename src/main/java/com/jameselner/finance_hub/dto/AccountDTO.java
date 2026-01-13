@@ -22,6 +22,7 @@ public class AccountDTO {
     private BigDecimal balance;
     private String currency;
     private Boolean isActive;
+    private Boolean isDefault;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 }

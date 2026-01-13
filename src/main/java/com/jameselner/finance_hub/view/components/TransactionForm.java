@@ -43,6 +43,8 @@ public class TransactionForm extends VerticalLayout {
     private final Binder<TransactionDTO> binder = new BeanValidationBinder<>(TransactionDTO.class);
     private TransactionDTO currentTransaction;
     private LocalDate lastSavedDate;
+    @Setter
+    private Account defaultAccount;
 
     // Form components
     private Tabs transactionTypeTabs;
@@ -169,9 +171,9 @@ public class TransactionForm extends VerticalLayout {
         );
 
         formLayout.add(
+                placeVenueField,
                 amountField,
                 categoryField,
-                placeVenueField,
                 transactionDateField,
                 accountField,
                 descriptionField
@@ -292,7 +294,13 @@ public class TransactionForm extends VerticalLayout {
         binder.readBean(currentTransaction);
         transactionTypeTabs.setSelectedTab(expenseTab);
         updateCategoryFieldItems(TransactionType.EXPENSE);
-        amountField.focus();
+
+        // Pre-select default account if set
+        if (defaultAccount != null) {
+            accountField.setValue(defaultAccount);
+        }
+
+        placeVenueField.focus();
     }
 
     private void saveTransaction() {

@@ -27,6 +27,7 @@ public class AccountMapper {
                 .balance(account.getBalance())
                 .currency(account.getCurrency())
                 .isActive(account.getIsActive())
+                .isDefault(account.getIsDefault())
                 .createdAt(account.getCreatedAt())
                 .updatedAt(account.getUpdatedAt())
                 .build();
@@ -67,6 +68,10 @@ public class AccountMapper {
 
         if (dto.getIsActive() != null) {
             account.setIsActive(dto.getIsActive());
+        }
+
+        if (dto.getIsDefault() != null) {
+            account.setIsDefault(dto.getIsDefault());
         }
     }
 }

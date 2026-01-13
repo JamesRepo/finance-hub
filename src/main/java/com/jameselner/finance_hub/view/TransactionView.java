@@ -1,11 +1,15 @@
 package com.jameselner.finance_hub.view;
 
 import com.jameselner.finance_hub.domain.Category;
+import com.jameselner.finance_hub.domain.User;
 import com.jameselner.finance_hub.dto.TransactionDTO;
+import com.jameselner.finance_hub.repository.UserRepository;
 import com.jameselner.finance_hub.service.AccountService;
 import com.jameselner.finance_hub.service.CategoryService;
 import com.jameselner.finance_hub.service.TransactionService;
 import com.jameselner.finance_hub.view.components.TransactionForm;
+import com.vaadin.flow.spring.security.AuthenticationContext;
+import org.springframework.security.core.userdetails.UserDetails;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -38,6 +42,8 @@ public class TransactionView extends VerticalLayout {
     private final TransactionService transactionService;
     private final AccountService accountService;
     private final CategoryService categoryService;
+    private final AuthenticationContext authenticationContext;
+    private final UserRepository userRepository;
 
     private Grid<TransactionDTO> transactionGrid;
     private TransactionForm transactionForm;
@@ -50,11 +56,15 @@ public class TransactionView extends VerticalLayout {
     public TransactionView(
             final TransactionService transactionService,
             final AccountService accountService,
-            final CategoryService categoryService
+            final CategoryService categoryService,
+            final AuthenticationContext authenticationContext,
+            final UserRepository userRepository
     ) {
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.categoryService = categoryService;
+        this.authenticationContext = authenticationContext;
+        this.userRepository = userRepository;
 
         setSizeFull();
         setPadding(true);
@@ -146,6 +156,11 @@ public class TransactionView extends VerticalLayout {
 
         transactionForm = new TransactionForm(transactionService, accountService, categoryService);
 
+        // Set default account for the current user
+        User currentUser = getCurrentUser();
+        accountService.findDefaultByUserId(currentUser.getUserId())
+                .ifPresent(transactionForm::setDefaultAccount);
+
         transactionForm.setSaveListener(transaction -> {
             formDialog.close();
             refreshGrid();
@@ -154,6 +169,12 @@ public class TransactionView extends VerticalLayout {
         transactionForm.setCancelListener(() -> formDialog.close());
 
         formDialog.add(transactionForm);
+    }
+
+    private User getCurrentUser() {
+        return authenticationContext.getAuthenticatedUser(UserDetails.class)
+                .flatMap(userDetails -> userRepository.findByEmail(userDetails.getUsername()))
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
     private void openFormForNew() {

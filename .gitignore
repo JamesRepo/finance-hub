@@ -75,3 +75,6 @@ application-prod-secrets.properties
 ### Logs ###
 *.log
 logs/
+
+### Temporary Files ###
+deploy.sh

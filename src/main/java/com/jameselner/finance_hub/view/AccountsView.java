@@ -122,7 +122,24 @@ public class AccountsView extends VerticalLayout {
         grid.setAllRowsVisible(true);
         grid.setMaxHeight("500px");
 
-        grid.addColumn(AccountDTO::getAccountName)
+        grid.addComponentColumn(dto -> {
+            HorizontalLayout layout = new HorizontalLayout();
+            layout.setSpacing(true);
+            layout.setAlignItems(FlexComponent.Alignment.CENTER);
+
+            Span name = new Span(dto.getAccountName());
+            layout.add(name);
+
+            if (Boolean.TRUE.equals(dto.getIsDefault())) {
+                Span defaultBadge = new Span("Default");
+                defaultBadge.getElement().getThemeList().add("badge");
+                defaultBadge.getElement().getThemeList().add("small");
+                defaultBadge.getElement().getThemeList().add("primary");
+                layout.add(defaultBadge);
+            }
+
+            return layout;
+        })
                 .setHeader("Account Name")
                 .setAutoWidth(true)
                 .setFlexGrow(1);

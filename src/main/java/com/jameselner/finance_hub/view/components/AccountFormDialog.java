@@ -40,6 +40,7 @@ public class AccountFormDialog extends Dialog {
     private BigDecimalField balanceField;
     private TextField currencyField;
     private Checkbox isActiveCheckbox;
+    private Checkbox isDefaultCheckbox;
 
     @Setter
     private Consumer<AccountDTO> saveListener;
@@ -119,6 +120,10 @@ public class AccountFormDialog extends Dialog {
         isActiveCheckbox = new Checkbox("Active");
         isActiveCheckbox.setValue(true);
         isActiveCheckbox.setHelperText("Inactive accounts won't appear in dropdowns");
+
+        isDefaultCheckbox = new Checkbox("Default Account");
+        isDefaultCheckbox.setValue(false);
+        isDefaultCheckbox.setHelperText("Pre-selected when adding transactions");
     }
 
     private FormLayout createFormLayout() {
@@ -135,7 +140,8 @@ public class AccountFormDialog extends Dialog {
                 accountTypeCombo,
                 balanceField,
                 currencyField,
-                isActiveCheckbox
+                isActiveCheckbox,
+                isDefaultCheckbox
         );
 
         return formLayout;
@@ -179,6 +185,9 @@ public class AccountFormDialog extends Dialog {
 
         binder.forField(isActiveCheckbox)
                 .bind(AccountDTO::getIsActive, AccountDTO::setIsActive);
+
+        binder.forField(isDefaultCheckbox)
+                .bind(AccountDTO::getIsDefault, AccountDTO::setIsDefault);
     }
 
     private void saveAccount() {
@@ -216,6 +225,7 @@ public class AccountFormDialog extends Dialog {
         emptyDto.setBalance(BigDecimal.ZERO);
         emptyDto.setCurrency("GBP");
         emptyDto.setIsActive(true);
+        emptyDto.setIsDefault(false);
         binder.readBean(emptyDto);
     }
 

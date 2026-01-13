@@ -49,6 +49,14 @@ public class AccountService {
         if (account.getIsActive() == null) {
             account.setIsActive(true);
         }
+        if (account.getIsDefault() == null) {
+            account.setIsDefault(false);
+        }
+
+        // If this account is being set as default, clear default from other accounts
+        if (Boolean.TRUE.equals(account.getIsDefault())) {
+            accountRepository.clearDefaultForUser(account.getUser());
+        }
 
         Account savedAccount = accountRepository.save(account);
         return accountMapper.toDto(savedAccount);
@@ -71,10 +79,24 @@ public class AccountService {
 
         validateDtoRequiredFields(dto);
 
+        // If this account is being set as default, clear default from other accounts
+        if (Boolean.TRUE.equals(dto.getIsDefault()) && !Boolean.TRUE.equals(existingAccount.getIsDefault())) {
+            accountRepository.clearDefaultForUser(existingAccount.getUser());
+        }
+
         accountMapper.updateEntityFromDto(existingAccount, dto);
         Account savedAccount = accountRepository.save(existingAccount);
 
         return accountMapper.toDto(savedAccount);
+    }
+
+    /**
+     * Find the default account for a user
+     */
+    public Optional<Account> findDefaultByUserId(final Long userId) {
+        validateIdNotNull(userId);
+        User user = getUserById(userId);
+        return accountRepository.findByUserAndIsDefaultTrue(user);
     }
 
     /**
