@@ -82,6 +82,13 @@ public class SecurityConfig {
                 .maxSessionsPreventsLogin(false)
         );
 
+        // Configure form login with explicit success URL for production compatibility
+        http.formLogin(form -> form
+                .loginPage("/login")
+                .defaultSuccessUrl("/", true)
+                .permitAll()
+        );
+
         // Apply Vaadin-specific security configuration
         http.with(vaadin(), vaadinConfig ->
                 vaadinConfig.loginView(LoginView.class, "/")
