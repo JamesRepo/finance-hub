@@ -30,25 +30,6 @@ public class DebtPaymentService {
     private final DebtService debtService;
 
     @Transactional
-    public DebtPaymentDTO createDebtPaymentFromDto(final DebtPaymentDTO dto) {
-        validateDtoNotNull(dto);
-
-        if (dto.getPaymentId() != null) {
-            throw new IllegalArgumentException("Payment ID must be null for create operation");
-        }
-
-        validateDtoRequiredFields(dto);
-        validateAmounts(dto);
-
-        DebtPayment debtPayment = debtPaymentMapper.toEntity(dto);
-        DebtPayment savedPayment = debtPaymentRepository.save(debtPayment);
-
-        updateDebtBalance(savedPayment.getDebt(), savedPayment.getPrincipalPaid());
-
-        return debtPaymentMapper.toDto(savedPayment);
-    }
-
-    @Transactional
     public DebtPaymentDTO recordPaymentWithInterestCalculation(
             final Long debtId,
             final BigDecimal paymentAmount,
@@ -106,32 +87,6 @@ public class DebtPaymentService {
         return debtPaymentMapper.toDto(savedPayment);
     }
 
-    @Transactional
-    public DebtPaymentDTO updateDebtPaymentFromDto(final DebtPaymentDTO dto) {
-        validateDtoNotNull(dto);
-
-        if (dto.getPaymentId() == null) {
-            throw new IllegalArgumentException("Payment ID must not be null for update operation");
-        }
-
-        DebtPayment existingPayment = debtPaymentRepository.findById(dto.getPaymentId())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Debt payment with ID " + dto.getPaymentId() + " does not exist"));
-
-        BigDecimal oldPrincipalPaid = existingPayment.getPrincipalPaid();
-
-        validateDtoRequiredFields(dto);
-        validateAmounts(dto);
-
-        debtPaymentMapper.updateEntityFromDto(existingPayment, dto);
-        DebtPayment savedPayment = debtPaymentRepository.save(existingPayment);
-
-        BigDecimal principalDifference = savedPayment.getPrincipalPaid().subtract(oldPrincipalPaid);
-        updateDebtBalance(savedPayment.getDebt(), principalDifference);
-
-        return debtPaymentMapper.toDto(savedPayment);
-    }
-
     public Optional<DebtPaymentDTO> findByIdAsDto(final Long id) {
         validateIdNotNull(id);
         return debtPaymentRepository.findById(id)
@@ -140,44 +95,6 @@ public class DebtPaymentService {
 
     public List<DebtPaymentDTO> findAllAsDto() {
         return debtPaymentRepository.findAll().stream()
-                .map(debtPaymentMapper::toDto)
-                .collect(Collectors.toList());
-    }
-
-    public List<DebtPaymentDTO> findByDebtIdAsDto(final Long debtId) {
-        if (debtId == null) {
-            throw new IllegalArgumentException("Debt ID must not be null");
-        }
-
-        Debt debt = debtRepository.findById(debtId)
-                .orElseThrow(() -> new IllegalArgumentException("Debt with ID " + debtId + " does not exist"));
-
-        return debtPaymentRepository.findByDebtOrderByPaymentDateDesc(debt).stream()
-                .map(debtPaymentMapper::toDto)
-                .collect(Collectors.toList());
-    }
-
-    public List<DebtPaymentDTO> findByDebtIdAndDateRangeAsDto(
-            final Long debtId,
-            final LocalDate startDate,
-            final LocalDate endDate
-    ) {
-        if (debtId == null) {
-            throw new IllegalArgumentException("Debt ID must not be null");
-        }
-        if (startDate == null || endDate == null) {
-            throw new IllegalArgumentException("Start date and end date must not be null");
-        }
-        if (startDate.isAfter(endDate)) {
-            throw new IllegalArgumentException("Start date must be before or equal to end date");
-        }
-
-        Debt debt = debtRepository.findById(debtId)
-                .orElseThrow(() -> new IllegalArgumentException("Debt with ID " + debtId + " does not exist"));
-
-        return debtPaymentRepository.findByDebtAndPaymentDateBetweenOrderByPaymentDateDesc(
-                debt, startDate, endDate
-        ).stream()
                 .map(debtPaymentMapper::toDto)
                 .collect(Collectors.toList());
     }
@@ -198,38 +115,6 @@ public class DebtPaymentService {
         debtPaymentRepository.deleteById(id);
     }
 
-    public BigDecimal getTotalPaymentsByDebt(final Long debtId) {
-        if (debtId == null) {
-            throw new IllegalArgumentException("Debt ID must not be null");
-        }
-
-        Debt debt = debtRepository.findById(debtId)
-                .orElseThrow(() -> new IllegalArgumentException("Debt with ID " + debtId + " does not exist"));
-
-        return debtPaymentRepository.getTotalPaymentsByDebt(debt);
-    }
-
-    public BigDecimal getTotalPrincipalPaidByDebt(final Long debtId) {
-        if (debtId == null) {
-            throw new IllegalArgumentException("Debt ID must not be null");
-        }
-
-        Debt debt = debtRepository.findById(debtId)
-                .orElseThrow(() -> new IllegalArgumentException("Debt with ID " + debtId + " does not exist"));
-
-        return debtPaymentRepository.getTotalPrincipalPaidByDebt(debt);
-    }
-
-    public BigDecimal getTotalInterestPaidByDebt(final Long debtId) {
-        if (debtId == null) {
-            throw new IllegalArgumentException("Debt ID must not be null");
-        }
-
-        Debt debt = debtRepository.findById(debtId)
-                .orElseThrow(() -> new IllegalArgumentException("Debt with ID " + debtId + " does not exist"));
-
-        return debtPaymentRepository.getTotalInterestPaidByDebt(debt);
-    }
 
     public BigDecimal getLastMonthInterestPaidByDebt(final Long debtId) {
         if (debtId == null) {
@@ -244,6 +129,33 @@ public class DebtPaymentService {
         LocalDate endDate = lastMonth.atEndOfMonth();
 
         return debtPaymentRepository.getInterestPaidByDebtAndDateRange(debt, startDate, endDate);
+    }
+
+    /**
+     * Calculate total debt payments for a user for a specific month
+     */
+    public BigDecimal calculateTotalForMonth(final Long userId, final LocalDate month) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID must not be null");
+        }
+        if (month == null) {
+            throw new IllegalArgumentException("Month must not be null");
+        }
+        LocalDate startDate = month.withDayOfMonth(1);
+        LocalDate endDate = YearMonth.from(month).atEndOfMonth();
+        return debtPaymentRepository.getTotalPaymentsByUserAndDateRange(userId, startDate, endDate);
+    }
+
+    /**
+     * Calculate total debt payments for a user for a specific year
+     */
+    public BigDecimal calculateTotalForYear(final Long userId, final int year) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID must not be null");
+        }
+        LocalDate startDate = LocalDate.of(year, 1, 1);
+        LocalDate endDate = LocalDate.of(year, 12, 31);
+        return debtPaymentRepository.getTotalPaymentsByUserAndDateRange(userId, startDate, endDate);
     }
 
     private void updateDebtBalance(final Debt debt, final BigDecimal principalPaid) {
@@ -262,48 +174,6 @@ public class DebtPaymentService {
     private void validateIdNotNull(final Long id) {
         if (id == null) {
             throw new IllegalArgumentException("Debt payment ID must not be null");
-        }
-    }
-
-    private void validateDtoNotNull(final DebtPaymentDTO dto) {
-        if (dto == null) {
-            throw new IllegalArgumentException("DebtPaymentDTO must not be null");
-        }
-    }
-
-    private void validateDtoRequiredFields(final DebtPaymentDTO dto) {
-        if (dto.getDebtId() == null) {
-            throw new IllegalArgumentException("Debt ID must not be null");
-        }
-        if (dto.getPaymentAmount() == null) {
-            throw new IllegalArgumentException("Payment amount must not be null");
-        }
-        if (dto.getPrincipalPaid() == null) {
-            throw new IllegalArgumentException("Principal paid must not be null");
-        }
-        if (dto.getInterestPaid() == null) {
-            throw new IllegalArgumentException("Interest paid must not be null");
-        }
-        if (dto.getPaymentDate() == null) {
-            throw new IllegalArgumentException("Payment date must not be null");
-        }
-    }
-
-    private void validateAmounts(final DebtPaymentDTO dto) {
-        if (dto.getPaymentAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Payment amount must be greater than zero");
-        }
-        if (dto.getPrincipalPaid().compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Principal paid must not be negative");
-        }
-        if (dto.getInterestPaid().compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Interest paid must not be negative");
-        }
-
-        BigDecimal totalPaid = dto.getPrincipalPaid().add(dto.getInterestPaid());
-        if (!totalPaid.equals(dto.getPaymentAmount())) {
-            throw new IllegalArgumentException(
-                    "Principal paid + Interest paid must equal payment amount");
         }
     }
 }

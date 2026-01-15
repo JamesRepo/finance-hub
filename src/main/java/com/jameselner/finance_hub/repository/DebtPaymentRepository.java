@@ -9,32 +9,22 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
 
 @Repository
 public interface DebtPaymentRepository extends JpaRepository<DebtPayment, Long> {
-
-    List<DebtPayment> findByDebtOrderByPaymentDateDesc(Debt debt);
-
-    List<DebtPayment> findByDebtAndPaymentDateBetweenOrderByPaymentDateDesc(
-            Debt debt,
-            LocalDate startDate,
-            LocalDate endDate
-    );
-
-    @Query("SELECT COALESCE(SUM(dp.paymentAmount), 0) FROM DebtPayment dp WHERE dp.debt = :debt")
-    BigDecimal getTotalPaymentsByDebt(@Param("debt") Debt debt);
-
-    @Query("SELECT COALESCE(SUM(dp.principalPaid), 0) FROM DebtPayment dp WHERE dp.debt = :debt")
-    BigDecimal getTotalPrincipalPaidByDebt(@Param("debt") Debt debt);
-
-    @Query("SELECT COALESCE(SUM(dp.interestPaid), 0) FROM DebtPayment dp WHERE dp.debt = :debt")
-    BigDecimal getTotalInterestPaidByDebt(@Param("debt") Debt debt);
 
     @Query("SELECT COALESCE(SUM(dp.interestPaid), 0) FROM DebtPayment dp " +
             "WHERE dp.debt = :debt AND dp.paymentDate BETWEEN :startDate AND :endDate")
     BigDecimal getInterestPaidByDebtAndDateRange(
             @Param("debt") Debt debt,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    @Query("SELECT COALESCE(SUM(dp.paymentAmount), 0) FROM DebtPayment dp " +
+            "WHERE dp.debt.user.userId = :userId AND dp.paymentDate BETWEEN :startDate AND :endDate")
+    BigDecimal getTotalPaymentsByUserAndDateRange(
+            @Param("userId") Long userId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
     );

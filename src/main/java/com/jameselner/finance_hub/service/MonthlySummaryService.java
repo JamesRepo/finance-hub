@@ -9,7 +9,6 @@ import com.jameselner.finance_hub.dto.BudgetDTO;
 import com.jameselner.finance_hub.dto.CategorySpendingDTO;
 import com.jameselner.finance_hub.dto.MonthComparisonDTO;
 import com.jameselner.finance_hub.dto.MonthlySummaryDTO;
-import com.jameselner.finance_hub.repository.CategoryRepository;
 import com.jameselner.finance_hub.repository.IncomeSourceRepository;
 import com.jameselner.finance_hub.repository.TransactionRepository;
 import com.jameselner.finance_hub.repository.UserRepository;
@@ -35,11 +34,12 @@ import java.util.stream.Collectors;
 public class MonthlySummaryService {
 
     private final TransactionRepository transactionRepository;
-    private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
     private final IncomeSourceRepository incomeSourceRepository;
     private final BudgetService budgetService;
     private final HousingExpenseService housingExpenseService;
+    private final DebtPaymentService debtPaymentService;
+    private final SubscriptionService subscriptionService;
 
     /**
      * Generate comprehensive monthly summary for a user
@@ -54,7 +54,14 @@ public class MonthlySummaryService {
 
         // Calculate all metrics
         BigDecimal totalIncome = calculateTotalIncome(user, startDate, endDate);
-        BigDecimal totalExpenses = calculateTotalExpenses(user, startDate, endDate);
+        BigDecimal transactionExpenses = calculateTransactionExpenses(user, startDate, endDate);
+        BigDecimal housingCosts = housingExpenseService.calculateTotalForMonth(userId, startDate);
+        BigDecimal debtPayments = debtPaymentService.calculateTotalForMonth(userId, startDate);
+        BigDecimal subscriptionCosts = subscriptionService.calculateTotalForMonth(userId, month.getYear(), month.getMonthValue());
+        BigDecimal totalExpenses = transactionExpenses
+                .add(housingCosts)
+                .add(debtPayments)
+                .add(subscriptionCosts);
         BigDecimal netSavings = totalIncome.subtract(totalExpenses);
         BigDecimal savingsRate = calculateSavingsRate(totalIncome, netSavings);
 
@@ -80,8 +87,48 @@ public class MonthlySummaryService {
         // All spending categories with at least £1 spent
         List<CategorySpendingDTO> topCategories = calculateSpendingCategories(user, startDate, endDate, totalExpenses);
 
-        // Housing costs
-        BigDecimal housingCosts = housingExpenseService.calculateTotalMonthlyHousingCosts(userId);
+        // Add Housing as a category if there are housing costs
+        if (housingCosts.compareTo(BigDecimal.ONE) >= 0) {
+            topCategories.add(CategorySpendingDTO.builder()
+                    .categoryId(-1L)
+                    .categoryName("Housing")
+                    .categoryColor("#4A90A4")
+                    .totalSpent(housingCosts)
+                    .budgetAmount(null)
+                    .percentageOfTotal(calculatePercentage(housingCosts, totalExpenses))
+                    .transactionCount(0)
+                    .build());
+        }
+
+        // Add Debt Payments as a category if there are debt payments
+        if (debtPayments.compareTo(BigDecimal.ONE) >= 0) {
+            topCategories.add(CategorySpendingDTO.builder()
+                    .categoryId(-2L)
+                    .categoryName("Debt Payments")
+                    .categoryColor("#E57373")
+                    .totalSpent(debtPayments)
+                    .budgetAmount(null)
+                    .percentageOfTotal(calculatePercentage(debtPayments, totalExpenses))
+                    .transactionCount(0)
+                    .build());
+        }
+
+        // Add Subscriptions as a category if there are subscription costs
+        if (subscriptionCosts.compareTo(BigDecimal.ONE) >= 0) {
+            topCategories.add(CategorySpendingDTO.builder()
+                    .categoryId(-3L)
+                    .categoryName("Subscriptions")
+                    .categoryColor("#9575CD")
+                    .totalSpent(subscriptionCosts)
+                    .budgetAmount(null)
+                    .percentageOfTotal(calculatePercentage(subscriptionCosts, totalExpenses))
+                    .transactionCount(0)
+                    .build());
+        }
+
+        // Re-sort by total spent
+        topCategories.sort(Comparator.comparing(CategorySpendingDTO::getTotalSpent).reversed());
+
         BigDecimal housingRatio = housingExpenseService.calculateHousingToIncomeRatioForYear(userId, LocalDate.now().getYear());
 
         // Transaction statistics
@@ -104,6 +151,7 @@ public class MonthlySummaryService {
                 .month(month)
                 .totalIncome(totalIncome)
                 .totalExpenses(totalExpenses)
+                .transactionExpenses(transactionExpenses)
                 .netSavings(netSavings)
                 .savingsRate(savingsRate)
                 .totalBudgeted(totalBudgeted)
@@ -136,9 +184,9 @@ public class MonthlySummaryService {
     }
 
     /**
-     * Calculate total expenses for a period
+     * Calculate transaction expenses for a period (excluding housing costs)
      */
-    private BigDecimal calculateTotalExpenses(final User user, final LocalDate startDate, final LocalDate endDate) {
+    private BigDecimal calculateTransactionExpenses(final User user, final LocalDate startDate, final LocalDate endDate) {
         BigDecimal expenses = transactionRepository.sumByUserAndTypeAndDateRange(
                 user, TransactionType.EXPENSE, startDate, endDate);
         return expenses != null ? expenses : BigDecimal.ZERO;
@@ -247,15 +295,25 @@ public class MonthlySummaryService {
         LocalDate previousStart = previousMonth.atDay(1);
         LocalDate previousEnd = previousMonth.atEndOfMonth();
 
-        // Current month
+        Long userId = user.getUserId();
+
+        // Current month (transaction expenses + housing + debt + subscriptions)
         BigDecimal currentIncome = calculateTotalIncome(user, currentStart, currentEnd);
-        BigDecimal currentExpenses = calculateTotalExpenses(user, currentStart, currentEnd);
+        BigDecimal currentTransactionExpenses = calculateTransactionExpenses(user, currentStart, currentEnd);
+        BigDecimal currentHousing = housingExpenseService.calculateTotalForMonth(userId, currentStart);
+        BigDecimal currentDebt = debtPaymentService.calculateTotalForMonth(userId, currentStart);
+        BigDecimal currentSubscriptions = subscriptionService.calculateTotalForMonth(userId, currentMonth.getYear(), currentMonth.getMonthValue());
+        BigDecimal currentExpenses = currentTransactionExpenses.add(currentHousing).add(currentDebt).add(currentSubscriptions);
         BigDecimal currentSavings = currentIncome.subtract(currentExpenses);
         BigDecimal currentSavingsRate = calculateSavingsRate(currentIncome, currentSavings);
 
-        // Previous month
+        // Previous month (transaction expenses + housing + debt + subscriptions)
         BigDecimal previousIncome = calculateTotalIncome(user, previousStart, previousEnd);
-        BigDecimal previousExpenses = calculateTotalExpenses(user, previousStart, previousEnd);
+        BigDecimal previousTransactionExpenses = calculateTransactionExpenses(user, previousStart, previousEnd);
+        BigDecimal previousHousing = housingExpenseService.calculateTotalForMonth(userId, previousStart);
+        BigDecimal previousDebt = debtPaymentService.calculateTotalForMonth(userId, previousStart);
+        BigDecimal previousSubscriptions = subscriptionService.calculateTotalForMonth(userId, previousMonth.getYear(), previousMonth.getMonthValue());
+        BigDecimal previousExpenses = previousTransactionExpenses.add(previousHousing).add(previousDebt).add(previousSubscriptions);
         BigDecimal previousSavings = previousIncome.subtract(previousExpenses);
         BigDecimal previousSavingsRate = calculateSavingsRate(previousIncome, previousSavings);
 

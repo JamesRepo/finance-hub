@@ -19,6 +19,7 @@ public class MonthlySummaryDTO {
     // Income & Expense Totals
     private BigDecimal totalIncome;
     private BigDecimal totalExpenses;
+    private BigDecimal transactionExpenses; // Expenses from transactions only (excluding housing)
     private BigDecimal netSavings;
     private BigDecimal savingsRate; // Percentage
 
