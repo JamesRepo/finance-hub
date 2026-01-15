@@ -57,6 +57,9 @@ public class Debt {
     @Column(name = "minimum_payment", precision = 15, scale = 2)
     private BigDecimal minimumPayment;
 
+    @Column(name = "active", nullable = false)
+    private Boolean active = true;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;

@@ -30,6 +30,7 @@ public class DebtMapper {
                 .startDate(debt.getStartDate())
                 .targetPayoffDate(debt.getTargetPayoffDate())
                 .minimumPayment(debt.getMinimumPayment())
+                .active(debt.getActive())
                 .createdAt(debt.getCreatedAt())
                 .updatedAt(debt.getUpdatedAt())
                 .build();
@@ -64,5 +65,8 @@ public class DebtMapper {
         debt.setStartDate(dto.getStartDate());
         debt.setTargetPayoffDate(dto.getTargetPayoffDate());
         debt.setMinimumPayment(dto.getMinimumPayment());
+        if (dto.getActive() != null) {
+            debt.setActive(dto.getActive());
+        }
     }
 }

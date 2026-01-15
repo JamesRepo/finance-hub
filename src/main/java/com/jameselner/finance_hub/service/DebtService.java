@@ -87,6 +87,19 @@ public class DebtService {
         debtRepository.deleteById(id);
     }
 
+    @Transactional
+    public DebtDTO setActive(final Long id, final boolean active) {
+        validateIdNotNull(id);
+
+        Debt debt = debtRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Debt with ID " + id + " does not exist"));
+
+        debt.setActive(active);
+        Debt savedDebt = debtRepository.save(debt);
+        log.debug("Set debt {} active status to {}", id, active);
+        return debtMapper.toDto(savedDebt);
+    }
+
     public BigDecimal getTotalDebtByUser(final User user) {
         if (user == null) {
             throw new IllegalArgumentException("User must not be null");

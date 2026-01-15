@@ -14,6 +14,7 @@ import com.jameselner.finance_hub.view.components.DebtForm;
 import com.jameselner.finance_hub.view.components.DebtPaymentDialog;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
@@ -58,6 +59,7 @@ public class DebtManagementView extends VerticalLayout {
     private DebtForm debtForm;
     private Dialog formDialog;
     private DebtPaymentDialog paymentDialog;
+    private Checkbox showInactiveCheckbox;
 
     public DebtManagementView(
             final DebtService debtService,
@@ -102,7 +104,11 @@ public class DebtManagementView extends VerticalLayout {
         calculatePayoffButton.setIcon(VaadinIcon.CALC.create());
         calculatePayoffButton.addClickListener(event -> showPayoffProjection());
 
-        HorizontalLayout toolbar = new HorizontalLayout(addButton, calculatePayoffButton);
+        showInactiveCheckbox = new Checkbox("Show Inactive");
+        showInactiveCheckbox.setValue(false);
+        showInactiveCheckbox.addValueChangeListener(event -> refreshGrid());
+
+        HorizontalLayout toolbar = new HorizontalLayout(addButton, calculatePayoffButton, showInactiveCheckbox);
         toolbar.setWidthFull();
         toolbar.setJustifyContentMode(JustifyContentMode.START);
         toolbar.setAlignItems(FlexComponent.Alignment.CENTER);
@@ -204,14 +210,33 @@ public class DebtManagementView extends VerticalLayout {
         editButton.getElement().setAttribute("aria-label", "Edit debt");
         editButton.addClickListener(event -> openFormForEdit(debt));
 
+        Button toggleActiveButton = new Button(new Icon(
+                Boolean.TRUE.equals(debt.getActive()) ? VaadinIcon.EYE_SLASH : VaadinIcon.EYE));
+        toggleActiveButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        toggleActiveButton.addClassName("mobile-touch-target");
+        toggleActiveButton.getElement().setAttribute("aria-label",
+                Boolean.TRUE.equals(debt.getActive()) ? "Mark as inactive" : "Mark as active");
+        toggleActiveButton.addClickListener(event -> toggleDebtActive(debt));
+
         Button deleteButton = new Button(new Icon(VaadinIcon.TRASH));
         deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
         deleteButton.addClassName("mobile-touch-target");
         deleteButton.getElement().setAttribute("aria-label", "Delete debt");
         deleteButton.addClickListener(event -> showDeleteConfirmation(debt));
 
-        layout.add(paymentButton, editButton, deleteButton);
+        layout.add(paymentButton, editButton, toggleActiveButton, deleteButton);
         return layout;
+    }
+
+    private void toggleDebtActive(final DebtDTO debt) {
+        try {
+            boolean newActive = !Boolean.TRUE.equals(debt.getActive());
+            debtService.setActive(debt.getDebtId(), newActive);
+            refreshGrid();
+            showSuccessNotification(newActive ? "Debt marked as active" : "Debt marked as inactive");
+        } catch (Exception e) {
+            showErrorNotification("Error updating debt: " + e.getMessage());
+        }
     }
 
     private HorizontalLayout createSummaryCards() {
@@ -535,8 +560,10 @@ public class DebtManagementView extends VerticalLayout {
 
     private List<DebtDTO> getAllDebts() {
         User currentUser = getCurrentUser();
+        boolean showInactive = showInactiveCheckbox != null && Boolean.TRUE.equals(showInactiveCheckbox.getValue());
         return debtService.findAllAsDto().stream()
                 .filter(debt -> debt.getUserId().equals(currentUser.getUserId()))
+                .filter(debt -> showInactive || Boolean.TRUE.equals(debt.getActive()))
                 .collect(Collectors.toList());
     }
 
