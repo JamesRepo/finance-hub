@@ -110,6 +110,37 @@ public class SubscriptionService {
     }
 
     /**
+     * Find subscriptions for a specific month
+     */
+    public List<SubscriptionDTO> findByUserIdAndMonthAsDto(final Long userId, final int year, final int month) {
+        validateIdNotNull(userId);
+        User user = getUserById(userId);
+
+        return subscriptionRepository.findByUserAndPaymentMonth(user, year, month).stream()
+                .map(subscriptionMapper::toDto)
+                .map(this::enrichWithCalculatedFields)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Calculate total for a specific month
+     */
+    public BigDecimal calculateTotalForMonth(final Long userId, final int year, final int month) {
+        validateIdNotNull(userId);
+        User user = getUserById(userId);
+        return subscriptionRepository.calculateTotalForMonth(user, year, month);
+    }
+
+    /**
+     * Count subscriptions for a specific month
+     */
+    public long countSubscriptionsForMonth(final Long userId, final int year, final int month) {
+        validateIdNotNull(userId);
+        User user = getUserById(userId);
+        return subscriptionRepository.countByUserAndMonth(user, year, month);
+    }
+
+    /**
      * Find subscriptions by frequency
      */
     public List<SubscriptionDTO> findByUserIdAndFrequencyAsDto(

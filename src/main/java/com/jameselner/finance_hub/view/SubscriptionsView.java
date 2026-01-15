@@ -27,7 +27,13 @@ import jakarta.annotation.security.PermitAll;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.Month;
+import java.time.format.TextStyle;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.stream.IntStream;
 
 @Route(value = "subscriptions", layout = MainLayout.class)
 @PageTitle("Subscriptions | Finance Hub")
@@ -41,8 +47,10 @@ public class SubscriptionsView extends VerticalLayout {
     private Grid<SubscriptionDTO> grid;
     private SubscriptionFormDialog formDialog;
     private ComboBox<String> filterCombo;
+    private ComboBox<Month> monthCombo;
+    private ComboBox<Integer> yearCombo;
 
-    private Span currentMonthTotalCard;
+    private Span monthTotalCard;
     private Span subscriptionCountCard;
 
     public SubscriptionsView(
@@ -96,11 +104,11 @@ public class SubscriptionsView extends VerticalLayout {
         cardsLayout.setSpacing(true);
         cardsLayout.addClassName("mobile-stack");
 
-        currentMonthTotalCard = createSummaryCard("Current Month Total", "£0.00", "var(--lumo-primary-color)", VaadinIcon.CALENDAR_CLOCK);
-        subscriptionCountCard = createSummaryCard("This Month's Subscriptions", "0", "var(--lumo-success-color)", VaadinIcon.LIST);
+        monthTotalCard = createSummaryCard("Month Total", "£0.00", "var(--lumo-primary-color)", VaadinIcon.CALENDAR_CLOCK);
+        subscriptionCountCard = createSummaryCard("Subscriptions", "0", "var(--lumo-success-color)", VaadinIcon.LIST);
 
         cardsLayout.add(
-                createCardContainer(currentMonthTotalCard),
+                createCardContainer(monthTotalCard),
                 createCardContainer(subscriptionCountCard)
         );
 
@@ -108,12 +116,28 @@ public class SubscriptionsView extends VerticalLayout {
     }
 
     private HorizontalLayout createToolbar() {
-        filterCombo = new ComboBox<>("Filter by");
-        filterCombo.setItems("Current Month", "All Time", "Monthly", "Yearly");
-        filterCombo.setValue("Current Month");
+        LocalDate now = LocalDate.now();
+
+        monthCombo = new ComboBox<>("Month");
+        monthCombo.setItems(Month.values());
+        monthCombo.setItemLabelGenerator(month -> month.getDisplayName(TextStyle.FULL, Locale.ENGLISH));
+        monthCombo.setValue(now.getMonth());
+        monthCombo.addValueChangeListener(event -> refreshData());
+
+        yearCombo = new ComboBox<>("Year");
+        yearCombo.setItems(IntStream.rangeClosed(now.getYear() - 5, now.getYear() + 1)
+                .boxed()
+                .sorted(Comparator.reverseOrder())
+                .toList());
+        yearCombo.setValue(now.getYear());
+        yearCombo.addValueChangeListener(event -> refreshData());
+
+        filterCombo = new ComboBox<>("Frequency");
+        filterCombo.setItems("All", "Monthly", "Yearly");
+        filterCombo.setValue("All");
         filterCombo.addValueChangeListener(event -> refreshGrid());
 
-        HorizontalLayout toolbar = new HorizontalLayout(filterCombo);
+        HorizontalLayout toolbar = new HorizontalLayout(monthCombo, yearCombo, filterCombo);
         toolbar.setWidthFull();
         toolbar.setSpacing(true);
         toolbar.setAlignItems(FlexComponent.Alignment.END);
@@ -133,7 +157,9 @@ public class SubscriptionsView extends VerticalLayout {
 
         grid.addColumn(dto -> String.format("£%.2f", dto.getAmount()))
                 .setHeader("Amount")
-                .setAutoWidth(true);
+                .setAutoWidth(true)
+                .setSortable(true)
+                .setComparator(Comparator.comparing(SubscriptionDTO::getAmount));
 
         grid.addColumn(dto -> dto.getFrequency().getDisplayName())
                 .setHeader("Frequency")
@@ -149,7 +175,9 @@ public class SubscriptionsView extends VerticalLayout {
 
         grid.addColumn(SubscriptionDTO::getPaymentDate)
                 .setHeader("Payment Date")
-                .setAutoWidth(true);
+                .setAutoWidth(true)
+                .setSortable(true)
+                .setComparator(Comparator.comparing(SubscriptionDTO::getPaymentDate));
 
         grid.addComponentColumn(dto -> {
             Button editButton = new Button(new Icon(VaadinIcon.EDIT));
@@ -283,30 +311,33 @@ public class SubscriptionsView extends VerticalLayout {
     private void refreshSummaryCards() {
         User currentUser = getCurrentUser();
         Long userId = currentUser.getUserId();
+        int year = yearCombo.getValue();
+        int month = monthCombo.getValue().getValue();
 
-        BigDecimal currentMonthTotal = subscriptionService.calculateCurrentMonthTotal(userId);
-        long currentMonthCount = subscriptionService.countCurrentMonthSubscriptions(userId);
+        BigDecimal monthTotal = subscriptionService.calculateTotalForMonth(userId, year, month);
+        long monthCount = subscriptionService.countSubscriptionsForMonth(userId, year, month);
 
-        updateCardValue(currentMonthTotalCard, String.format("£%.2f", currentMonthTotal));
-        updateCardValue(subscriptionCountCard, String.valueOf(currentMonthCount));
+        updateCardValue(monthTotalCard, String.format("£%.2f", monthTotal));
+        updateCardValue(subscriptionCountCard, String.valueOf(monthCount));
     }
 
     private void refreshGrid() {
         User currentUser = getCurrentUser();
         Long userId = currentUser.getUserId();
+        int year = yearCombo.getValue();
+        int month = monthCombo.getValue().getValue();
 
         String filter = filterCombo.getValue();
-        List<SubscriptionDTO> subscriptions;
+        List<SubscriptionDTO> subscriptions = subscriptionService.findByUserIdAndMonthAsDto(userId, year, month);
 
         subscriptions = switch (filter) {
-            case "Current Month" -> subscriptionService.findCurrentMonthByUserIdAsDto(userId);
-            case "Monthly" -> subscriptionService.findCurrentMonthByUserIdAsDto(userId).stream()
+            case "Monthly" -> subscriptions.stream()
                     .filter(sub -> "MONTHLY".equals(sub.getFrequency().name()))
                     .toList();
-            case "Yearly" -> subscriptionService.findCurrentMonthByUserIdAsDto(userId).stream()
+            case "Yearly" -> subscriptions.stream()
                     .filter(sub -> "YEARLY".equals(sub.getFrequency().name()))
                     .toList();
-            default -> subscriptionService.findByUserIdAsDto(userId);
+            default -> subscriptions;
         };
 
         grid.setItems(subscriptions);
