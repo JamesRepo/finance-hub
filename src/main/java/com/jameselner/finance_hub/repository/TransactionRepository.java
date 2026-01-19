@@ -55,4 +55,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
            "WHERE t.placeVenue IS NOT NULL AND t.placeVenue <> '' " +
            "ORDER BY t.placeVenue")
     List<String> findDistinctPlaceVenues();
+
+    @Query("SELECT t FROM Transaction t " +
+           "WHERE LOWER(t.placeVenue) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+           "OR LOWER(t.description) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+           "ORDER BY t.transactionDate DESC")
+    List<Transaction> searchByPlaceVenueOrDescription(@Param("searchTerm") String searchTerm);
 }

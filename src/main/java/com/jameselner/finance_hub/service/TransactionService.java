@@ -151,6 +151,20 @@ public class TransactionService {
     }
 
     /**
+     * Search transactions by place/venue or description across all transactions
+     */
+    public List<TransactionDTO> searchByTermAsDto(final String searchTerm) {
+        if (searchTerm == null || searchTerm.trim().isEmpty()) {
+            return List.of();
+        }
+
+        return transactionRepository.searchByPlaceVenueOrDescription(searchTerm.trim())
+                .stream()
+                .map(transactionMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Get sum of transactions by user, type and date range
      */
     public BigDecimal sumByUserAndTypeAndDateRange(

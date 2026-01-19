@@ -24,7 +24,9 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
+import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
@@ -50,8 +52,10 @@ public class TransactionView extends VerticalLayout {
     private Dialog formDialog;
     private ComboBox<YearMonth> monthFilter;
     private ComboBox<Category> categoryFilter;
+    private TextField searchField;
     private YearMonth selectedMonth;
     private Category selectedCategory;
+    private String searchTerm;
 
     public TransactionView(
             final TransactionService transactionService,
@@ -73,6 +77,7 @@ public class TransactionView extends VerticalLayout {
         createHeader();
         createGrid();
         createFormDialog();
+        createSearchField();
         createMonthFilter();
         createCategoryTypeFilter();
 
@@ -90,7 +95,7 @@ public class TransactionView extends VerticalLayout {
         addButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         addButton.addClickListener(event -> openFormForNew());
 
-        HorizontalLayout leftSection = new HorizontalLayout(monthFilter, categoryFilter);
+        HorizontalLayout leftSection = new HorizontalLayout(searchField, monthFilter, categoryFilter);
         leftSection.setSpacing(true);
         leftSection.setAlignItems(FlexComponent.Alignment.CENTER);
         leftSection.addClassName("mobile-stack");
@@ -145,6 +150,28 @@ public class TransactionView extends VerticalLayout {
             if (event.getValue() != null) {
                 openFormForEdit(event.getValue());
             }
+        });
+    }
+
+    private void createSearchField() {
+        searchField = new TextField();
+        searchField.setPlaceholder("Search all transactions...");
+        searchField.setWidth("250px");
+        searchField.setClearButtonVisible(true);
+        searchField.setPrefixComponent(new Icon(VaadinIcon.SEARCH));
+        searchField.setValueChangeMode(ValueChangeMode.LAZY);
+        searchField.setValueChangeTimeout(300);
+
+        searchField.addValueChangeListener(event -> {
+            searchTerm = event.getValue();
+            if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+                // Clear other filters when searching
+                monthFilter.clear();
+                categoryFilter.clear();
+                selectedMonth = null;
+                selectedCategory = null;
+            }
+            refreshGrid();
         });
     }
 
@@ -211,6 +238,11 @@ public class TransactionView extends VerticalLayout {
         // Add listener to refresh grid when selection changes
         monthFilter.addValueChangeListener(event -> {
             selectedMonth = event.getValue();
+            if (selectedMonth != null) {
+                // Clear search when selecting a month
+                searchField.clear();
+                searchTerm = null;
+            }
             refreshGrid();
         });
     }
@@ -239,12 +271,20 @@ public class TransactionView extends VerticalLayout {
         // Add listener to refresh grid when selection changes
         categoryFilter.addValueChangeListener(event -> {
             selectedCategory = event.getValue();
+            if (selectedCategory != null) {
+                // Clear search when selecting a category
+                searchField.clear();
+                searchTerm = null;
+            }
             refreshGrid();
         });
     }
 
     private void refreshGrid() {
-        if (selectedMonth != null && selectedCategory != null) {
+        if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+            // Search across all transactions
+            transactionGrid.setItems(transactionService.searchByTermAsDto(searchTerm));
+        } else if (selectedMonth != null && selectedCategory != null) {
             // Filter by both month and category type
             transactionGrid.setItems(transactionService.findByYearAndMonthAndCategoryAsDto(
                 selectedMonth.getYear(),
@@ -258,8 +298,12 @@ public class TransactionView extends VerticalLayout {
                 selectedMonth.getMonthValue()
             ));
         } else {
-            // No filters
-            transactionGrid.setItems(transactionService.findAllAsDto());
+            // No filters - default to current month
+            YearMonth current = YearMonth.now();
+            transactionGrid.setItems(transactionService.findByYearAndMonthAsDto(
+                current.getYear(),
+                current.getMonthValue()
+            ));
         }
     }
 
