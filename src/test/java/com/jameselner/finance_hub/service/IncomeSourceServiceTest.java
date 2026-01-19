@@ -2,7 +2,6 @@ package com.jameselner.finance_hub.service;
 
 import com.jameselner.finance_hub.domain.IncomeSource;
 import com.jameselner.finance_hub.domain.User;
-import com.jameselner.finance_hub.domain.enums.RecurrenceFrequency;
 import com.jameselner.finance_hub.mapper.IncomeSourceMapper;
 import com.jameselner.finance_hub.repository.IncomeSourceRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,268 +48,61 @@ class IncomeSourceServiceTest {
     class CalculateTotalForPeriodTests {
 
         @Test
-        @DisplayName("Should calculate total for monthly recurring income over full year")
-        void shouldCalculateMonthlyRecurringIncomeForYear() {
+        @DisplayName("Should sum income source when start date is within period")
+        void shouldSumIncomeSourceWithinPeriod() {
             LocalDate startDate = LocalDate.of(2024, 1, 1);
-            LocalDate endDate = LocalDate.of(2024, 12, 31);
+            LocalDate endDate = LocalDate.of(2024, 1, 31);
 
-            IncomeSource monthlyIncome = createIncomeSource(
+            IncomeSource januarySalary = createIncomeSource(
                     new BigDecimal("3000.00"),
                     new BigDecimal("2500.00"),
-                    true,
-                    RecurrenceFrequency.MONTHLY,
-                    LocalDate.of(2024, 1, 1),
-                    null
+                    LocalDate.of(2024, 1, 15)
             );
 
             when(incomeSourceRepository.findActiveInPeriod(testUser, startDate, endDate))
-                    .thenReturn(List.of(monthlyIncome));
+                    .thenReturn(List.of(januarySalary));
 
             BigDecimal result = incomeSourceService.calculateTotalForPeriod(testUser, startDate, endDate);
 
-            // 12 months * 2500 net = 30000
-            assertEquals(new BigDecimal("30000.00"), result);
+            assertEquals(new BigDecimal("2500.00"), result);
         }
 
         @Test
         @DisplayName("Should use gross amount when net amount is null")
         void shouldUseGrossAmountWhenNetIsNull() {
             LocalDate startDate = LocalDate.of(2024, 1, 1);
-            LocalDate endDate = LocalDate.of(2024, 12, 31);
-
-            IncomeSource monthlyIncome = createIncomeSource(
-                    new BigDecimal("3000.00"),
-                    null,
-                    true,
-                    RecurrenceFrequency.MONTHLY,
-                    LocalDate.of(2024, 1, 1),
-                    null
-            );
-
-            when(incomeSourceRepository.findActiveInPeriod(testUser, startDate, endDate))
-                    .thenReturn(List.of(monthlyIncome));
-
-            BigDecimal result = incomeSourceService.calculateTotalForPeriod(testUser, startDate, endDate);
-
-            // 12 months * 3000 gross = 36000
-            assertEquals(new BigDecimal("36000.00"), result);
-        }
-
-        @Test
-        @DisplayName("Should calculate weekly recurring income correctly")
-        void shouldCalculateWeeklyRecurringIncome() {
-            LocalDate startDate = LocalDate.of(2024, 1, 1);
             LocalDate endDate = LocalDate.of(2024, 1, 31);
 
-            IncomeSource weeklyIncome = createIncomeSource(
-                    new BigDecimal("500.00"),
-                    null,
-                    true,
-                    RecurrenceFrequency.WEEKLY,
-                    LocalDate.of(2024, 1, 1),
-                    null
-            );
-
-            when(incomeSourceRepository.findActiveInPeriod(testUser, startDate, endDate))
-                    .thenReturn(List.of(weeklyIncome));
-
-            BigDecimal result = incomeSourceService.calculateTotalForPeriod(testUser, startDate, endDate);
-
-            // Jan 1, 8, 15, 22, 29 = 5 weeks in January 2024
-            assertEquals(new BigDecimal("2500.00"), result);
-        }
-
-        @Test
-        @DisplayName("Should calculate bi-weekly recurring income correctly")
-        void shouldCalculateBiWeeklyRecurringIncome() {
-            LocalDate startDate = LocalDate.of(2024, 1, 1);
-            LocalDate endDate = LocalDate.of(2024, 1, 31);
-
-            IncomeSource biWeeklyIncome = createIncomeSource(
-                    new BigDecimal("1500.00"),
-                    null,
-                    true,
-                    RecurrenceFrequency.BI_WEEKLY,
-                    LocalDate.of(2024, 1, 1),
-                    null
-            );
-
-            when(incomeSourceRepository.findActiveInPeriod(testUser, startDate, endDate))
-                    .thenReturn(List.of(biWeeklyIncome));
-
-            BigDecimal result = incomeSourceService.calculateTotalForPeriod(testUser, startDate, endDate);
-
-            // Jan 1, 15, 29 = 3 occurrences
-            assertEquals(new BigDecimal("4500.00"), result);
-        }
-
-        @Test
-        @DisplayName("Should calculate one-time income when within period")
-        void shouldCalculateOneTimeIncomeWithinPeriod() {
-            LocalDate startDate = LocalDate.of(2024, 1, 1);
-            LocalDate endDate = LocalDate.of(2024, 12, 31);
-
-            IncomeSource oneTimeIncome = createIncomeSource(
-                    new BigDecimal("5000.00"),
-                    null,
-                    false,
-                    RecurrenceFrequency.ONE_TIME,
-                    LocalDate.of(2024, 6, 15),
-                    null
-            );
-
-            when(incomeSourceRepository.findActiveInPeriod(testUser, startDate, endDate))
-                    .thenReturn(List.of(oneTimeIncome));
-
-            BigDecimal result = incomeSourceService.calculateTotalForPeriod(testUser, startDate, endDate);
-
-            assertEquals(new BigDecimal("5000.00"), result);
-        }
-
-        @Test
-        @DisplayName("Should exclude one-time income when outside period")
-        void shouldExcludeOneTimeIncomeOutsidePeriod() {
-            LocalDate startDate = LocalDate.of(2024, 1, 1);
-            LocalDate endDate = LocalDate.of(2024, 6, 30);
-
-            // Start date is before period start, so should not be counted
-            IncomeSource oneTimeIncome = createIncomeSource(
-                    new BigDecimal("5000.00"),
-                    null,
-                    false,
-                    RecurrenceFrequency.ONE_TIME,
-                    LocalDate.of(2023, 12, 15),
-                    null
-            );
-
-            when(incomeSourceRepository.findActiveInPeriod(testUser, startDate, endDate))
-                    .thenReturn(List.of(oneTimeIncome));
-
-            BigDecimal result = incomeSourceService.calculateTotalForPeriod(testUser, startDate, endDate);
-
-            assertEquals(BigDecimal.ZERO, result);
-        }
-
-        @Test
-        @DisplayName("Should calculate quarterly recurring income correctly")
-        void shouldCalculateQuarterlyRecurringIncome() {
-            LocalDate startDate = LocalDate.of(2024, 1, 1);
-            LocalDate endDate = LocalDate.of(2024, 12, 31);
-
-            IncomeSource quarterlyIncome = createIncomeSource(
-                    new BigDecimal("2000.00"),
-                    null,
-                    true,
-                    RecurrenceFrequency.QUARTERLY,
-                    LocalDate.of(2024, 1, 1),
-                    null
-            );
-
-            when(incomeSourceRepository.findActiveInPeriod(testUser, startDate, endDate))
-                    .thenReturn(List.of(quarterlyIncome));
-
-            BigDecimal result = incomeSourceService.calculateTotalForPeriod(testUser, startDate, endDate);
-
-            // Jan, Apr, Jul, Oct = 4 quarters
-            assertEquals(new BigDecimal("8000.00"), result);
-        }
-
-        @Test
-        @DisplayName("Should calculate annual recurring income correctly")
-        void shouldCalculateAnnualRecurringIncome() {
-            LocalDate startDate = LocalDate.of(2024, 1, 1);
-            LocalDate endDate = LocalDate.of(2024, 12, 31);
-
-            IncomeSource annualIncome = createIncomeSource(
-                    new BigDecimal("10000.00"),
-                    null,
-                    true,
-                    RecurrenceFrequency.ANNUALLY,
-                    LocalDate.of(2024, 3, 15),
-                    null
-            );
-
-            when(incomeSourceRepository.findActiveInPeriod(testUser, startDate, endDate))
-                    .thenReturn(List.of(annualIncome));
-
-            BigDecimal result = incomeSourceService.calculateTotalForPeriod(testUser, startDate, endDate);
-
-            // 1 annual occurrence
-            assertEquals(new BigDecimal("10000.00"), result);
-        }
-
-        @Test
-        @DisplayName("Should respect end date of income source")
-        void shouldRespectIncomeSourceEndDate() {
-            LocalDate startDate = LocalDate.of(2024, 1, 1);
-            LocalDate endDate = LocalDate.of(2024, 12, 31);
-
-            // Income ends in June
-            IncomeSource monthlyIncome = createIncomeSource(
-                    new BigDecimal("2000.00"),
-                    null,
-                    true,
-                    RecurrenceFrequency.MONTHLY,
-                    LocalDate.of(2024, 1, 1),
-                    LocalDate.of(2024, 6, 30)
-            );
-
-            when(incomeSourceRepository.findActiveInPeriod(testUser, startDate, endDate))
-                    .thenReturn(List.of(monthlyIncome));
-
-            BigDecimal result = incomeSourceService.calculateTotalForPeriod(testUser, startDate, endDate);
-
-            // 6 months * 2000 = 12000
-            assertEquals(new BigDecimal("12000.00"), result);
-        }
-
-        @Test
-        @DisplayName("Should handle income starting mid-period")
-        void shouldHandleIncomeStartingMidPeriod() {
-            LocalDate startDate = LocalDate.of(2024, 1, 1);
-            LocalDate endDate = LocalDate.of(2024, 12, 31);
-
-            // Income starts in July
-            IncomeSource monthlyIncome = createIncomeSource(
+            IncomeSource januarySalary = createIncomeSource(
                     new BigDecimal("3000.00"),
                     null,
-                    true,
-                    RecurrenceFrequency.MONTHLY,
-                    LocalDate.of(2024, 7, 1),
-                    null
+                    LocalDate.of(2024, 1, 15)
             );
 
             when(incomeSourceRepository.findActiveInPeriod(testUser, startDate, endDate))
-                    .thenReturn(List.of(monthlyIncome));
+                    .thenReturn(List.of(januarySalary));
 
             BigDecimal result = incomeSourceService.calculateTotalForPeriod(testUser, startDate, endDate);
 
-            // Jul, Aug, Sep, Oct, Nov, Dec = 6 months * 3000 = 18000
-            assertEquals(new BigDecimal("18000.00"), result);
+            assertEquals(new BigDecimal("3000.00"), result);
         }
 
         @Test
-        @DisplayName("Should sum multiple income sources")
-        void shouldSumMultipleIncomeSources() {
+        @DisplayName("Should sum multiple income sources in same month")
+        void shouldSumMultipleIncomeSourcesInSameMonth() {
             LocalDate startDate = LocalDate.of(2024, 1, 1);
-            LocalDate endDate = LocalDate.of(2024, 12, 31);
+            LocalDate endDate = LocalDate.of(2024, 1, 31);
 
             IncomeSource salary = createIncomeSource(
                     new BigDecimal("4000.00"),
                     new BigDecimal("3200.00"),
-                    true,
-                    RecurrenceFrequency.MONTHLY,
-                    LocalDate.of(2024, 1, 1),
-                    null
+                    LocalDate.of(2024, 1, 15)
             );
 
             IncomeSource bonus = createIncomeSource(
-                    new BigDecimal("5000.00"),
+                    new BigDecimal("1000.00"),
                     null,
-                    false,
-                    RecurrenceFrequency.ONE_TIME,
-                    LocalDate.of(2024, 6, 1),
-                    null
+                    LocalDate.of(2024, 1, 20)
             );
 
             when(incomeSourceRepository.findActiveInPeriod(testUser, startDate, endDate))
@@ -318,15 +110,15 @@ class IncomeSourceServiceTest {
 
             BigDecimal result = incomeSourceService.calculateTotalForPeriod(testUser, startDate, endDate);
 
-            // (12 * 3200) + 5000 = 38400 + 5000 = 43400
-            assertEquals(new BigDecimal("43400.00"), result);
+            // 3200 (net) + 1000 (gross) = 4200
+            assertEquals(new BigDecimal("4200.00"), result);
         }
 
         @Test
-        @DisplayName("Should return zero when no income sources")
+        @DisplayName("Should return zero when no income sources in period")
         void shouldReturnZeroWhenNoIncomeSources() {
             LocalDate startDate = LocalDate.of(2024, 1, 1);
-            LocalDate endDate = LocalDate.of(2024, 12, 31);
+            LocalDate endDate = LocalDate.of(2024, 1, 31);
 
             when(incomeSourceRepository.findActiveInPeriod(testUser, startDate, endDate))
                     .thenReturn(Collections.emptyList());
@@ -334,6 +126,59 @@ class IncomeSourceServiceTest {
             BigDecimal result = incomeSourceService.calculateTotalForPeriod(testUser, startDate, endDate);
 
             assertEquals(BigDecimal.ZERO, result);
+        }
+
+        @Test
+        @DisplayName("Should calculate yearly total from monthly entries")
+        void shouldCalculateYearlyTotalFromMonthlyEntries() {
+            LocalDate startDate = LocalDate.of(2024, 1, 1);
+            LocalDate endDate = LocalDate.of(2024, 12, 31);
+
+            // Simulate 12 monthly salary entries with slight variations
+            List<IncomeSource> monthlySalaries = Arrays.asList(
+                    createIncomeSource(new BigDecimal("3000.00"), new BigDecimal("2500.00"), LocalDate.of(2024, 1, 15)),
+                    createIncomeSource(new BigDecimal("3000.00"), new BigDecimal("2500.00"), LocalDate.of(2024, 2, 15)),
+                    createIncomeSource(new BigDecimal("3000.00"), new BigDecimal("2500.00"), LocalDate.of(2024, 3, 15)),
+                    createIncomeSource(new BigDecimal("3000.00"), new BigDecimal("2500.00"), LocalDate.of(2024, 4, 15)),
+                    createIncomeSource(new BigDecimal("3000.00"), new BigDecimal("2500.00"), LocalDate.of(2024, 5, 15)),
+                    createIncomeSource(new BigDecimal("3000.00"), new BigDecimal("2500.00"), LocalDate.of(2024, 6, 15)),
+                    createIncomeSource(new BigDecimal("3000.00"), new BigDecimal("2500.00"), LocalDate.of(2024, 7, 15)),
+                    createIncomeSource(new BigDecimal("3000.00"), new BigDecimal("2500.00"), LocalDate.of(2024, 8, 15)),
+                    createIncomeSource(new BigDecimal("3000.00"), new BigDecimal("2500.00"), LocalDate.of(2024, 9, 15)),
+                    createIncomeSource(new BigDecimal("3000.00"), new BigDecimal("2500.00"), LocalDate.of(2024, 10, 15)),
+                    createIncomeSource(new BigDecimal("3000.00"), new BigDecimal("2500.00"), LocalDate.of(2024, 11, 15)),
+                    createIncomeSource(new BigDecimal("3000.00"), new BigDecimal("2500.00"), LocalDate.of(2024, 12, 15))
+            );
+
+            when(incomeSourceRepository.findActiveInPeriod(testUser, startDate, endDate))
+                    .thenReturn(monthlySalaries);
+
+            BigDecimal result = incomeSourceService.calculateTotalForPeriod(testUser, startDate, endDate);
+
+            // 12 * 2500 = 30000
+            assertEquals(new BigDecimal("30000.00"), result);
+        }
+
+        @Test
+        @DisplayName("Should only include income sources within queried month")
+        void shouldOnlyIncludeIncomeSourcesWithinQueriedMonth() {
+            // Query for January only
+            LocalDate janStart = LocalDate.of(2024, 1, 1);
+            LocalDate janEnd = LocalDate.of(2024, 1, 31);
+
+            IncomeSource januarySalary = createIncomeSource(
+                    new BigDecimal("3000.00"),
+                    new BigDecimal("2500.00"),
+                    LocalDate.of(2024, 1, 15)
+            );
+
+            // Repository returns only January entry (query handles the filtering)
+            when(incomeSourceRepository.findActiveInPeriod(testUser, janStart, janEnd))
+                    .thenReturn(List.of(januarySalary));
+
+            BigDecimal result = incomeSourceService.calculateTotalForPeriod(testUser, janStart, janEnd);
+
+            assertEquals(new BigDecimal("2500.00"), result);
         }
 
         @Test
@@ -377,19 +222,13 @@ class IncomeSourceServiceTest {
     private IncomeSource createIncomeSource(
             BigDecimal grossAmount,
             BigDecimal netAmount,
-            boolean isRecurring,
-            RecurrenceFrequency frequency,
-            LocalDate startDate,
-            LocalDate endDate
+            LocalDate startDate
     ) {
         IncomeSource source = new IncomeSource();
         source.setUser(testUser);
         source.setGrossAmount(grossAmount);
         source.setNetAmount(netAmount);
-        source.setIsRecurring(isRecurring);
-        source.setRecurrenceFrequency(frequency);
         source.setStartDate(startDate);
-        source.setEndDate(endDate);
         source.setIsActive(true);
         return source;
     }

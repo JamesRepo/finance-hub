@@ -112,7 +112,7 @@ public class IncomeSourceService {
 
     /**
      * Calculate total income from income sources for a specific period.
-     * For recurring income, calculates the number of occurrences within the period.
+     * Sums all income sources where the start date falls within the period.
      * Uses net amount if available, otherwise gross amount.
      */
     public BigDecimal calculateTotalForPeriod(final User user, final LocalDate startDate, final LocalDate endDate) {
@@ -123,68 +123,22 @@ public class IncomeSourceService {
 
         List<IncomeSource> incomeSources = incomeSourceRepository.findActiveInPeriod(user, startDate, endDate);
 
-        return incomeSources.stream()
-                .map(source -> calculateIncomeForPeriod(source, startDate, endDate))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
+        log.debug("Calculating income for period {} to {}: found {} income sources",
+                startDate, endDate, incomeSources.size());
 
-    /**
-     * Calculate income from a single income source for a specific period.
-     */
-    private BigDecimal calculateIncomeForPeriod(final IncomeSource source, final LocalDate periodStart, final LocalDate periodEnd) {
-        BigDecimal amount = source.getNetAmount() != null ? source.getNetAmount() : source.getGrossAmount();
-
-        if (!source.getIsRecurring() || source.getRecurrenceFrequency() == RecurrenceFrequency.ONE_TIME) {
-            // One-time income: include if start date is within period
-            if (!source.getStartDate().isBefore(periodStart) && !source.getStartDate().isAfter(periodEnd)) {
-                return amount;
-            }
-            return BigDecimal.ZERO;
+        BigDecimal total = BigDecimal.ZERO;
+        for (IncomeSource source : incomeSources) {
+            BigDecimal amount = source.getNetAmount() != null ? source.getNetAmount() : source.getGrossAmount();
+            log.debug("  Source '{}' (id={}, date={}): {}",
+                    source.getDescription(),
+                    source.getIncomeSourceId(),
+                    source.getStartDate(),
+                    amount);
+            total = total.add(amount);
         }
 
-        // Recurring income: calculate number of occurrences within period
-        LocalDate effectiveStart = source.getStartDate().isAfter(periodStart) ? source.getStartDate() : periodStart;
-        LocalDate effectiveEnd = source.getEndDate() != null && source.getEndDate().isBefore(periodEnd)
-                ? source.getEndDate() : periodEnd;
-
-        if (effectiveStart.isAfter(effectiveEnd)) {
-            return BigDecimal.ZERO;
-        }
-
-        int occurrences = countOccurrences(source.getStartDate(), source.getRecurrenceFrequency(), effectiveStart, effectiveEnd);
-        return amount.multiply(BigDecimal.valueOf(occurrences));
-    }
-
-    /**
-     * Count how many times a recurring income occurs within a period.
-     */
-    private int countOccurrences(final LocalDate firstOccurrence, final RecurrenceFrequency frequency,
-                                  final LocalDate periodStart, final LocalDate periodEnd) {
-        if (frequency == null || frequency == RecurrenceFrequency.ONE_TIME) {
-            return firstOccurrence.isAfter(periodEnd) || firstOccurrence.isBefore(periodStart) ? 0 : 1;
-        }
-
-        int count = 0;
-        LocalDate current = firstOccurrence;
-
-        // Fast-forward to the first occurrence on or after periodStart
-        while (current.isBefore(periodStart)) {
-            current = calculateNextOccurrence(current, frequency);
-            if (current == null) {
-                return count;
-            }
-        }
-
-        // Count occurrences within the period
-        while (!current.isAfter(periodEnd)) {
-            count++;
-            current = calculateNextOccurrence(current, frequency);
-            if (current == null) {
-                break;
-            }
-        }
-
-        return count;
+        log.debug("Total income from sources for {} to {}: {}", startDate, endDate, total);
+        return total;
     }
 
     private void calculateNextExpectedDate(final IncomeSourceDTO dto) {

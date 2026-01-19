@@ -36,8 +36,9 @@ public interface IncomeSourceRepository extends JpaRepository<IncomeSource, Long
 
     @Query("SELECT i FROM IncomeSource i " +
             "WHERE i.user = :user " +
+            "AND i.isActive = true " +
+            "AND i.startDate >= :startDate " +
             "AND i.startDate <= :endDate " +
-            "AND (i.endDate IS NULL OR i.endDate >= :startDate) " +
             "ORDER BY i.startDate ASC")
     List<IncomeSource> findActiveInPeriod(
             @Param("user") User user,
