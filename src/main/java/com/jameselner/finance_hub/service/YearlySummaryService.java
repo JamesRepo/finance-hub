@@ -40,6 +40,7 @@ public class YearlySummaryService {
     private final HousingExpenseService housingExpenseService;
     private final DebtPaymentService debtPaymentService;
     private final SubscriptionService subscriptionService;
+    private final IncomeSourceService incomeSourceService;
 
     /**
      * Generate comprehensive yearly summary for a user
@@ -233,12 +234,18 @@ public class YearlySummaryService {
     }
 
     /**
-     * Calculate total income for a period
+     * Calculate total income for a period from both transactions and income sources
      */
     private BigDecimal calculateTotalIncome(final User user, final LocalDate startDate, final LocalDate endDate) {
-        BigDecimal income = transactionRepository.sumByUserAndTypeAndDateRange(
+        // Income from transactions
+        BigDecimal transactionIncome = transactionRepository.sumByUserAndTypeAndDateRange(
                 user, TransactionType.INCOME, startDate, endDate);
-        return income != null ? income : BigDecimal.ZERO;
+        transactionIncome = transactionIncome != null ? transactionIncome : BigDecimal.ZERO;
+
+        // Income from income sources (recurring salaries, etc.)
+        BigDecimal incomeSourceTotal = incomeSourceService.calculateTotalForPeriod(user, startDate, endDate);
+
+        return transactionIncome.add(incomeSourceTotal);
     }
 
     /**

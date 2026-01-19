@@ -97,38 +97,6 @@ public class IncomeSourceService {
                 .collect(Collectors.toList());
     }
 
-    public List<IncomeSourceDTO> findActiveByUserAsDto(final User user) {
-        validateUserNotNull(user);
-        return incomeSourceRepository.findByUserAndIsActiveOrderByStartDateDesc(user, true).stream()
-                .map(incomeSourceMapper::toDto)
-                .collect(Collectors.toList());
-    }
-
-    public List<IncomeSourceDTO> findRecurringByUserAsDto(final User user) {
-        validateUserNotNull(user);
-        return incomeSourceRepository.findByUserAndIsRecurringOrderByStartDateDesc(user, true).stream()
-                .map(incomeSourceMapper::toDto)
-                .collect(Collectors.toList());
-    }
-
-    public List<IncomeSourceDTO> findActiveRecurringByUserAsDto(final User user) {
-        validateUserNotNull(user);
-        return incomeSourceRepository.findByUserAndIsActiveAndIsRecurringOrderByNextExpectedDateAsc(
-                user, true, true).stream()
-                .map(incomeSourceMapper::toDto)
-                .collect(Collectors.toList());
-    }
-
-    public List<IncomeSourceDTO> findDueRecurringIncomeAsDto(final User user, final LocalDate upToDate) {
-        validateUserNotNull(user);
-        if (upToDate == null) {
-            throw new IllegalArgumentException("Date must not be null");
-        }
-        return incomeSourceRepository.findDueRecurringIncome(user, upToDate).stream()
-                .map(incomeSourceMapper::toDto)
-                .collect(Collectors.toList());
-    }
-
     @Transactional
     public void deleteById(final Long id) {
         validateIdNotNull(id);
@@ -142,83 +110,81 @@ public class IncomeSourceService {
         incomeSourceRepository.deleteById(id);
     }
 
-    @Transactional
-    public void deactivateById(final Long id) {
-        validateIdNotNull(id);
-
-        IncomeSource incomeSource = incomeSourceRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Income source with ID " + id + " does not exist"));
-
-        incomeSource.setIsActive(false);
-        incomeSourceRepository.save(incomeSource);
-
-        log.debug("Deactivated income source with ID {}", id);
-    }
-
-    @Transactional
-    public void activateById(final Long id) {
-        validateIdNotNull(id);
-
-        IncomeSource incomeSource = incomeSourceRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Income source with ID " + id + " does not exist"));
-
-        incomeSource.setIsActive(true);
-        incomeSourceRepository.save(incomeSource);
-
-        log.debug("Activated income source with ID {}", id);
-    }
-
-    @Transactional
-    public IncomeSourceDTO processRecurringIncome(final Long id) {
-        validateIdNotNull(id);
-
-        IncomeSource incomeSource = incomeSourceRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Income source with ID " + id + " does not exist"));
-
-        if (!incomeSource.getIsRecurring()) {
-            throw new IllegalArgumentException("Income source is not recurring");
+    /**
+     * Calculate total income from income sources for a specific period.
+     * For recurring income, calculates the number of occurrences within the period.
+     * Uses net amount if available, otherwise gross amount.
+     */
+    public BigDecimal calculateTotalForPeriod(final User user, final LocalDate startDate, final LocalDate endDate) {
+        validateUserNotNull(user);
+        if (startDate == null || endDate == null) {
+            throw new IllegalArgumentException("Start date and end date must not be null");
         }
 
-        if (!incomeSource.getIsActive()) {
-            throw new IllegalArgumentException("Income source is not active");
+        List<IncomeSource> incomeSources = incomeSourceRepository.findActiveInPeriod(user, startDate, endDate);
+
+        return incomeSources.stream()
+                .map(source -> calculateIncomeForPeriod(source, startDate, endDate))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Calculate income from a single income source for a specific period.
+     */
+    private BigDecimal calculateIncomeForPeriod(final IncomeSource source, final LocalDate periodStart, final LocalDate periodEnd) {
+        BigDecimal amount = source.getNetAmount() != null ? source.getNetAmount() : source.getGrossAmount();
+
+        if (!source.getIsRecurring() || source.getRecurrenceFrequency() == RecurrenceFrequency.ONE_TIME) {
+            // One-time income: include if start date is within period
+            if (!source.getStartDate().isBefore(periodStart) && !source.getStartDate().isAfter(periodEnd)) {
+                return amount;
+            }
+            return BigDecimal.ZERO;
         }
 
-        LocalDate nextDate = calculateNextOccurrence(
-                incomeSource.getNextExpectedDate(),
-                incomeSource.getRecurrenceFrequency());
+        // Recurring income: calculate number of occurrences within period
+        LocalDate effectiveStart = source.getStartDate().isAfter(periodStart) ? source.getStartDate() : periodStart;
+        LocalDate effectiveEnd = source.getEndDate() != null && source.getEndDate().isBefore(periodEnd)
+                ? source.getEndDate() : periodEnd;
 
-        if (incomeSource.getEndDate() != null && nextDate.isAfter(incomeSource.getEndDate())) {
-            incomeSource.setIsActive(false);
-            log.debug("Income source {} has reached its end date, deactivating", id);
-        } else {
-            incomeSource.setNextExpectedDate(nextDate);
+        if (effectiveStart.isAfter(effectiveEnd)) {
+            return BigDecimal.ZERO;
         }
 
-        IncomeSource savedIncomeSource = incomeSourceRepository.save(incomeSource);
-        return incomeSourceMapper.toDto(savedIncomeSource);
+        int occurrences = countOccurrences(source.getStartDate(), source.getRecurrenceFrequency(), effectiveStart, effectiveEnd);
+        return amount.multiply(BigDecimal.valueOf(occurrences));
     }
 
-    public BigDecimal getTotalActiveIncomeByUser(final User user) {
-        validateUserNotNull(user);
-        return incomeSourceRepository.getTotalActiveIncomeByUser(user);
-    }
+    /**
+     * Count how many times a recurring income occurs within a period.
+     */
+    private int countOccurrences(final LocalDate firstOccurrence, final RecurrenceFrequency frequency,
+                                  final LocalDate periodStart, final LocalDate periodEnd) {
+        if (frequency == null || frequency == RecurrenceFrequency.ONE_TIME) {
+            return firstOccurrence.isAfter(periodEnd) || firstOccurrence.isBefore(periodStart) ? 0 : 1;
+        }
 
-    public BigDecimal getTotalRecurringIncomeByUser(final User user) {
-        validateUserNotNull(user);
-        return incomeSourceRepository.getTotalRecurringIncomeByUser(user);
-    }
+        int count = 0;
+        LocalDate current = firstOccurrence;
 
-    public long countActiveIncomeSourcesByUser(final User user) {
-        validateUserNotNull(user);
-        return incomeSourceRepository.countActiveIncomeSourcesByUser(user);
-    }
+        // Fast-forward to the first occurrence on or after periodStart
+        while (current.isBefore(periodStart)) {
+            current = calculateNextOccurrence(current, frequency);
+            if (current == null) {
+                return count;
+            }
+        }
 
-    public long countRecurringIncomeSourcesByUser(final User user) {
-        validateUserNotNull(user);
-        return incomeSourceRepository.countRecurringIncomeSourcesByUser(user);
+        // Count occurrences within the period
+        while (!current.isAfter(periodEnd)) {
+            count++;
+            current = calculateNextOccurrence(current, frequency);
+            if (current == null) {
+                break;
+            }
+        }
+
+        return count;
     }
 
     private void calculateNextExpectedDate(final IncomeSourceDTO dto) {

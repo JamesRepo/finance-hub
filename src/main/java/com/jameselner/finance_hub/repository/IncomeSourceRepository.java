@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -17,25 +16,6 @@ public interface IncomeSourceRepository extends JpaRepository<IncomeSource, Long
     List<IncomeSource> findByUserOrderByStartDateDesc(User user);
 
     List<IncomeSource> findByUserAndIsActiveOrderByStartDateDesc(User user, Boolean isActive);
-
-    List<IncomeSource> findByUserAndIsRecurringOrderByStartDateDesc(User user, Boolean isRecurring);
-
-    List<IncomeSource> findByUserAndIsActiveAndIsRecurringOrderByNextExpectedDateAsc(
-            User user, Boolean isActive, Boolean isRecurring
-    );
-
-    @Query("SELECT i FROM IncomeSource i WHERE i.user = :user AND i.isActive = true " +
-            "AND i.isRecurring = true AND i.nextExpectedDate <= :date " +
-            "ORDER BY i.nextExpectedDate ASC")
-    List<IncomeSource> findDueRecurringIncome(@Param("user") User user, @Param("date") LocalDate date);
-
-    @Query("SELECT COALESCE(SUM(i.grossAmount), 0) FROM IncomeSource i " +
-            "WHERE i.user = :user AND i.isActive = true")
-    BigDecimal getTotalActiveIncomeByUser(@Param("user") User user);
-
-    @Query("SELECT COALESCE(SUM(i.grossAmount), 0) FROM IncomeSource i " +
-            "WHERE i.user = :user AND i.isActive = true AND i.isRecurring = true")
-    BigDecimal getTotalRecurringIncomeByUser(@Param("user") User user);
 
     @Query("SELECT COUNT(i) FROM IncomeSource i WHERE i.user = :user AND i.isActive = true")
     long countActiveIncomeSourcesByUser(@Param("user") User user);
@@ -52,5 +32,16 @@ public interface IncomeSourceRepository extends JpaRepository<IncomeSource, Long
             @Param("user") User user,
             @Param("startMonth") LocalDate startMonth,
             @Param("endMonth") LocalDate endMonth
+    );
+
+    @Query("SELECT i FROM IncomeSource i " +
+            "WHERE i.user = :user " +
+            "AND i.startDate <= :endDate " +
+            "AND (i.endDate IS NULL OR i.endDate >= :startDate) " +
+            "ORDER BY i.startDate ASC")
+    List<IncomeSource> findActiveInPeriod(
+            @Param("user") User user,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
     );
 }
