@@ -42,6 +42,9 @@ public class DebtPayment {
     @Column(name = "payment_date", nullable = false)
     private LocalDate paymentDate;
 
+    @Column(name = "deleted", nullable = false)
+    private Boolean deleted = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;

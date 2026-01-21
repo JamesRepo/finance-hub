@@ -65,11 +65,12 @@ public class DebtService {
     public Optional<DebtDTO> findByIdAsDto(final Long id) {
         validateIdNotNull(id);
         return debtRepository.findById(id)
+                .filter(debt -> !Boolean.TRUE.equals(debt.getDeleted()))
                 .map(debtMapper::toDto);
     }
 
     public List<DebtDTO> findAllAsDto() {
-        return debtRepository.findAll().stream()
+        return debtRepository.findAllByDeletedFalse().stream()
                 .map(debtMapper::toDto)
                 .collect(Collectors.toList());
     }
@@ -78,13 +79,13 @@ public class DebtService {
     public void deleteById(final Long id) {
         validateIdNotNull(id);
 
-        log.debug("Deleting debt with ID {}", id);
+        log.debug("Soft deleting debt with ID {}", id);
 
-        if (!debtRepository.existsById(id)) {
-            throw new IllegalArgumentException("Debt with ID " + id + " does not exist");
-        }
+        Debt debt = debtRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Debt with ID " + id + " does not exist"));
 
-        debtRepository.deleteById(id);
+        debt.setDeleted(true);
+        debtRepository.save(debt);
     }
 
     @Transactional

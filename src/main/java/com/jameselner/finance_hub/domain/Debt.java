@@ -60,6 +60,9 @@ public class Debt {
     @Column(name = "active", nullable = false)
     private Boolean active = true;
 
+    @Column(name = "deleted", nullable = false)
+    private Boolean deleted = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;

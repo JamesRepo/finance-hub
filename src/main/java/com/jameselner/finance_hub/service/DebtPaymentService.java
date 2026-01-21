@@ -90,11 +90,13 @@ public class DebtPaymentService {
     public Optional<DebtPaymentDTO> findByIdAsDto(final Long id) {
         validateIdNotNull(id);
         return debtPaymentRepository.findById(id)
+                .filter(payment -> !Boolean.TRUE.equals(payment.getDeleted()))
                 .map(debtPaymentMapper::toDto);
     }
 
     public List<DebtPaymentDTO> findAllAsDto() {
         return debtPaymentRepository.findAll().stream()
+                .filter(payment -> !Boolean.TRUE.equals(payment.getDeleted()))
                 .map(debtPaymentMapper::toDto)
                 .collect(Collectors.toList());
     }
@@ -103,7 +105,7 @@ public class DebtPaymentService {
     public void deleteById(final Long id) {
         validateIdNotNull(id);
 
-        log.debug("Deleting debt payment with ID {}", id);
+        log.debug("Soft deleting debt payment with ID {}", id);
 
         DebtPayment payment = debtPaymentRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException(
@@ -112,7 +114,8 @@ public class DebtPaymentService {
         BigDecimal principalToReverse = payment.getPrincipalPaid().negate();
         updateDebtBalance(payment.getDebt(), principalToReverse);
 
-        debtPaymentRepository.deleteById(id);
+        payment.setDeleted(true);
+        debtPaymentRepository.save(payment);
     }
 
 

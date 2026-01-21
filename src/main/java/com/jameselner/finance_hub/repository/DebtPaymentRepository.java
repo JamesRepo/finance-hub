@@ -14,7 +14,7 @@ import java.time.LocalDate;
 public interface DebtPaymentRepository extends JpaRepository<DebtPayment, Long> {
 
     @Query("SELECT COALESCE(SUM(dp.interestPaid), 0) FROM DebtPayment dp " +
-            "WHERE dp.debt = :debt AND dp.paymentDate BETWEEN :startDate AND :endDate")
+            "WHERE dp.debt = :debt AND dp.paymentDate BETWEEN :startDate AND :endDate AND dp.deleted = false")
     BigDecimal getInterestPaidByDebtAndDateRange(
             @Param("debt") Debt debt,
             @Param("startDate") LocalDate startDate,
@@ -22,7 +22,7 @@ public interface DebtPaymentRepository extends JpaRepository<DebtPayment, Long> 
     );
 
     @Query("SELECT COALESCE(SUM(dp.paymentAmount), 0) FROM DebtPayment dp " +
-            "WHERE dp.debt.user.userId = :userId AND dp.paymentDate BETWEEN :startDate AND :endDate")
+            "WHERE dp.debt.user.userId = :userId AND dp.paymentDate BETWEEN :startDate AND :endDate AND dp.deleted = false")
     BigDecimal getTotalPaymentsByUserAndDateRange(
             @Param("userId") Long userId,
             @Param("startDate") LocalDate startDate,

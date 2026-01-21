@@ -60,6 +60,7 @@ public class DebtManagementView extends VerticalLayout {
     private Dialog formDialog;
     private DebtPaymentDialog paymentDialog;
     private Checkbox showInactiveCheckbox;
+    private boolean isRefreshing = false;
 
     public DebtManagementView(
             final DebtService debtService,
@@ -553,9 +554,19 @@ public class DebtManagementView extends VerticalLayout {
     }
 
     private void refreshGrid() {
-        debtGrid.setItems(getAllDebts());
-        removeAll();
-        add(createToolbar(), createSummaryCards(), debtGrid);
+        if (isRefreshing) {
+            return;
+        }
+        isRefreshing = true;
+        try {
+            boolean showInactiveValue = showInactiveCheckbox != null && Boolean.TRUE.equals(showInactiveCheckbox.getValue());
+            debtGrid.setItems(getAllDebts());
+            removeAll();
+            add(createToolbar(), createSummaryCards(), debtGrid);
+            showInactiveCheckbox.setValue(showInactiveValue);
+        } finally {
+            isRefreshing = false;
+        }
     }
 
     private List<DebtDTO> getAllDebts() {
