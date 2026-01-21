@@ -29,6 +29,7 @@ public class DebtDTO {
     private LocalDate startDate;
     private LocalDate targetPayoffDate;
     private BigDecimal minimumPayment;
+    private String notes;
     private Boolean active;
 
     private OffsetDateTime createdAt;

@@ -16,6 +16,7 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.BigDecimalField;
+import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.data.binder.Binder;
@@ -47,6 +48,7 @@ public class DebtForm extends VerticalLayout {
     private BigDecimalField minimumPaymentField;
     private DatePicker startDateField;
     private DatePicker targetPayoffDateField;
+    private TextArea notesField;
 
     private Button saveButton;
     private Button cancelButton;
@@ -115,6 +117,11 @@ public class DebtForm extends VerticalLayout {
 
         targetPayoffDateField = new DatePicker("Target Payoff Date");
         targetPayoffDateField.setHelperText("Optional target date to be debt-free");
+
+        notesField = new TextArea("Notes");
+        notesField.setPlaceholder("Add any notes about this debt...");
+        notesField.setHelperText("Optional notes (e.g., account number, lender contact info)");
+        notesField.setMaxLength(1000);
     }
 
     private Component createFormLayout() {
@@ -136,6 +143,9 @@ public class DebtForm extends VerticalLayout {
                 startDateField,
                 targetPayoffDateField
         );
+
+        formLayout.add(notesField);
+        formLayout.setColspan(notesField, 2);
 
         return formLayout;
     }
@@ -195,6 +205,9 @@ public class DebtForm extends VerticalLayout {
 
         binder.forField(targetPayoffDateField)
                 .bind(DebtDTO::getTargetPayoffDate, DebtDTO::setTargetPayoffDate);
+
+        binder.forField(notesField)
+                .bind(DebtDTO::getNotes, DebtDTO::setNotes);
     }
 
     private void saveDebt() {

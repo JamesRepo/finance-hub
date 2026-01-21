@@ -71,6 +71,7 @@ class DebtServiceTest {
         validDebt.setInterestRate(new BigDecimal("18.99"));
         validDebt.setStartDate(LocalDate.of(2023, 1, 1));
         validDebt.setMinimumPayment(new BigDecimal("200.00"));
+        validDebt.setDeleted(false);
     }
 
     @Nested
@@ -325,26 +326,26 @@ class DebtServiceTest {
                     .debtName("Student Loan")
                     .build();
 
-            when(debtRepository.findAll()).thenReturn(debts);
+            when(debtRepository.findAllByDeletedFalse()).thenReturn(debts);
             when(debtMapper.toDto(validDebt)).thenReturn(validDto);
             when(debtMapper.toDto(debt2)).thenReturn(dto2);
 
             List<DebtDTO> result = debtService.findAllAsDto();
 
             assertEquals(2, result.size());
-            verify(debtRepository).findAll();
+            verify(debtRepository).findAllByDeletedFalse();
             verify(debtMapper, times(2)).toDto(any(Debt.class));
         }
 
         @Test
         @DisplayName("Should return empty list when no debts exist")
         void shouldReturnEmptyListWhenNoDebts() {
-            when(debtRepository.findAll()).thenReturn(Collections.emptyList());
+            when(debtRepository.findAllByDeletedFalse()).thenReturn(Collections.emptyList());
 
             List<DebtDTO> result = debtService.findAllAsDto();
 
             assertTrue(result.isEmpty());
-            verify(debtRepository).findAll();
+            verify(debtRepository).findAllByDeletedFalse();
         }
     }
 
@@ -353,15 +354,16 @@ class DebtServiceTest {
     class DeleteByIdTests {
 
         @Test
-        @DisplayName("Should successfully delete debt by ID")
+        @DisplayName("Should successfully soft delete debt by ID")
         void shouldDeleteDebtById() {
-            when(debtRepository.existsById(1L)).thenReturn(true);
-            doNothing().when(debtRepository).deleteById(1L);
+            when(debtRepository.findById(1L)).thenReturn(Optional.of(validDebt));
+            when(debtRepository.save(validDebt)).thenReturn(validDebt);
 
             assertDoesNotThrow(() -> debtService.deleteById(1L));
 
-            verify(debtRepository).existsById(1L);
-            verify(debtRepository).deleteById(1L);
+            verify(debtRepository).findById(1L);
+            verify(debtRepository).save(validDebt);
+            assertTrue(validDebt.getDeleted());
         }
 
         @Test
@@ -377,14 +379,14 @@ class DebtServiceTest {
         @Test
         @DisplayName("Should throw exception when debt does not exist")
         void shouldThrowExceptionWhenDebtNotFound() {
-            when(debtRepository.existsById(999L)).thenReturn(false);
+            when(debtRepository.findById(999L)).thenReturn(Optional.empty());
 
             IllegalArgumentException exception = assertThrows(
                     IllegalArgumentException.class,
                     () -> debtService.deleteById(999L)
             );
             assertEquals("Debt with ID 999 does not exist", exception.getMessage());
-            verify(debtRepository, never()).deleteById(any());
+            verify(debtRepository, never()).save(any());
         }
     }
 

@@ -57,6 +57,9 @@ public class Debt {
     @Column(name = "minimum_payment", precision = 15, scale = 2)
     private BigDecimal minimumPayment;
 
+    @Column(name = "notes", length = 1000)
+    private String notes;
+
     @Column(name = "active", nullable = false)
     private Boolean active = true;
 
