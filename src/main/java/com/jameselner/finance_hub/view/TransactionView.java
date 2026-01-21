@@ -31,10 +31,14 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
 
+import java.math.BigDecimal;
+import java.text.NumberFormat;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 @Route(value = "transactions", layout = MainLayout.class)
 @PageTitle("Transactions | Finance Hub")
@@ -56,6 +60,7 @@ public class TransactionView extends VerticalLayout {
     private YearMonth selectedMonth;
     private Category selectedCategory;
     private String searchTerm;
+    private Span totalSpentLabel;
 
     public TransactionView(
             final TransactionService transactionService,
@@ -81,13 +86,48 @@ public class TransactionView extends VerticalLayout {
         createMonthFilter();
         createCategoryTypeFilter();
 
-        add(createToolbar(), transactionGrid);
+        add(createSummarySection(), createToolbar(), transactionGrid);
         refreshGrid();
     }
 
     private void createHeader() {
         H2 header = new H2("Transactions");
         add(header);
+    }
+
+    private HorizontalLayout createSummarySection() {
+        totalSpentLabel = new Span();
+        totalSpentLabel.getStyle()
+                .set("font-size", "var(--lumo-font-size-l)")
+                .set("font-weight", "500");
+
+        HorizontalLayout summary = new HorizontalLayout();
+        summary.setWidthFull();
+        summary.add(new Span("Total Spent: "), totalSpentLabel);
+        summary.setAlignItems(FlexComponent.Alignment.CENTER);
+        summary.getStyle().set("margin-bottom", "var(--lumo-space-m)");
+
+        return summary;
+    }
+
+    private void updateSummary() {
+        if (selectedMonth != null) {
+            User currentUser = getCurrentUser();
+            LocalDate startDate = selectedMonth.atDay(1);
+            LocalDate endDate = selectedMonth.atEndOfMonth();
+
+            BigDecimal totalSpent = transactionService.sumByUserAndTypeAndDateRange(
+                    currentUser,
+                    com.jameselner.finance_hub.domain.enums.TransactionType.EXPENSE,
+                    startDate,
+                    endDate
+            );
+
+            NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.UK);
+            totalSpentLabel.setText(currencyFormat.format(totalSpent));
+        } else {
+            totalSpentLabel.setText("-");
+        }
     }
 
     private HorizontalLayout createToolbar() {
@@ -217,8 +257,9 @@ public class TransactionView extends VerticalLayout {
     }
 
     private void createMonthFilter() {
-        monthFilter = new ComboBox<>("Filter by Month");
+        monthFilter = new ComboBox<>();
         monthFilter.setWidth("200px");
+        monthFilter.setPlaceholder("Filter by Month");
 
         // Create list of last 24 months
         List<YearMonth> months = new ArrayList<>();
@@ -248,21 +289,13 @@ public class TransactionView extends VerticalLayout {
     }
 
     private void createCategoryTypeFilter() {
-        categoryFilter = new ComboBox<>("Filter by Category");
+        categoryFilter = new ComboBox<>();
         categoryFilter.setWidth("180px");
+        categoryFilter.setPlaceholder("Filter by Category");
 
-        // Add "All" option by including null, plus the enum values
         List<Category> categories = categoryService.findAll();
         categoryFilter.setItems(categories);
-        categoryFilter.setItemLabelGenerator(category -> {
-            if (category == null) {
-                return "All";
-            }
-            return category.getCategoryName();
-        });
-
-        // Set placeholder
-        categoryFilter.setPlaceholder("All");
+        categoryFilter.setItemLabelGenerator(Category::getCategoryName);
         categoryFilter.setClearButtonVisible(true);
 
         // No default selection (shows all)
@@ -305,6 +338,7 @@ public class TransactionView extends VerticalLayout {
                 current.getMonthValue()
             ));
         }
+        updateSummary();
     }
 
     private HorizontalLayout createCategoryBadge(TransactionDTO transaction) {
