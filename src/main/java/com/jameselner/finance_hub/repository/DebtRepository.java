@@ -13,6 +13,6 @@ import java.util.List;
 @Repository
 public interface DebtRepository extends JpaRepository<Debt, Long> {
 
-    @Query("SELECT COALESCE(SUM(d.currentBalance), 0) FROM Debt d WHERE d.user = :user")
+    @Query("SELECT COALESCE(SUM(d.currentBalance), 0) FROM Debt d WHERE d.user = :user AND d.active = true")
     BigDecimal getTotalDebtByUser(@Param("user") User user);
 }
