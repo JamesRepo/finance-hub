@@ -406,6 +406,7 @@ vaadin-notification-card[theme~="error"] {
     /* === GRIDS === */
     vaadin-grid {
         font-size: 0.875rem;
+        min-height: 300px;
     }
 
     /* Horizontal scroll container for grids */
