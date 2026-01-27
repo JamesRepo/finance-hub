@@ -101,6 +101,72 @@ public class DebtPaymentService {
                 .collect(Collectors.toList());
     }
 
+    public List<DebtPaymentDTO> findByDebtId(final Long debtId) {
+        if (debtId == null) {
+            throw new IllegalArgumentException("Debt ID must not be null");
+        }
+        return debtPaymentRepository.findByDebtDebtIdAndDeletedFalseOrderByPaymentDateDesc(debtId).stream()
+                .map(debtPaymentMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public DebtPaymentDTO updatePayment(final Long paymentId, final BigDecimal amount, final LocalDate date) {
+        if (paymentId == null) {
+            throw new IllegalArgumentException("Payment ID must not be null");
+        }
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Payment amount must be greater than zero");
+        }
+        if (date == null) {
+            throw new IllegalArgumentException("Payment date must not be null");
+        }
+
+        DebtPayment payment = debtPaymentRepository.findById(paymentId)
+                .orElseThrow(() -> new IllegalArgumentException("Payment with ID " + paymentId + " does not exist"));
+
+        Debt debt = payment.getDebt();
+
+        // Reverse the old principal from the debt balance
+        BigDecimal oldPrincipalPaid = payment.getPrincipalPaid();
+        BigDecimal restoredBalance = debt.getCurrentBalance().add(oldPrincipalPaid);
+
+        // Recalculate interest based on the restored balance
+        BigDecimal monthlyInterest = debtService.calculateMonthlyInterest(restoredBalance, debt.getInterestRate());
+
+        BigDecimal newPrincipalPaid;
+        BigDecimal newInterestPaid;
+
+        if (amount.compareTo(monthlyInterest) <= 0) {
+            newInterestPaid = amount;
+            newPrincipalPaid = BigDecimal.ZERO;
+        } else {
+            newInterestPaid = monthlyInterest;
+            newPrincipalPaid = amount.subtract(monthlyInterest);
+        }
+
+        // Update the payment
+        payment.setPaymentAmount(amount);
+        payment.setPrincipalPaid(newPrincipalPaid);
+        payment.setInterestPaid(newInterestPaid);
+        payment.setPaymentDate(date);
+
+        DebtPayment savedPayment = debtPaymentRepository.save(payment);
+
+        // Update debt balance with new principal
+        BigDecimal newBalance = restoredBalance.subtract(newPrincipalPaid);
+        if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+            newBalance = BigDecimal.ZERO;
+        }
+        debt.setCurrentBalance(newBalance);
+        debtRepository.save(debt);
+
+        log.debug("Updated payment {} with new amount {}. New principal: {}, Interest: {}",
+                paymentId, amount, newPrincipalPaid, newInterestPaid);
+
+        return debtPaymentMapper.toDto(savedPayment);
+    }
+
     @Transactional
     public void deleteById(final Long id) {
         validateIdNotNull(id);

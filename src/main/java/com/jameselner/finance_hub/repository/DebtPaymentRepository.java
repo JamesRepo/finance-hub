@@ -9,9 +9,12 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Repository
 public interface DebtPaymentRepository extends JpaRepository<DebtPayment, Long> {
+
+    List<DebtPayment> findByDebtDebtIdAndDeletedFalseOrderByPaymentDateDesc(Long debtId);
 
     @Query("SELECT COALESCE(SUM(dp.interestPaid), 0) FROM DebtPayment dp " +
             "WHERE dp.debt = :debt AND dp.paymentDate BETWEEN :startDate AND :endDate AND dp.deleted = false")

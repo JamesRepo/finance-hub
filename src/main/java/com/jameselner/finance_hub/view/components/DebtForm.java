@@ -27,7 +27,6 @@ import lombok.Setter;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -93,8 +92,7 @@ public class DebtForm extends VerticalLayout {
 
         principalAmountField = new BigDecimalField("Original Amount");
         principalAmountField.setPrefixComponent(new com.vaadin.flow.component.html.Span("£"));
-        principalAmountField.setRequiredIndicatorVisible(true);
-        principalAmountField.setHelperText("Original loan/debt amount");
+        principalAmountField.setHelperText("Original loan/debt amount (optional)");
 
         currentBalanceField = new BigDecimalField("Current Balance");
         currentBalanceField.setPrefixComponent(new com.vaadin.flow.component.html.Span("£"));
@@ -111,9 +109,7 @@ public class DebtForm extends VerticalLayout {
         minimumPaymentField.setHelperText("Monthly minimum payment (optional)");
 
         startDateField = new DatePicker("Start Date");
-        startDateField.setRequiredIndicatorVisible(true);
-        startDateField.setValue(LocalDate.now());
-        startDateField.setHelperText("When you took out this debt");
+        startDateField.setHelperText("When you took out this debt (optional)");
 
         targetPayoffDateField = new DatePicker("Target Payoff Date");
         targetPayoffDateField.setHelperText("Optional target date to be debt-free");
@@ -176,10 +172,8 @@ public class DebtForm extends VerticalLayout {
                 .bind(DebtDTO::getDebtType, DebtDTO::setDebtType);
 
         binder.forField(principalAmountField)
-                .withValidator(new BigDecimalRangeValidator(
-                        "Amount must be greater than zero",
-                        new BigDecimal("0.01"),
-                        new BigDecimal("999999999.99")))
+                .withValidator(value -> value == null || value.compareTo(BigDecimal.ZERO) > 0,
+                        "Amount must be greater than zero if provided")
                 .bind(DebtDTO::getPrincipalAmount, DebtDTO::setPrincipalAmount);
 
         binder.forField(currentBalanceField)
@@ -200,7 +194,6 @@ public class DebtForm extends VerticalLayout {
                 .bind(DebtDTO::getMinimumPayment, DebtDTO::setMinimumPayment);
 
         binder.forField(startDateField)
-                .withValidator(Objects::nonNull, "Start date is required")
                 .bind(DebtDTO::getStartDate, DebtDTO::setStartDate);
 
         binder.forField(targetPayoffDateField)
@@ -253,7 +246,6 @@ public class DebtForm extends VerticalLayout {
     public void clearForm() {
         this.currentDebt = null;
         binder.readBean(new DebtDTO());
-        startDateField.setValue(LocalDate.now());
         debtTypeField.setValue(DebtType.CREDIT_CARD);
     }
 

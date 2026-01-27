@@ -12,6 +12,7 @@ import com.jameselner.finance_hub.service.DebtPayoffCalculatorService;
 import com.jameselner.finance_hub.service.DebtService;
 import com.jameselner.finance_hub.view.components.DebtForm;
 import com.jameselner.finance_hub.view.components.DebtPaymentDialog;
+import com.jameselner.finance_hub.view.components.DebtPaymentsViewDialog;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
@@ -59,6 +60,7 @@ public class DebtManagementView extends VerticalLayout {
     private DebtForm debtForm;
     private Dialog formDialog;
     private DebtPaymentDialog paymentDialog;
+    private DebtPaymentsViewDialog paymentsViewDialog;
     private Checkbox showInactiveCheckbox;
     private boolean isRefreshing = false;
 
@@ -85,6 +87,7 @@ public class DebtManagementView extends VerticalLayout {
         createGrid();
         createFormDialog();
         createPaymentDialog();
+        createPaymentsViewDialog();
 
         add(createToolbar(), createSummaryCards(), debtGrid);
         refreshGrid();
@@ -166,18 +169,24 @@ public class DebtManagementView extends VerticalLayout {
         layout.setPadding(false);
         layout.setWidthFull();
 
-        ProgressBar progressBar = new ProgressBar();
-        progressBar.setWidthFull();
-
         BigDecimal principalAmount = debt.getPrincipalAmount();
         BigDecimal currentBalance = debt.getCurrentBalance();
 
-        double paidPercentage = 0;
-        if (principalAmount.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal paidAmount = principalAmount.subtract(currentBalance);
-            paidPercentage = paidAmount.divide(principalAmount, 4, RoundingMode.HALF_UP)
-                    .multiply(BigDecimal.valueOf(100)).doubleValue();
+        if (principalAmount == null || principalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            Span naLabel = new Span("N/A");
+            naLabel.getStyle()
+                    .set("font-size", "0.875rem")
+                    .set("color", "var(--finance-text-secondary)");
+            layout.add(naLabel);
+            return layout;
         }
+
+        ProgressBar progressBar = new ProgressBar();
+        progressBar.setWidthFull();
+
+        BigDecimal paidAmount = principalAmount.subtract(currentBalance);
+        double paidPercentage = paidAmount.divide(principalAmount, 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100)).doubleValue();
 
         progressBar.setValue(Math.max(0, Math.min(paidPercentage / 100.0, 1.0)));
         progressBar.getElement().getStyle().set("--vaadin-progress-value-color", "var(--finance-secondary)");
@@ -205,6 +214,12 @@ public class DebtManagementView extends VerticalLayout {
         paymentButton.getElement().setAttribute("aria-label", "Record payment");
         paymentButton.addClickListener(event -> openPaymentDialog(debt));
 
+        Button viewPaymentsButton = new Button(new Icon(VaadinIcon.LIST));
+        viewPaymentsButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        viewPaymentsButton.addClassName("mobile-touch-target");
+        viewPaymentsButton.getElement().setAttribute("aria-label", "View payments");
+        viewPaymentsButton.addClickListener(event -> openPaymentsViewDialog(debt));
+
         Button editButton = new Button(new Icon(VaadinIcon.EDIT));
         editButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         editButton.addClassName("mobile-touch-target");
@@ -225,7 +240,7 @@ public class DebtManagementView extends VerticalLayout {
         deleteButton.getElement().setAttribute("aria-label", "Delete debt");
         deleteButton.addClickListener(event -> showDeleteConfirmation(debt));
 
-        layout.add(paymentButton, editButton, toggleActiveButton, deleteButton);
+        layout.add(paymentButton, viewPaymentsButton, editButton, toggleActiveButton, deleteButton);
         return layout;
     }
 
@@ -253,6 +268,7 @@ public class DebtManagementView extends VerticalLayout {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal totalPaid = debts.stream()
+                .filter(debt -> debt.getPrincipalAmount() != null)
                 .map(debt -> debt.getPrincipalAmount().subtract(debt.getCurrentBalance()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -345,6 +361,10 @@ public class DebtManagementView extends VerticalLayout {
         paymentDialog = new DebtPaymentDialog(debtPaymentService);
     }
 
+    private void createPaymentsViewDialog() {
+        paymentsViewDialog = new DebtPaymentsViewDialog(debtPaymentService);
+    }
+
     private void openFormForNew() {
         debtForm.clearForm();
         formDialog.setHeaderTitle("Add Debt");
@@ -359,6 +379,10 @@ public class DebtManagementView extends VerticalLayout {
 
     private void openPaymentDialog(final DebtDTO debt) {
         paymentDialog.openForDebt(debt, this::refreshGrid);
+    }
+
+    private void openPaymentsViewDialog(final DebtDTO debt) {
+        paymentsViewDialog.openForDebt(debt, this::refreshGrid);
     }
 
     private void showDeleteConfirmation(final DebtDTO debt) {

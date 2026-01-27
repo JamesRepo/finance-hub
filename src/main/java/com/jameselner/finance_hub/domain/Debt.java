@@ -39,7 +39,7 @@ public class Debt {
     @Column(name = "debt_type", nullable = false, length = 50)
     private DebtType debtType;
 
-    @Column(name = "principal_amount", nullable = false, precision = 15, scale = 2)
+    @Column(name = "principal_amount", precision = 15, scale = 2)
     private BigDecimal principalAmount;
 
     @Column(name = "current_balance", nullable = false, precision = 15, scale = 2)
@@ -48,7 +48,7 @@ public class Debt {
     @Column(name = "interest_rate", nullable = false, precision = 5, scale = 2)
     private BigDecimal interestRate;
 
-    @Column(name = "start_date", nullable = false)
+    @Column(name = "start_date")
     private LocalDate startDate;
 
     @Column(name = "target_payoff_date")

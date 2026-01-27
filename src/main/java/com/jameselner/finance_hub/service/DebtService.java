@@ -209,22 +209,16 @@ public class DebtService {
         if (dto.getDebtType() == null) {
             throw new IllegalArgumentException("Debt type must not be null");
         }
-        if (dto.getPrincipalAmount() == null) {
-            throw new IllegalArgumentException("Principal amount must not be null");
-        }
         if (dto.getCurrentBalance() == null) {
             throw new IllegalArgumentException("Current balance must not be null");
         }
         if (dto.getInterestRate() == null) {
             throw new IllegalArgumentException("Interest rate must not be null");
         }
-        if (dto.getStartDate() == null) {
-            throw new IllegalArgumentException("Start date must not be null");
-        }
     }
 
     private void validateAmounts(final DebtDTO dto) {
-        if (dto.getPrincipalAmount().compareTo(BigDecimal.ZERO) <= 0) {
+        if (dto.getPrincipalAmount() != null && dto.getPrincipalAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Principal amount must be greater than zero");
         }
         if (dto.getCurrentBalance().compareTo(BigDecimal.ZERO) < 0) {
