@@ -164,15 +164,17 @@ class DebtServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw exception when principal amount is null")
-        void shouldThrowExceptionWhenPrincipalAmountIsNull() {
+        @DisplayName("Should allow null principal amount (optional field)")
+        void shouldAllowNullPrincipalAmount() {
             validDto.setPrincipalAmount(null);
 
-            IllegalArgumentException exception = assertThrows(
-                    IllegalArgumentException.class,
-                    () -> debtService.createDebtFromDto(validDto)
-            );
-            assertEquals("Principal amount must not be null", exception.getMessage());
+            when(debtMapper.toEntity(validDto)).thenReturn(validDebt);
+            when(debtRepository.save(validDebt)).thenReturn(validDebt);
+            when(debtMapper.toDto(validDebt)).thenReturn(validDto);
+
+            DebtDTO result = debtService.createDebtFromDto(validDto);
+
+            assertNotNull(result);
         }
 
         @Test
@@ -185,6 +187,20 @@ class DebtServiceTest {
                     () -> debtService.createDebtFromDto(validDto)
             );
             assertEquals("Principal amount must be greater than zero", exception.getMessage());
+        }
+
+        @Test
+        @DisplayName("Should allow null start date (optional field)")
+        void shouldAllowNullStartDate() {
+            validDto.setStartDate(null);
+
+            when(debtMapper.toEntity(validDto)).thenReturn(validDebt);
+            when(debtRepository.save(validDebt)).thenReturn(validDebt);
+            when(debtMapper.toDto(validDebt)).thenReturn(validDto);
+
+            DebtDTO result = debtService.createDebtFromDto(validDto);
+
+            assertNotNull(result);
         }
 
         @Test

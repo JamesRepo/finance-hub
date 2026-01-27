@@ -102,11 +102,18 @@ public class DebtPaymentsViewDialog extends Dialog {
         content.setSpacing(true);
         content.setPadding(true);
 
-        BigDecimalField amountField = new BigDecimalField("Payment Amount");
+        BigDecimalField amountField = new BigDecimalField("Total Payment Amount");
         amountField.setPrefixComponent(new Span("£"));
         amountField.setValue(payment.getPaymentAmount());
         amountField.setRequiredIndicatorVisible(true);
         amountField.setWidthFull();
+
+        BigDecimalField interestField = new BigDecimalField("Interest Paid");
+        interestField.setPrefixComponent(new Span("£"));
+        interestField.setValue(payment.getInterestPaid());
+        interestField.setRequiredIndicatorVisible(true);
+        interestField.setHelperText("Amount that went to interest");
+        interestField.setWidthFull();
 
         DatePicker dateField = new DatePicker("Payment Date");
         dateField.setValue(payment.getPaymentDate());
@@ -118,10 +125,19 @@ public class DebtPaymentsViewDialog extends Dialog {
         saveButton.addClickListener(event -> {
             try {
                 BigDecimal amount = amountField.getValue();
+                BigDecimal interest = interestField.getValue();
                 LocalDate date = dateField.getValue();
 
                 if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
                     showErrorNotification("Amount must be greater than zero");
+                    return;
+                }
+                if (interest == null || interest.compareTo(BigDecimal.ZERO) < 0) {
+                    showErrorNotification("Interest must not be negative");
+                    return;
+                }
+                if (interest.compareTo(amount) > 0) {
+                    showErrorNotification("Interest cannot exceed payment amount");
                     return;
                 }
                 if (date == null) {
@@ -129,7 +145,7 @@ public class DebtPaymentsViewDialog extends Dialog {
                     return;
                 }
 
-                debtPaymentService.updatePayment(payment.getPaymentId(), amount, date);
+                debtPaymentService.updatePayment(payment.getPaymentId(), amount, interest, date);
                 editDialog.close();
                 refreshGrid();
                 showSuccessNotification("Payment updated successfully");
@@ -150,7 +166,7 @@ public class DebtPaymentsViewDialog extends Dialog {
         buttonLayout.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
         buttonLayout.setWidthFull();
 
-        content.add(amountField, dateField, buttonLayout);
+        content.add(amountField, interestField, dateField, buttonLayout);
         editDialog.add(content);
         editDialog.open();
     }

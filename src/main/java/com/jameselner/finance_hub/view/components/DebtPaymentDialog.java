@@ -25,6 +25,7 @@ public class DebtPaymentDialog extends Dialog {
     private final DebtPaymentService debtPaymentService;
 
     private BigDecimalField paymentAmountField;
+    private BigDecimalField interestPaidField;
     private DatePicker paymentDateField;
     private Button saveButton;
     private Button cancelButton;
@@ -46,11 +47,18 @@ public class DebtPaymentDialog extends Dialog {
     }
 
     private void createFormFields() {
-        paymentAmountField = new BigDecimalField("Payment Amount");
+        paymentAmountField = new BigDecimalField("Total Payment Amount");
         paymentAmountField.setPrefixComponent(new Span("£"));
         paymentAmountField.setRequiredIndicatorVisible(true);
-        paymentAmountField.setHelperText("Enter the payment amount");
+        paymentAmountField.setHelperText("Total amount paid");
         paymentAmountField.setWidth("100%");
+
+        interestPaidField = new BigDecimalField("Interest Paid");
+        interestPaidField.setPrefixComponent(new Span("£"));
+        interestPaidField.setRequiredIndicatorVisible(true);
+        interestPaidField.setHelperText("Amount that went to interest");
+        interestPaidField.setWidth("100%");
+        interestPaidField.setValue(BigDecimal.ZERO);
 
         paymentDateField = new DatePicker("Payment Date");
         paymentDateField.setRequiredIndicatorVisible(true);
@@ -75,7 +83,7 @@ public class DebtPaymentDialog extends Dialog {
 
         FormLayout formLayout = new FormLayout();
         formLayout.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
-        formLayout.add(paymentAmountField, paymentDateField);
+        formLayout.add(paymentAmountField, interestPaidField, paymentDateField);
 
         HorizontalLayout buttonLayout = new HorizontalLayout(saveButton, cancelButton);
         buttonLayout.setSpacing(true);
@@ -172,17 +180,29 @@ public class DebtPaymentDialog extends Dialog {
                 return;
             }
 
+            if (interestPaidField.getValue() == null || interestPaidField.getValue().compareTo(BigDecimal.ZERO) < 0) {
+                showErrorNotification("Interest paid must not be negative");
+                return;
+            }
+
             if (paymentDateField.getValue() == null) {
                 showErrorNotification("Payment date is required");
                 return;
             }
 
             BigDecimal paymentAmount = paymentAmountField.getValue();
+            BigDecimal interestPaid = interestPaidField.getValue();
             LocalDate paymentDate = paymentDateField.getValue();
 
-            DebtPaymentDTO result = debtPaymentService.recordPaymentWithInterestCalculation(
+            if (interestPaid.compareTo(paymentAmount) > 0) {
+                showErrorNotification("Interest paid cannot exceed payment amount");
+                return;
+            }
+
+            DebtPaymentDTO result = debtPaymentService.recordPayment(
                     currentDebt.getDebtId(),
                     paymentAmount,
+                    interestPaid,
                     paymentDate
             );
 
@@ -234,6 +254,7 @@ public class DebtPaymentDialog extends Dialog {
         this.onSuccessCallback = onSuccess;
 
         paymentAmountField.clear();
+        interestPaidField.setValue(BigDecimal.ZERO);
         paymentDateField.setValue(LocalDate.now());
 
         if (debt != null && debt.getMinimumPayment() != null) {

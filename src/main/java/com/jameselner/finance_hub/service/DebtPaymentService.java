@@ -30,9 +30,10 @@ public class DebtPaymentService {
     private final DebtService debtService;
 
     @Transactional
-    public DebtPaymentDTO recordPaymentWithInterestCalculation(
+    public DebtPaymentDTO recordPayment(
             final Long debtId,
             final BigDecimal paymentAmount,
+            final BigDecimal interestPaid,
             final LocalDate paymentDate
     ) {
         if (debtId == null) {
@@ -41,6 +42,12 @@ public class DebtPaymentService {
         if (paymentAmount == null || paymentAmount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Payment amount must be greater than zero");
         }
+        if (interestPaid == null || interestPaid.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Interest paid must not be negative");
+        }
+        if (interestPaid.compareTo(paymentAmount) > 0) {
+            throw new IllegalArgumentException("Interest paid cannot exceed payment amount");
+        }
         if (paymentDate == null) {
             throw new IllegalArgumentException("Payment date must not be null");
         }
@@ -48,27 +55,7 @@ public class DebtPaymentService {
         Debt debt = debtRepository.findById(debtId)
                 .orElseThrow(() -> new IllegalArgumentException("Debt with ID " + debtId + " does not exist"));
 
-        BigDecimal currentBalance = debt.getCurrentBalance();
-        if (paymentAmount.compareTo(currentBalance) > 0) {
-            throw new IllegalArgumentException(
-                    "Payment amount cannot exceed current balance: " + currentBalance);
-        }
-
-        BigDecimal monthlyInterest = debtService.calculateMonthlyInterest(
-                currentBalance,
-                debt.getInterestRate()
-        );
-
-        BigDecimal principalPaid;
-        BigDecimal interestPaid;
-
-        if (paymentAmount.compareTo(monthlyInterest) <= 0) {
-            interestPaid = paymentAmount;
-            principalPaid = BigDecimal.ZERO;
-        } else {
-            interestPaid = monthlyInterest;
-            principalPaid = paymentAmount.subtract(monthlyInterest);
-        }
+        BigDecimal principalPaid = paymentAmount.subtract(interestPaid);
 
         DebtPayment debtPayment = new DebtPayment();
         debtPayment.setDebt(debt);
@@ -111,12 +98,23 @@ public class DebtPaymentService {
     }
 
     @Transactional
-    public DebtPaymentDTO updatePayment(final Long paymentId, final BigDecimal amount, final LocalDate date) {
+    public DebtPaymentDTO updatePayment(
+            final Long paymentId,
+            final BigDecimal amount,
+            final BigDecimal interestPaid,
+            final LocalDate date
+    ) {
         if (paymentId == null) {
             throw new IllegalArgumentException("Payment ID must not be null");
         }
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Payment amount must be greater than zero");
+        }
+        if (interestPaid == null || interestPaid.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Interest paid must not be negative");
+        }
+        if (interestPaid.compareTo(amount) > 0) {
+            throw new IllegalArgumentException("Interest paid cannot exceed payment amount");
         }
         if (date == null) {
             throw new IllegalArgumentException("Payment date must not be null");
@@ -125,30 +123,22 @@ public class DebtPaymentService {
         DebtPayment payment = debtPaymentRepository.findById(paymentId)
                 .orElseThrow(() -> new IllegalArgumentException("Payment with ID " + paymentId + " does not exist"));
 
+        if (Boolean.TRUE.equals(payment.getDeleted())) {
+            throw new IllegalArgumentException("Cannot update deleted payment");
+        }
+
         Debt debt = payment.getDebt();
 
         // Reverse the old principal from the debt balance
         BigDecimal oldPrincipalPaid = payment.getPrincipalPaid();
         BigDecimal restoredBalance = debt.getCurrentBalance().add(oldPrincipalPaid);
 
-        // Recalculate interest based on the restored balance
-        BigDecimal monthlyInterest = debtService.calculateMonthlyInterest(restoredBalance, debt.getInterestRate());
-
-        BigDecimal newPrincipalPaid;
-        BigDecimal newInterestPaid;
-
-        if (amount.compareTo(monthlyInterest) <= 0) {
-            newInterestPaid = amount;
-            newPrincipalPaid = BigDecimal.ZERO;
-        } else {
-            newInterestPaid = monthlyInterest;
-            newPrincipalPaid = amount.subtract(monthlyInterest);
-        }
+        BigDecimal newPrincipalPaid = amount.subtract(interestPaid);
 
         // Update the payment
         payment.setPaymentAmount(amount);
         payment.setPrincipalPaid(newPrincipalPaid);
-        payment.setInterestPaid(newInterestPaid);
+        payment.setInterestPaid(interestPaid);
         payment.setPaymentDate(date);
 
         DebtPayment savedPayment = debtPaymentRepository.save(payment);
@@ -162,7 +152,7 @@ public class DebtPaymentService {
         debtRepository.save(debt);
 
         log.debug("Updated payment {} with new amount {}. New principal: {}, Interest: {}",
-                paymentId, amount, newPrincipalPaid, newInterestPaid);
+                paymentId, amount, newPrincipalPaid, interestPaid);
 
         return debtPaymentMapper.toDto(savedPayment);
     }
