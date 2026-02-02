@@ -38,10 +38,6 @@ public class MonthlySummaryDTO {
     private BigDecimal housingCosts;
     private BigDecimal housingToIncomeRatio;
 
-    // Debt
-    private BigDecimal debtPayments;
-    private BigDecimal totalDebt;
-
     // Statistics
     private int transactionCount;
     private BigDecimal averageTransactionSize;

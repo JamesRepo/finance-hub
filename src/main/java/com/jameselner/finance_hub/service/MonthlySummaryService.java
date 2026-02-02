@@ -12,6 +12,7 @@ import com.jameselner.finance_hub.dto.MonthlySummaryDTO;
 import com.jameselner.finance_hub.repository.IncomeSourceRepository;
 import com.jameselner.finance_hub.repository.TransactionRepository;
 import com.jameselner.finance_hub.repository.UserRepository;
+import com.jameselner.finance_hub.util.FinancialThresholds;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -65,7 +66,7 @@ public class MonthlySummaryService {
         BigDecimal netSavings = totalIncome.subtract(totalExpenses);
         BigDecimal savingsRate = calculateSavingsRate(totalIncome, netSavings);
 
-        // Budget performance
+        // Budget performance - fetch once and reuse
         List<BudgetDTO> budgets = budgetService.findByUserIdAndDateRange(userId, startDate, endDate);
         BigDecimal totalBudgeted = budgets.stream()
                 .map(BudgetDTO::getAmount)
@@ -84,15 +85,15 @@ public class MonthlySummaryService {
                 .filter(b -> b.getOverage() == null || b.getOverage().compareTo(BigDecimal.ZERO) <= 0)
                 .count();
 
-        // All spending categories with at least £1 spent
-        List<CategorySpendingDTO> topCategories = calculateSpendingCategories(user, startDate, endDate, totalExpenses);
+        // All spending categories - pass budgets to avoid N+1 query
+        List<CategorySpendingDTO> topCategories = calculateSpendingCategories(user, startDate, endDate, totalExpenses, budgets);
 
         // Add Housing as a category if there are housing costs
-        if (housingCosts.compareTo(BigDecimal.ONE) >= 0) {
+        if (housingCosts.compareTo(FinancialThresholds.MINIMUM_CATEGORY_AMOUNT) >= 0) {
             topCategories.add(CategorySpendingDTO.builder()
-                    .categoryId(-1L)
+                    .categoryId(FinancialThresholds.HOUSING_CATEGORY_ID)
                     .categoryName("Housing")
-                    .categoryColor("#4A90A4")
+                    .categoryColor(FinancialThresholds.HOUSING_CATEGORY_COLOR)
                     .totalSpent(housingCosts)
                     .budgetAmount(null)
                     .percentageOfTotal(calculatePercentage(housingCosts, totalExpenses))
@@ -101,11 +102,11 @@ public class MonthlySummaryService {
         }
 
         // Add Debt Payments as a category if there are debt payments
-        if (debtPayments.compareTo(BigDecimal.ONE) >= 0) {
+        if (debtPayments.compareTo(FinancialThresholds.MINIMUM_CATEGORY_AMOUNT) >= 0) {
             topCategories.add(CategorySpendingDTO.builder()
-                    .categoryId(-2L)
+                    .categoryId(FinancialThresholds.DEBT_CATEGORY_ID)
                     .categoryName("Debt Payments")
-                    .categoryColor("#E57373")
+                    .categoryColor(FinancialThresholds.DEBT_CATEGORY_COLOR)
                     .totalSpent(debtPayments)
                     .budgetAmount(null)
                     .percentageOfTotal(calculatePercentage(debtPayments, totalExpenses))
@@ -114,11 +115,11 @@ public class MonthlySummaryService {
         }
 
         // Add Subscriptions as a category if there are subscription costs
-        if (subscriptionCosts.compareTo(BigDecimal.ONE) >= 0) {
+        if (subscriptionCosts.compareTo(FinancialThresholds.MINIMUM_CATEGORY_AMOUNT) >= 0) {
             topCategories.add(CategorySpendingDTO.builder()
-                    .categoryId(-3L)
+                    .categoryId(FinancialThresholds.SUBSCRIPTIONS_CATEGORY_ID)
                     .categoryName("Subscriptions")
-                    .categoryColor("#9575CD")
+                    .categoryColor(FinancialThresholds.SUBSCRIPTIONS_CATEGORY_COLOR)
                     .totalSpent(subscriptionCosts)
                     .budgetAmount(null)
                     .percentageOfTotal(calculatePercentage(subscriptionCosts, totalExpenses))
@@ -129,7 +130,8 @@ public class MonthlySummaryService {
         // Re-sort by total spent
         topCategories.sort(Comparator.comparing(CategorySpendingDTO::getTotalSpent).reversed());
 
-        BigDecimal housingRatio = housingExpenseService.calculateHousingToIncomeRatioForYear(userId, LocalDate.now().getYear());
+        // Fix: Use selected month's year instead of current year
+        BigDecimal housingRatio = housingExpenseService.calculateHousingToIncomeRatioForYear(userId, month.getYear());
 
         // Transaction statistics
         List<Transaction> transactions = transactionRepository.findByAccountUserAndTransactionDateBetween(
@@ -144,8 +146,9 @@ public class MonthlySummaryService {
                 largestExpenseTransaction.getCategory() != null ?
                 largestExpenseTransaction.getCategory().getCategoryName() : "N/A";
 
-        // Month-over-month comparison
-        MonthComparisonDTO monthComparison = calculateMonthComparison(user, month);
+        // Month-over-month comparison - pass current month data to avoid duplicate calculations
+        MonthComparisonDTO monthComparison = calculateMonthComparison(
+                user, month, totalIncome, totalExpenses, netSavings, savingsRate);
 
         return MonthlySummaryDTO.builder()
                 .month(month)
@@ -178,8 +181,18 @@ public class MonthlySummaryService {
         List<IncomeSource> incomeSources = incomeSourceRepository.findByUserAndMonthRange(user, startDate, endDate);
 
         return incomeSources.stream()
-                .map(source -> source.getNetAmount() != null ? source.getNetAmount() : source.getGrossAmount())
-                .filter(Objects::nonNull)
+                .map(source -> {
+                    // Fixed null handling: check both net and gross amounts
+                    BigDecimal net = source.getNetAmount();
+                    BigDecimal gross = source.getGrossAmount();
+                    if (net != null) {
+                        return net;
+                    }
+                    if (gross != null) {
+                        return gross;
+                    }
+                    return BigDecimal.ZERO;
+                })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
@@ -204,13 +217,14 @@ public class MonthlySummaryService {
     }
 
     /**
-     * Calculate all spending categories with at least £1 spent
+     * Calculate all spending categories with at least minimum amount spent
      */
     private List<CategorySpendingDTO> calculateSpendingCategories(
             final User user,
             final LocalDate startDate,
             final LocalDate endDate,
-            final BigDecimal totalExpenses
+            final BigDecimal totalExpenses,
+            final List<BudgetDTO> budgets
     ) {
         List<Transaction> expenseTransactions = transactionRepository
                 .findByAccountUserAndTransactionDateBetween(user, startDate, endDate)
@@ -234,14 +248,12 @@ public class MonthlySummaryService {
 
                     BigDecimal percentageOfTotal = calculatePercentage(categoryTotal, totalExpenses);
 
-                    // Get budget for this category if exists
-                    List<BudgetDTO> categoryBudgets = budgetService.findByUserIdAndDateRange(
-                            user.getUserId(), startDate, endDate).stream()
+                    // Get budget for this category from pre-fetched list (avoids N+1)
+                    BigDecimal budgetAmount = budgets.stream()
                             .filter(b -> b.getCategoryId().equals(category.getCategoryId()))
-                            .toList();
-
-                    BigDecimal budgetAmount = categoryBudgets.isEmpty() ? null :
-                            categoryBudgets.getFirst().getAmount();
+                            .findFirst()
+                            .map(BudgetDTO::getAmount)
+                            .orElse(null);
 
                     return CategorySpendingDTO.builder()
                             .categoryId(category.getCategoryId())
@@ -253,8 +265,7 @@ public class MonthlySummaryService {
                             .transactionCount(categoryTransactions.size())
                             .build();
                 })
-                // Filter for categories with at least £1 spent
-                .filter(c -> c.getTotalSpent().compareTo(BigDecimal.ONE) >= 0)
+                .filter(c -> c.getTotalSpent().compareTo(FinancialThresholds.MINIMUM_CATEGORY_AMOUNT) >= 0)
                 .sorted(Comparator.comparing(CategorySpendingDTO::getTotalSpent).reversed())
                 .collect(Collectors.toList());
     }
@@ -285,29 +296,23 @@ public class MonthlySummaryService {
     }
 
     /**
-     * Calculate month-over-month comparison
+     * Calculate month-over-month comparison.
+     * Accepts current month data to avoid duplicate calculations.
      */
-    private MonthComparisonDTO calculateMonthComparison(final User user, final YearMonth currentMonth) {
+    private MonthComparisonDTO calculateMonthComparison(
+            final User user,
+            final YearMonth currentMonth,
+            final BigDecimal currentIncome,
+            final BigDecimal currentExpenses,
+            final BigDecimal currentSavings,
+            final BigDecimal currentSavingsRate
+    ) {
         YearMonth previousMonth = currentMonth.minusMonths(1);
-
-        LocalDate currentStart = currentMonth.atDay(1);
-        LocalDate currentEnd = currentMonth.atEndOfMonth();
         LocalDate previousStart = previousMonth.atDay(1);
         LocalDate previousEnd = previousMonth.atEndOfMonth();
-
         Long userId = user.getUserId();
 
-        // Current month (transaction expenses + housing + debt + subscriptions)
-        BigDecimal currentIncome = calculateTotalIncome(user, currentStart, currentEnd);
-        BigDecimal currentTransactionExpenses = calculateTransactionExpenses(user, currentStart, currentEnd);
-        BigDecimal currentHousing = housingExpenseService.calculateTotalForMonth(userId, currentStart);
-        BigDecimal currentDebt = debtPaymentService.calculateTotalForMonth(userId, currentStart);
-        BigDecimal currentSubscriptions = subscriptionService.calculateTotalForMonth(userId, currentMonth.getYear(), currentMonth.getMonthValue());
-        BigDecimal currentExpenses = currentTransactionExpenses.add(currentHousing).add(currentDebt).add(currentSubscriptions);
-        BigDecimal currentSavings = currentIncome.subtract(currentExpenses);
-        BigDecimal currentSavingsRate = calculateSavingsRate(currentIncome, currentSavings);
-
-        // Previous month (transaction expenses + housing + debt + subscriptions)
+        // Only calculate previous month data (current month data passed in)
         BigDecimal previousIncome = calculateTotalIncome(user, previousStart, previousEnd);
         BigDecimal previousTransactionExpenses = calculateTransactionExpenses(user, previousStart, previousEnd);
         BigDecimal previousHousing = housingExpenseService.calculateTotalForMonth(userId, previousStart);
