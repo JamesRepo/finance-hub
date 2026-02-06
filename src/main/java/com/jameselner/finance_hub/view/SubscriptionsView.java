@@ -1,13 +1,14 @@
 package com.jameselner.finance_hub.view;
 
 import com.jameselner.finance_hub.domain.User;
+import com.jameselner.finance_hub.domain.enums.SubscriptionFrequency;
 import com.jameselner.finance_hub.dto.SubscriptionDTO;
 import com.jameselner.finance_hub.repository.UserRepository;
 import com.jameselner.finance_hub.service.SubscriptionService;
 import com.jameselner.finance_hub.view.components.SubscriptionFormDialog;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
@@ -46,9 +47,9 @@ public class SubscriptionsView extends VerticalLayout {
 
     private Grid<SubscriptionDTO> grid;
     private SubscriptionFormDialog formDialog;
-    private ComboBox<String> filterCombo;
-    private ComboBox<Month> monthCombo;
-    private ComboBox<Integer> yearCombo;
+    private Select<FrequencyFilter> filterSelect;
+    private Select<Month> monthSelect;
+    private Select<Integer> yearSelect;
 
     private Span monthTotalCard;
     private Span subscriptionCountCard;
@@ -118,26 +119,33 @@ public class SubscriptionsView extends VerticalLayout {
     private HorizontalLayout createToolbar() {
         LocalDate now = LocalDate.now();
 
-        monthCombo = new ComboBox<>("Month");
-        monthCombo.setItems(Month.values());
-        monthCombo.setItemLabelGenerator(month -> month.getDisplayName(TextStyle.FULL, Locale.ENGLISH));
-        monthCombo.setValue(now.getMonth());
-        monthCombo.addValueChangeListener(event -> refreshData());
+        monthSelect = new Select<>();
+        monthSelect.setLabel("Month");
+        monthSelect.setItems(Month.values());
+        monthSelect.setItemLabelGenerator(month -> month.getDisplayName(TextStyle.FULL, Locale.ENGLISH));
+        monthSelect.setValue(now.getMonth());
+        monthSelect.addValueChangeListener(event -> refreshData());
 
-        yearCombo = new ComboBox<>("Year");
-        yearCombo.setItems(IntStream.rangeClosed(now.getYear() - 5, now.getYear() + 1)
+        yearSelect = new Select<>();
+        yearSelect.setLabel("Year");
+        yearSelect.setItems(IntStream.rangeClosed(now.getYear() - 5, now.getYear() + 1)
                 .boxed()
                 .sorted(Comparator.reverseOrder())
                 .toList());
-        yearCombo.setValue(now.getYear());
-        yearCombo.addValueChangeListener(event -> refreshData());
+        yearSelect.setValue(now.getYear());
+        yearSelect.addValueChangeListener(event -> refreshData());
 
-        filterCombo = new ComboBox<>("Frequency");
-        filterCombo.setItems("All", "Monthly", "Yearly");
-        filterCombo.setValue("All");
-        filterCombo.addValueChangeListener(event -> refreshGrid());
+        filterSelect = new Select<>();
+        filterSelect.setLabel("Frequency");
+        filterSelect.setItems(FrequencyFilter.values());
+        filterSelect.setItemLabelGenerator(FrequencyFilter::getLabel);
+        filterSelect.setValue(FrequencyFilter.ALL);
+        filterSelect.addValueChangeListener(event -> {
+            User currentUser = getCurrentUser();
+            refreshGrid(currentUser.getUserId(), yearSelect.getValue(), monthSelect.getValue().getValue());
+        });
 
-        HorizontalLayout toolbar = new HorizontalLayout(monthCombo, yearCombo, filterCombo);
+        HorizontalLayout toolbar = new HorizontalLayout(monthSelect, yearSelect, filterSelect);
         toolbar.setWidthFull();
         toolbar.setSpacing(true);
         toolbar.setAlignItems(FlexComponent.Alignment.END);
@@ -155,25 +163,25 @@ public class SubscriptionsView extends VerticalLayout {
                 .setAutoWidth(true)
                 .setFlexGrow(1);
 
-        grid.addColumn(dto -> String.format("£%.2f", dto.getAmount()))
+        grid.addColumn(dto -> formatCurrency(dto.getAmount()))
                 .setHeader("Amount")
                 .setAutoWidth(true)
                 .setSortable(true)
                 .setComparator(Comparator.comparing(SubscriptionDTO::getAmount));
 
-        grid.addColumn(dto -> dto.getFrequency().getDisplayName())
+        grid.addColumn(dto -> dto.getFrequency() != null ? dto.getFrequency().getDisplayName() : "-")
                 .setHeader("Frequency")
                 .setAutoWidth(true);
 
-        grid.addColumn(dto -> String.format("£%.2f", dto.getMonthlyEquivalent()))
+        grid.addColumn(dto -> formatCurrency(dto.getMonthlyEquivalent()))
                 .setHeader("Monthly")
                 .setAutoWidth(true);
 
-        grid.addColumn(dto -> String.format("£%.2f", dto.getAnnualEquivalent()))
+        grid.addColumn(dto -> formatCurrency(dto.getAnnualEquivalent()))
                 .setHeader("Annual")
                 .setAutoWidth(true);
 
-        grid.addColumn(SubscriptionDTO::getPaymentDate)
+        grid.addColumn(dto -> dto.getPaymentDate() != null ? dto.getPaymentDate().toString() : "-")
                 .setHeader("Payment Date")
                 .setAutoWidth(true)
                 .setSortable(true)
@@ -304,16 +312,16 @@ public class SubscriptionsView extends VerticalLayout {
     }
 
     private void refreshData() {
-        refreshSummaryCards();
-        refreshGrid();
-    }
-
-    private void refreshSummaryCards() {
         User currentUser = getCurrentUser();
         Long userId = currentUser.getUserId();
-        int year = yearCombo.getValue();
-        int month = monthCombo.getValue().getValue();
+        int year = yearSelect.getValue();
+        int month = monthSelect.getValue().getValue();
 
+        refreshSummaryCards(userId, year, month);
+        refreshGrid(userId, year, month);
+    }
+
+    private void refreshSummaryCards(final Long userId, final int year, final int month) {
         BigDecimal monthTotal = subscriptionService.calculateTotalForMonth(userId, year, month);
         long monthCount = subscriptionService.countSubscriptionsForMonth(userId, year, month);
 
@@ -321,23 +329,18 @@ public class SubscriptionsView extends VerticalLayout {
         updateCardValue(subscriptionCountCard, String.valueOf(monthCount));
     }
 
-    private void refreshGrid() {
-        User currentUser = getCurrentUser();
-        Long userId = currentUser.getUserId();
-        int year = yearCombo.getValue();
-        int month = monthCombo.getValue().getValue();
-
-        String filter = filterCombo.getValue();
+    private void refreshGrid(final Long userId, final int year, final int month) {
+        FrequencyFilter filter = filterSelect.getValue();
         List<SubscriptionDTO> subscriptions = subscriptionService.findByUserIdAndMonthAsDto(userId, year, month);
 
         subscriptions = switch (filter) {
-            case "Monthly" -> subscriptions.stream()
-                    .filter(sub -> "MONTHLY".equals(sub.getFrequency().name()))
+            case MONTHLY -> subscriptions.stream()
+                    .filter(sub -> sub.getFrequency() == SubscriptionFrequency.MONTHLY)
                     .toList();
-            case "Yearly" -> subscriptions.stream()
-                    .filter(sub -> "YEARLY".equals(sub.getFrequency().name()))
+            case YEARLY -> subscriptions.stream()
+                    .filter(sub -> sub.getFrequency() == SubscriptionFrequency.YEARLY)
                     .toList();
-            default -> subscriptions;
+            case ALL -> subscriptions;
         };
 
         grid.setItems(subscriptions);
@@ -348,6 +351,13 @@ public class SubscriptionsView extends VerticalLayout {
                 .skip(2)
                 .findFirst()
                 .ifPresent(component -> ((Span) component).setText(newValue));
+    }
+
+    private String formatCurrency(final BigDecimal amount) {
+        if (amount == null) {
+            return "£0.00";
+        }
+        return String.format("£%.2f", amount);
     }
 
     private User getCurrentUser() {
@@ -369,5 +379,21 @@ public class SubscriptionsView extends VerticalLayout {
     private void showErrorNotification(final String message) {
         Notification notification = Notification.show(message, 5000, Notification.Position.TOP_CENTER);
         notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+    }
+
+    private enum FrequencyFilter {
+        ALL("All"),
+        MONTHLY("Monthly"),
+        YEARLY("Yearly");
+
+        private final String label;
+
+        FrequencyFilter(final String label) {
+            this.label = label;
+        }
+
+        public String getLabel() {
+            return label;
+        }
     }
 }

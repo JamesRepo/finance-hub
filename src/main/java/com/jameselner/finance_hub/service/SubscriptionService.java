@@ -102,8 +102,10 @@ public class SubscriptionService {
         validateIdNotNull(userId);
         User user = getUserById(userId);
         LocalDate now = LocalDate.now();
+        LocalDate startOfMonth = now.withDayOfMonth(1);
+        LocalDate endOfMonth = startOfMonth.withDayOfMonth(startOfMonth.lengthOfMonth());
 
-        return subscriptionRepository.findByUserAndPaymentMonth(user, now.getYear(), now.getMonthValue()).stream()
+        return subscriptionRepository.findByUserAndPaymentDateBetween(user, startOfMonth, endOfMonth).stream()
                 .map(subscriptionMapper::toDto)
                 .map(this::enrichWithCalculatedFields)
                 .collect(Collectors.toList());
@@ -115,8 +117,10 @@ public class SubscriptionService {
     public List<SubscriptionDTO> findByUserIdAndMonthAsDto(final Long userId, final int year, final int month) {
         validateIdNotNull(userId);
         User user = getUserById(userId);
+        LocalDate startOfMonth = LocalDate.of(year, month, 1);
+        LocalDate endOfMonth = startOfMonth.withDayOfMonth(startOfMonth.lengthOfMonth());
 
-        return subscriptionRepository.findByUserAndPaymentMonth(user, year, month).stream()
+        return subscriptionRepository.findByUserAndPaymentDateBetween(user, startOfMonth, endOfMonth).stream()
                 .map(subscriptionMapper::toDto)
                 .map(this::enrichWithCalculatedFields)
                 .collect(Collectors.toList());
@@ -128,7 +132,9 @@ public class SubscriptionService {
     public BigDecimal calculateTotalForMonth(final Long userId, final int year, final int month) {
         validateIdNotNull(userId);
         User user = getUserById(userId);
-        return subscriptionRepository.calculateTotalForMonth(user, year, month);
+        LocalDate startOfMonth = LocalDate.of(year, month, 1);
+        LocalDate endOfMonth = startOfMonth.withDayOfMonth(startOfMonth.lengthOfMonth());
+        return subscriptionRepository.calculateTotalForPeriod(user, startOfMonth, endOfMonth);
     }
 
     /**
@@ -137,7 +143,9 @@ public class SubscriptionService {
     public long countSubscriptionsForMonth(final Long userId, final int year, final int month) {
         validateIdNotNull(userId);
         User user = getUserById(userId);
-        return subscriptionRepository.countByUserAndMonth(user, year, month);
+        LocalDate startOfMonth = LocalDate.of(year, month, 1);
+        LocalDate endOfMonth = startOfMonth.withDayOfMonth(startOfMonth.lengthOfMonth());
+        return subscriptionRepository.countByUserAndPaymentDateBetween(user, startOfMonth, endOfMonth);
     }
 
     /**
@@ -185,33 +193,50 @@ public class SubscriptionService {
 
         LocalDate now = LocalDate.now();
         LocalDate lastMonth = now.minusMonths(1);
+        LocalDate currentMonthStart = now.withDayOfMonth(1);
+        LocalDate currentMonthEnd = currentMonthStart.withDayOfMonth(currentMonthStart.lengthOfMonth());
 
         log.debug("Copying subscriptions from {}/{} to {}/{} for user {}",
                 lastMonth.getYear(), lastMonth.getMonthValue(),
                 now.getYear(), now.getMonthValue(), userId);
 
         // Get subscriptions from last month
-        List<Subscription> lastMonthSubs = subscriptionRepository.findByUserAndPaymentMonth(
-                user, lastMonth.getYear(), lastMonth.getMonthValue());
+        LocalDate lastMonthStart = lastMonth.withDayOfMonth(1);
+        LocalDate lastMonthEnd = lastMonthStart.withDayOfMonth(lastMonthStart.lengthOfMonth());
+        List<Subscription> lastMonthSubs = subscriptionRepository.findByUserAndPaymentDateBetween(
+                user, lastMonthStart, lastMonthEnd);
 
         if (lastMonthSubs.isEmpty()) {
             return List.of();
         }
 
+        List<Subscription> currentMonthSubs = subscriptionRepository.findByUserAndPaymentDateBetween(
+                user, currentMonthStart, currentMonthEnd);
+        java.util.Set<String> existingKeys = currentMonthSubs.stream()
+                .map(sub -> buildCopyKey(sub.getName(), sub.getFrequency(), sub.getAmount(), sub.getDescription()))
+                .collect(Collectors.toSet());
+
         // Create new subscriptions for current month
-        LocalDate firstOfMonth = now.withDayOfMonth(1);
         List<Subscription> newSubscriptions = lastMonthSubs.stream()
+                .filter(sub -> sub.getFrequency() == SubscriptionFrequency.MONTHLY)
+                .filter(sub -> !existingKeys.contains(buildCopyKey(
+                        sub.getName(), sub.getFrequency(), sub.getAmount(), sub.getDescription())))
                 .map(source -> {
                     Subscription newSub = new Subscription();
                     newSub.setUser(user);
                     newSub.setName(source.getName());
                     newSub.setAmount(source.getAmount());
                     newSub.setFrequency(source.getFrequency());
-                    newSub.setPaymentDate(firstOfMonth);
+                    int day = Math.min(source.getPaymentDate().getDayOfMonth(), now.lengthOfMonth());
+                    newSub.setPaymentDate(LocalDate.of(now.getYear(), now.getMonth(), day));
                     newSub.setDescription(source.getDescription());
                     return newSub;
                 })
                 .collect(Collectors.toList());
+
+        if (newSubscriptions.isEmpty()) {
+            return List.of();
+        }
 
         List<Subscription> saved = subscriptionRepository.saveAll(newSubscriptions);
 
@@ -224,13 +249,30 @@ public class SubscriptionService {
     }
 
     /**
+     * Calculate monthly equivalent total for a specific month
+     */
+    public BigDecimal calculateMonthlyEquivalentTotalForMonth(final Long userId, final int year, final int month) {
+        validateIdNotNull(userId);
+        User user = getUserById(userId);
+        LocalDate startOfMonth = LocalDate.of(year, month, 1);
+        LocalDate endOfMonth = startOfMonth.withDayOfMonth(startOfMonth.lengthOfMonth());
+
+        return subscriptionRepository.findByUserAndPaymentDateBetween(user, startOfMonth, endOfMonth).stream()
+                .filter(sub -> sub.getAmount() != null && sub.getFrequency() != null)
+                .map(sub -> sub.getFrequency().toMonthlyEquivalent(sub.getAmount()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
      * Calculate total for current month
      */
     public BigDecimal calculateCurrentMonthTotal(final Long userId) {
         validateIdNotNull(userId);
         User user = getUserById(userId);
         LocalDate now = LocalDate.now();
-        return subscriptionRepository.calculateTotalForMonth(user, now.getYear(), now.getMonthValue());
+        LocalDate startOfMonth = now.withDayOfMonth(1);
+        LocalDate endOfMonth = startOfMonth.withDayOfMonth(startOfMonth.lengthOfMonth());
+        return subscriptionRepository.calculateTotalForPeriod(user, startOfMonth, endOfMonth);
     }
 
     /**
@@ -258,7 +300,9 @@ public class SubscriptionService {
         validateIdNotNull(userId);
         User user = getUserById(userId);
         LocalDate now = LocalDate.now();
-        return subscriptionRepository.countByUserAndMonth(user, now.getYear(), now.getMonthValue());
+        LocalDate startOfMonth = now.withDayOfMonth(1);
+        LocalDate endOfMonth = startOfMonth.withDayOfMonth(startOfMonth.lengthOfMonth());
+        return subscriptionRepository.countByUserAndPaymentDateBetween(user, startOfMonth, endOfMonth);
     }
 
     // Private helper methods
@@ -317,5 +361,23 @@ public class SubscriptionService {
         if (dto.getAmount() != null && dto.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Amount must be greater than zero");
         }
+    }
+
+    private String buildCopyKey(final String name, final SubscriptionFrequency frequency, final BigDecimal amount, final String description) {
+        return normalizeText(name) + "|"
+                + frequency + "|"
+                + normalizeAmount(amount) + "|"
+                + normalizeText(description);
+    }
+
+    private String normalizeText(final String value) {
+        return value == null ? "" : value.trim().toLowerCase();
+    }
+
+    private String normalizeAmount(final BigDecimal amount) {
+        if (amount == null) {
+            return "";
+        }
+        return amount.stripTrailingZeros().toPlainString();
     }
 }

@@ -96,4 +96,16 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             @Param("year") int year,
             @Param("month") int month
     );
+
+    /**
+     * Count subscriptions within a date range
+     */
+    @Query("SELECT COUNT(s) FROM Subscription s " +
+           "WHERE s.user = :user " +
+           "AND s.paymentDate BETWEEN :startDate AND :endDate")
+    long countByUserAndPaymentDateBetween(
+            @Param("user") User user,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
 }

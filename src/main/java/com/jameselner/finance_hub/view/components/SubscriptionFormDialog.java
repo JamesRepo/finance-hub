@@ -5,7 +5,7 @@ import com.jameselner.finance_hub.dto.SubscriptionDTO;
 import com.jameselner.finance_hub.service.SubscriptionService;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
@@ -40,7 +40,7 @@ public class SubscriptionFormDialog extends Dialog {
 
     private TextField nameField;
     private BigDecimalField amountField;
-    private ComboBox<SubscriptionFrequency> frequencyCombo;
+    private Select<SubscriptionFrequency> frequencyCombo;
     private DatePicker paymentDatePicker;
     private TextArea descriptionArea;
 
@@ -106,7 +106,8 @@ public class SubscriptionFormDialog extends Dialog {
         amountField.setHelperText("Cost per billing period");
         amountField.setPlaceholder("0.00");
 
-        frequencyCombo = new ComboBox<>("Billing Frequency");
+        frequencyCombo = new Select<>();
+        frequencyCombo.setLabel("Billing Frequency");
         frequencyCombo.setItems(SubscriptionFrequency.values());
         frequencyCombo.setItemLabelGenerator(SubscriptionFrequency::getDisplayName);
         frequencyCombo.setRequiredIndicatorVisible(true);
