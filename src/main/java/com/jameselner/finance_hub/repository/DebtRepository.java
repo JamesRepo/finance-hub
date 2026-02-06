@@ -17,4 +17,7 @@ public interface DebtRepository extends JpaRepository<Debt, Long> {
     BigDecimal getTotalDebtByUser(@Param("user") User user);
 
     List<Debt> findAllByDeletedFalse();
+
+    @Query("SELECT d FROM Debt d WHERE d.user = :user AND d.deleted = false")
+    List<Debt> findAllByUserAndDeletedFalse(@Param("user") User user);
 }

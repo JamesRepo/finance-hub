@@ -14,7 +14,8 @@ import java.util.List;
 @Repository
 public interface DebtPaymentRepository extends JpaRepository<DebtPayment, Long> {
 
-    List<DebtPayment> findByDebtDebtIdAndDeletedFalseOrderByPaymentDateDesc(Long debtId);
+    @Query("SELECT dp FROM DebtPayment dp WHERE dp.debt.debtId = :debtId AND dp.deleted = false ORDER BY dp.paymentDate DESC")
+    List<DebtPayment> findByDebtIdAndNotDeleted(@Param("debtId") Long debtId);
 
     @Query("SELECT COALESCE(SUM(dp.interestPaid), 0) FROM DebtPayment dp " +
             "WHERE dp.debt = :debt AND dp.paymentDate BETWEEN :startDate AND :endDate AND dp.deleted = false")

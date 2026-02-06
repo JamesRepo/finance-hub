@@ -92,7 +92,7 @@ public class DebtPaymentService {
         if (debtId == null) {
             throw new IllegalArgumentException("Debt ID must not be null");
         }
-        return debtPaymentRepository.findByDebtDebtIdAndDeletedFalseOrderByPaymentDateDesc(debtId).stream()
+        return debtPaymentRepository.findByDebtIdAndNotDeleted(debtId).stream()
                 .map(debtPaymentMapper::toDto)
                 .collect(Collectors.toList());
     }
@@ -166,6 +166,10 @@ public class DebtPaymentService {
         DebtPayment payment = debtPaymentRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Debt payment with ID " + id + " does not exist"));
+
+        if (Boolean.TRUE.equals(payment.getDeleted())) {
+            throw new IllegalArgumentException("Payment with ID " + id + " is already deleted");
+        }
 
         BigDecimal principalToReverse = payment.getPrincipalPaid().negate();
         updateDebtBalance(payment.getDebt(), principalToReverse);

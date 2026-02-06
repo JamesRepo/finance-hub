@@ -1,11 +1,14 @@
 package com.jameselner.finance_hub.service;
 
 import com.jameselner.finance_hub.domain.Debt;
+import com.jameselner.finance_hub.dto.DebtDTO;
 import com.jameselner.finance_hub.dto.DebtPayoffPlan;
 import com.jameselner.finance_hub.dto.DebtPayoffProjection;
+import com.jameselner.finance_hub.repository.DebtRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -13,14 +16,17 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class DebtPayoffCalculatorService {
 
     private final DebtService debtService;
+    private final DebtRepository debtRepository;
 
     public DebtPayoffProjection calculatePayoffProjection(
             final Debt debt,
@@ -261,6 +267,56 @@ public class DebtPayoffCalculatorService {
                 .totalAmountPaid(totalPaid)
                 .debtProjections(projections)
                 .build();
+    }
+
+    public List<DebtPayoffPlan> calculatePayoffPlans(
+            final List<Long> debtIds,
+            final BigDecimal totalMonthlyPayment
+    ) {
+        if (debtIds == null || debtIds.isEmpty()) {
+            throw new IllegalArgumentException("Debt IDs list must not be null or empty");
+        }
+        if (totalMonthlyPayment == null || totalMonthlyPayment.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Total monthly payment must be greater than zero");
+        }
+
+        List<Debt> debtEntities = debtIds.stream()
+                .map(id -> debtRepository.findById(id).orElse(null))
+                .filter(Objects::nonNull)
+                .filter(debt -> !Boolean.TRUE.equals(debt.getDeleted()))
+                .collect(Collectors.toList());
+
+        if (debtEntities.isEmpty()) {
+            throw new IllegalArgumentException("No valid debts found for the given IDs");
+        }
+
+        // Work with detached copies to avoid mutating managed entities
+        List<Debt> workingCopies = debtEntities.stream()
+                .map(this::createWorkingCopy)
+                .collect(Collectors.toList());
+
+        DebtPayoffPlan avalanchePlan = calculateAvalancheMethod(workingCopies, totalMonthlyPayment);
+
+        // Re-create working copies for snowball (avalanche may have mutated balances in simulation)
+        workingCopies = debtEntities.stream()
+                .map(this::createWorkingCopy)
+                .collect(Collectors.toList());
+
+        DebtPayoffPlan snowballPlan = calculateSnowballMethod(workingCopies, totalMonthlyPayment);
+
+        return List.of(avalanchePlan, snowballPlan);
+    }
+
+    private Debt createWorkingCopy(final Debt source) {
+        Debt copy = new Debt();
+        copy.setDebtId(source.getDebtId());
+        copy.setDebtName(source.getDebtName());
+        copy.setDebtType(source.getDebtType());
+        copy.setCurrentBalance(source.getCurrentBalance());
+        copy.setInterestRate(source.getInterestRate());
+        copy.setMinimumPayment(source.getMinimumPayment() != null ? source.getMinimumPayment() : BigDecimal.ZERO);
+        copy.setPrincipalAmount(source.getPrincipalAmount());
+        return copy;
     }
 
     public int calculateMonthsToPayoff(

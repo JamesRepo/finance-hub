@@ -69,8 +69,18 @@ public class DebtService {
                 .map(debtMapper::toDto);
     }
 
+    @Deprecated(forRemoval = true)
     public List<DebtDTO> findAllAsDto() {
         return debtRepository.findAllByDeletedFalse().stream()
+                .map(debtMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    public List<DebtDTO> findAllByUserAsDto(final User user) {
+        if (user == null) {
+            throw new IllegalArgumentException("User must not be null");
+        }
+        return debtRepository.findAllByUserAndDeletedFalse(user).stream()
                 .map(debtMapper::toDto)
                 .collect(Collectors.toList());
     }
@@ -165,26 +175,6 @@ public class DebtService {
         BigDecimal dailyInterest = calculateDailyInterest(currentBalance, annualRate);
 
         return dailyInterest.multiply(BigDecimal.valueOf(daysBetween)).setScale(2, RoundingMode.HALF_UP);
-    }
-
-    @Transactional
-    public void applyInterestAccrual(final Long debtId, final LocalDate accrualDate) {
-        validateIdNotNull(debtId);
-        if (accrualDate == null) {
-            throw new IllegalArgumentException("Accrual date must not be null");
-        }
-
-        Debt debt = debtRepository.findById(debtId)
-                .orElseThrow(() -> new IllegalArgumentException("Debt with ID " + debtId + " does not exist"));
-
-        BigDecimal monthlyInterest = calculateMonthlyInterest(debt.getCurrentBalance(), debt.getInterestRate());
-        BigDecimal newBalance = debt.getCurrentBalance().add(monthlyInterest);
-
-        debt.setCurrentBalance(newBalance);
-        debtRepository.save(debt);
-
-        log.debug("Applied interest of {} to debt {}. New balance: {}",
-                monthlyInterest, debtId, newBalance);
     }
 
     private void validateIdNotNull(final Long id) {

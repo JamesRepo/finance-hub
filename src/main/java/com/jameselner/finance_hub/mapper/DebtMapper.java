@@ -52,7 +52,8 @@ public class DebtMapper {
             throw new IllegalArgumentException("Debt and DTO must not be null");
         }
 
-        if (dto.getUserId() != null) {
+        // Only look up user when creating a new entity (no existing user set)
+        if (debt.getUser() == null && dto.getUserId() != null) {
             User user = userRepository.findById(dto.getUserId())
                     .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + dto.getUserId()));
             debt.setUser(user);
