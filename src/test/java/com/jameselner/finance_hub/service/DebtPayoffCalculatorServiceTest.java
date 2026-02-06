@@ -5,6 +5,7 @@ import com.jameselner.finance_hub.domain.User;
 import com.jameselner.finance_hub.domain.enums.DebtType;
 import com.jameselner.finance_hub.dto.DebtPayoffPlan;
 import com.jameselner.finance_hub.dto.DebtPayoffProjection;
+import com.jameselner.finance_hub.repository.DebtRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -19,6 +20,7 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,6 +33,9 @@ class DebtPayoffCalculatorServiceTest {
 
     @Mock
     private DebtService debtService;
+
+    @Mock
+    private DebtRepository debtRepository;
 
     @InjectMocks
     private DebtPayoffCalculatorService calculatorService;
@@ -425,6 +430,147 @@ class DebtPayoffCalculatorServiceTest {
                     )
             );
             assertEquals("Monthly payment must be greater than zero", exception.getMessage());
+        }
+    }
+
+    @Nested
+    @DisplayName("calculatePayoffPlans Tests")
+    class CalculatePayoffPlansTests {
+
+        @Test
+        @DisplayName("Should return avalanche and snowball plans")
+        void shouldReturnBothPlans() {
+            when(debtRepository.findById(1L)).thenReturn(Optional.of(creditCardDebt));
+            when(debtRepository.findById(2L)).thenReturn(Optional.of(studentLoanDebt));
+            when(debtService.calculateMonthlyInterest(any(BigDecimal.class), any(BigDecimal.class)))
+                    .thenAnswer(invocation -> {
+                        BigDecimal balance = invocation.getArgument(0);
+                        BigDecimal rate = invocation.getArgument(1);
+                        return balance.multiply(rate.divide(BigDecimal.valueOf(100), 10, java.math.RoundingMode.HALF_UP))
+                                .divide(BigDecimal.valueOf(12), 10, java.math.RoundingMode.HALF_UP)
+                                .setScale(2, java.math.RoundingMode.HALF_UP);
+                    });
+
+            List<DebtPayoffPlan> plans = calculatorService.calculatePayoffPlans(
+                    Arrays.asList(1L, 2L), new BigDecimal("1000.00"));
+
+            assertEquals(2, plans.size());
+            assertEquals("Avalanche (Highest Interest First)", plans.get(0).getStrategyName());
+            assertEquals("Snowball (Lowest Balance First)", plans.get(1).getStrategyName());
+        }
+
+        @Test
+        @DisplayName("Should not mutate original entity balances")
+        void shouldNotMutateOriginalEntityBalances() {
+            BigDecimal originalCcBalance = creditCardDebt.getCurrentBalance();
+            BigDecimal originalSlBalance = studentLoanDebt.getCurrentBalance();
+
+            when(debtRepository.findById(1L)).thenReturn(Optional.of(creditCardDebt));
+            when(debtRepository.findById(2L)).thenReturn(Optional.of(studentLoanDebt));
+            when(debtService.calculateMonthlyInterest(any(BigDecimal.class), any(BigDecimal.class)))
+                    .thenReturn(new BigDecimal("50.00"));
+
+            calculatorService.calculatePayoffPlans(
+                    Arrays.asList(1L, 2L), new BigDecimal("1000.00"));
+
+            assertEquals(originalCcBalance, creditCardDebt.getCurrentBalance(),
+                    "Credit card balance should not be mutated");
+            assertEquals(originalSlBalance, studentLoanDebt.getCurrentBalance(),
+                    "Student loan balance should not be mutated");
+        }
+
+        @Test
+        @DisplayName("Should filter out deleted debts")
+        void shouldFilterOutDeletedDebts() {
+            creditCardDebt.setDeleted(true);
+
+            when(debtRepository.findById(1L)).thenReturn(Optional.of(creditCardDebt));
+            when(debtRepository.findById(2L)).thenReturn(Optional.of(studentLoanDebt));
+            when(debtService.calculateMonthlyInterest(any(BigDecimal.class), any(BigDecimal.class)))
+                    .thenReturn(new BigDecimal("50.00"));
+
+            List<DebtPayoffPlan> plans = calculatorService.calculatePayoffPlans(
+                    Arrays.asList(1L, 2L), new BigDecimal("1000.00"));
+
+            assertEquals(2, plans.size());
+            assertEquals(1, plans.get(0).getDebtProjections().size());
+            assertEquals("Student Loan", plans.get(0).getDebtProjections().get(0).getDebtName());
+        }
+
+        @Test
+        @DisplayName("Should skip non-existent debt IDs")
+        void shouldSkipNonExistentDebtIds() {
+            when(debtRepository.findById(1L)).thenReturn(Optional.of(creditCardDebt));
+            when(debtRepository.findById(999L)).thenReturn(Optional.empty());
+            when(debtService.calculateMonthlyInterest(any(BigDecimal.class), any(BigDecimal.class)))
+                    .thenReturn(new BigDecimal("50.00"));
+
+            List<DebtPayoffPlan> plans = calculatorService.calculatePayoffPlans(
+                    Arrays.asList(1L, 999L), new BigDecimal("1000.00"));
+
+            assertEquals(2, plans.size());
+            assertEquals(1, plans.get(0).getDebtProjections().size());
+        }
+
+        @Test
+        @DisplayName("Should throw exception when all debt IDs are invalid")
+        void shouldThrowExceptionWhenAllDebtIdsInvalid() {
+            when(debtRepository.findById(998L)).thenReturn(Optional.empty());
+            when(debtRepository.findById(999L)).thenReturn(Optional.empty());
+
+            IllegalArgumentException exception = assertThrows(
+                    IllegalArgumentException.class,
+                    () -> calculatorService.calculatePayoffPlans(
+                            Arrays.asList(998L, 999L), new BigDecimal("1000.00"))
+            );
+            assertEquals("No valid debts found for the given IDs", exception.getMessage());
+        }
+
+        @Test
+        @DisplayName("Should throw exception when debt IDs list is null")
+        void shouldThrowExceptionWhenDebtIdsNull() {
+            IllegalArgumentException exception = assertThrows(
+                    IllegalArgumentException.class,
+                    () -> calculatorService.calculatePayoffPlans(null, new BigDecimal("1000.00"))
+            );
+            assertEquals("Debt IDs list must not be null or empty", exception.getMessage());
+        }
+
+        @Test
+        @DisplayName("Should throw exception when debt IDs list is empty")
+        void shouldThrowExceptionWhenDebtIdsEmpty() {
+            IllegalArgumentException exception = assertThrows(
+                    IllegalArgumentException.class,
+                    () -> calculatorService.calculatePayoffPlans(
+                            Collections.emptyList(), new BigDecimal("1000.00"))
+            );
+            assertEquals("Debt IDs list must not be null or empty", exception.getMessage());
+        }
+
+        @Test
+        @DisplayName("Should throw exception when monthly payment is null")
+        void shouldThrowExceptionWhenPaymentNull() {
+            IllegalArgumentException exception = assertThrows(
+                    IllegalArgumentException.class,
+                    () -> calculatorService.calculatePayoffPlans(Arrays.asList(1L, 2L), null)
+            );
+            assertEquals("Total monthly payment must be greater than zero", exception.getMessage());
+        }
+
+        @Test
+        @DisplayName("Should default null minimum payment to zero in working copy")
+        void shouldDefaultNullMinimumPaymentToZero() {
+            creditCardDebt.setMinimumPayment(null);
+
+            when(debtRepository.findById(1L)).thenReturn(Optional.of(creditCardDebt));
+            when(debtService.calculateMonthlyInterest(any(BigDecimal.class), any(BigDecimal.class)))
+                    .thenReturn(new BigDecimal("50.00"));
+
+            List<DebtPayoffPlan> plans = calculatorService.calculatePayoffPlans(
+                    List.of(1L), new BigDecimal("500.00"));
+
+            assertNotNull(plans);
+            assertEquals(2, plans.size());
         }
     }
 }

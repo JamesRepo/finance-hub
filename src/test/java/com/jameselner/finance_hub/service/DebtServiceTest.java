@@ -366,6 +366,56 @@ class DebtServiceTest {
     }
 
     @Nested
+    @DisplayName("findAllByUserAsDto Tests")
+    class FindAllByUserAsDtoTests {
+
+        @Test
+        @DisplayName("Should return debts for the given user")
+        void shouldReturnDebtsForUser() {
+            Debt debt2 = new Debt();
+            debt2.setDebtId(2L);
+            debt2.setUser(testUser);
+            List<Debt> debts = Arrays.asList(validDebt, debt2);
+
+            DebtDTO dto2 = DebtDTO.builder()
+                    .debtId(2L)
+                    .debtName("Student Loan")
+                    .build();
+
+            when(debtRepository.findAllByUserAndDeletedFalse(testUser)).thenReturn(debts);
+            when(debtMapper.toDto(validDebt)).thenReturn(validDto);
+            when(debtMapper.toDto(debt2)).thenReturn(dto2);
+
+            List<DebtDTO> result = debtService.findAllByUserAsDto(testUser);
+
+            assertEquals(2, result.size());
+            verify(debtRepository).findAllByUserAndDeletedFalse(testUser);
+            verify(debtMapper, times(2)).toDto(any(Debt.class));
+        }
+
+        @Test
+        @DisplayName("Should return empty list when user has no debts")
+        void shouldReturnEmptyListWhenUserHasNoDebts() {
+            when(debtRepository.findAllByUserAndDeletedFalse(testUser)).thenReturn(Collections.emptyList());
+
+            List<DebtDTO> result = debtService.findAllByUserAsDto(testUser);
+
+            assertTrue(result.isEmpty());
+            verify(debtRepository).findAllByUserAndDeletedFalse(testUser);
+        }
+
+        @Test
+        @DisplayName("Should throw exception when user is null")
+        void shouldThrowExceptionWhenUserIsNull() {
+            IllegalArgumentException exception = assertThrows(
+                    IllegalArgumentException.class,
+                    () -> debtService.findAllByUserAsDto(null)
+            );
+            assertEquals("User must not be null", exception.getMessage());
+        }
+    }
+
+    @Nested
     @DisplayName("deleteById Tests")
     class DeleteByIdTests {
 
@@ -489,59 +539,6 @@ class DebtServiceTest {
                     () -> debtService.calculateMonthlyInterest(null, new BigDecimal("18.99"))
             );
             assertEquals("Balance and rate must not be null", exception.getMessage());
-        }
-    }
-
-    @Nested
-    @DisplayName("applyInterestAccrual Tests")
-    class ApplyInterestAccrualTests {
-
-        @Test
-        @DisplayName("Should apply interest accrual to debt")
-        void shouldApplyInterestAccrual() {
-            when(debtRepository.findById(1L)).thenReturn(Optional.of(validDebt));
-            when(debtRepository.save(validDebt)).thenReturn(validDebt);
-
-            BigDecimal originalBalance = validDebt.getCurrentBalance();
-            LocalDate accrualDate = LocalDate.now();
-
-            debtService.applyInterestAccrual(1L, accrualDate);
-
-            verify(debtRepository).findById(1L);
-            verify(debtRepository).save(validDebt);
-            assertTrue(validDebt.getCurrentBalance().compareTo(originalBalance) > 0);
-        }
-
-        @Test
-        @DisplayName("Should throw exception when debt ID is null")
-        void shouldThrowExceptionWhenDebtIdIsNull() {
-            IllegalArgumentException exception = assertThrows(
-                    IllegalArgumentException.class,
-                    () -> debtService.applyInterestAccrual(null, LocalDate.now())
-            );
-            assertEquals("Debt ID must not be null", exception.getMessage());
-        }
-
-        @Test
-        @DisplayName("Should throw exception when accrual date is null")
-        void shouldThrowExceptionWhenAccrualDateIsNull() {
-            IllegalArgumentException exception = assertThrows(
-                    IllegalArgumentException.class,
-                    () -> debtService.applyInterestAccrual(1L, null)
-            );
-            assertEquals("Accrual date must not be null", exception.getMessage());
-        }
-
-        @Test
-        @DisplayName("Should throw exception when debt does not exist")
-        void shouldThrowExceptionWhenDebtNotFound() {
-            when(debtRepository.findById(999L)).thenReturn(Optional.empty());
-
-            IllegalArgumentException exception = assertThrows(
-                    IllegalArgumentException.class,
-                    () -> debtService.applyInterestAccrual(999L, LocalDate.now())
-            );
-            assertEquals("Debt with ID 999 does not exist", exception.getMessage());
         }
     }
 

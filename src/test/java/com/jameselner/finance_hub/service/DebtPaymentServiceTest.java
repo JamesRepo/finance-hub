@@ -361,7 +361,7 @@ class DebtPaymentServiceTest {
 
             DebtPaymentDTO dto2 = DebtPaymentDTO.builder().paymentId(2L).build();
 
-            when(debtPaymentRepository.findByDebtDebtIdAndDeletedFalseOrderByPaymentDateDesc(1L))
+            when(debtPaymentRepository.findByDebtIdAndNotDeleted(1L))
                     .thenReturn(Arrays.asList(testPayment, payment2));
             when(debtPaymentMapper.toDto(testPayment)).thenReturn(testPaymentDto);
             when(debtPaymentMapper.toDto(payment2)).thenReturn(dto2);
@@ -369,7 +369,7 @@ class DebtPaymentServiceTest {
             List<DebtPaymentDTO> result = debtPaymentService.findByDebtId(1L);
 
             assertEquals(2, result.size());
-            verify(debtPaymentRepository).findByDebtDebtIdAndDeletedFalseOrderByPaymentDateDesc(1L);
+            verify(debtPaymentRepository).findByDebtIdAndNotDeleted(1L);
         }
 
         @Test
@@ -424,6 +424,25 @@ class DebtPaymentServiceTest {
                     () -> debtPaymentService.deleteById(999L)
             );
             assertEquals("Debt payment with ID 999 does not exist", exception.getMessage());
+        }
+
+        @Test
+        @DisplayName("Should throw exception when payment is already deleted")
+        void shouldThrowExceptionWhenPaymentAlreadyDeleted() {
+            testPayment.setDeleted(true);
+            BigDecimal originalBalance = testDebt.getCurrentBalance();
+
+            when(debtPaymentRepository.findById(1L)).thenReturn(Optional.of(testPayment));
+
+            IllegalArgumentException exception = assertThrows(
+                    IllegalArgumentException.class,
+                    () -> debtPaymentService.deleteById(1L)
+            );
+            assertEquals("Payment with ID 1 is already deleted", exception.getMessage());
+            assertEquals(originalBalance, testDebt.getCurrentBalance(),
+                    "Balance should not change when deleting an already-deleted payment");
+            verify(debtPaymentRepository, never()).save(any());
+            verify(debtRepository, never()).save(any());
         }
     }
 }
