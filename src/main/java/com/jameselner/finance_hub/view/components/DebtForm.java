@@ -3,7 +3,7 @@ package com.jameselner.finance_hub.view.components;
 import com.jameselner.finance_hub.domain.User;
 import com.jameselner.finance_hub.domain.enums.DebtType;
 import com.jameselner.finance_hub.dto.DebtDTO;
-import com.jameselner.finance_hub.repository.UserRepository;
+import com.jameselner.finance_hub.service.CurrentUserService;
 import com.jameselner.finance_hub.service.DebtService;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
@@ -22,9 +22,7 @@ import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.validator.BigDecimalRangeValidator;
-import com.vaadin.flow.spring.security.AuthenticationContext;
 import lombok.Setter;
-import org.springframework.security.core.userdetails.UserDetails;
 
 import java.math.BigDecimal;
 import java.util.Objects;
@@ -33,8 +31,7 @@ import java.util.function.Consumer;
 public class DebtForm extends VerticalLayout {
 
     private final DebtService debtService;
-    private final AuthenticationContext authenticationContext;
-    private final UserRepository userRepository;
+    private final CurrentUserService currentUserService;
 
     private final Binder<DebtDTO> binder = new BeanValidationBinder<>(DebtDTO.class);
     private DebtDTO currentDebt;
@@ -59,12 +56,10 @@ public class DebtForm extends VerticalLayout {
 
     public DebtForm(
             final DebtService debtService,
-            final AuthenticationContext authenticationContext,
-            final UserRepository userRepository
+            final CurrentUserService currentUserService
     ) {
         this.debtService = debtService;
-        this.authenticationContext = authenticationContext;
-        this.userRepository = userRepository;
+        this.currentUserService = currentUserService;
 
         addClassName("debt-form");
         setSpacing(true);
@@ -86,6 +81,7 @@ public class DebtForm extends VerticalLayout {
 
         debtTypeField = new ComboBox<>("Debt Type");
         debtTypeField.setItems(DebtType.values());
+        debtTypeField.setItemLabelGenerator(DebtType::getDisplayName);
         debtTypeField.setRequiredIndicatorVisible(true);
         debtTypeField.setHelperText("Select the type of debt");
         debtTypeField.setValue(DebtType.CREDIT_CARD);
@@ -191,6 +187,8 @@ public class DebtForm extends VerticalLayout {
                 .bind(DebtDTO::getInterestRate, DebtDTO::setInterestRate);
 
         binder.forField(minimumPaymentField)
+                .withValidator(value -> value == null || value.compareTo(BigDecimal.ZERO) >= 0,
+                        "Minimum payment must not be negative")
                 .bind(DebtDTO::getMinimumPayment, DebtDTO::setMinimumPayment);
 
         binder.forField(startDateField)
@@ -250,9 +248,7 @@ public class DebtForm extends VerticalLayout {
     }
 
     private User getCurrentUser() {
-        return authenticationContext.getAuthenticatedUser(UserDetails.class)
-                .flatMap(userDetails -> userRepository.findByEmail(userDetails.getUsername()))
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        return currentUserService.getCurrentUser();
     }
 
     private void showSuccessNotification(final String message) {

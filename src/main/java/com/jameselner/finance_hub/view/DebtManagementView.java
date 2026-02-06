@@ -1,12 +1,10 @@
 package com.jameselner.finance_hub.view;
 
-import com.jameselner.finance_hub.domain.Debt;
 import com.jameselner.finance_hub.domain.User;
 import com.jameselner.finance_hub.dto.DebtDTO;
 import com.jameselner.finance_hub.dto.DebtPayoffPlan;
 import com.jameselner.finance_hub.dto.DebtPayoffProjection;
-import com.jameselner.finance_hub.repository.DebtRepository;
-import com.jameselner.finance_hub.repository.UserRepository;
+import com.jameselner.finance_hub.service.CurrentUserService;
 import com.jameselner.finance_hub.service.DebtPaymentService;
 import com.jameselner.finance_hub.service.DebtPayoffCalculatorService;
 import com.jameselner.finance_hub.service.DebtService;
@@ -34,9 +32,7 @@ import com.vaadin.flow.component.textfield.BigDecimalField;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.spring.security.AuthenticationContext;
 import jakarta.annotation.security.PermitAll;
-import org.springframework.security.core.userdetails.UserDetails;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -52,9 +48,7 @@ public class DebtManagementView extends VerticalLayout {
     private final DebtService debtService;
     private final DebtPaymentService debtPaymentService;
     private final DebtPayoffCalculatorService payoffCalculatorService;
-    private final DebtRepository debtRepository;
-    private final AuthenticationContext authenticationContext;
-    private final UserRepository userRepository;
+    private final CurrentUserService currentUserService;
 
     private Grid<DebtDTO> debtGrid;
     private DebtForm debtForm;
@@ -68,16 +62,12 @@ public class DebtManagementView extends VerticalLayout {
             final DebtService debtService,
             final DebtPaymentService debtPaymentService,
             final DebtPayoffCalculatorService payoffCalculatorService,
-            final DebtRepository debtRepository,
-            final AuthenticationContext authenticationContext,
-            final UserRepository userRepository
+            final CurrentUserService currentUserService
     ) {
         this.debtService = debtService;
         this.debtPaymentService = debtPaymentService;
         this.payoffCalculatorService = payoffCalculatorService;
-        this.debtRepository = debtRepository;
-        this.authenticationContext = authenticationContext;
-        this.userRepository = userRepository;
+        this.currentUserService = currentUserService;
 
         setSizeFull();
         setPadding(true);
@@ -131,7 +121,7 @@ public class DebtManagementView extends VerticalLayout {
                 .setAutoWidth(true)
                 .setFlexGrow(1);
 
-        debtGrid.addColumn(DebtDTO::getDebtType)
+        debtGrid.addColumn(dto -> dto.getDebtType().getDisplayName())
                 .setHeader("Type")
                 .setAutoWidth(true);
 
@@ -345,7 +335,7 @@ public class DebtManagementView extends VerticalLayout {
         formDialog.setWidth("min(800px, 95vw)");
         formDialog.setMaxHeight("90vh");
 
-        debtForm = new DebtForm(debtService, authenticationContext, userRepository);
+        debtForm = new DebtForm(debtService, currentUserService);
 
         debtForm.setSaveListener(debt -> {
             formDialog.close();
@@ -467,31 +457,18 @@ public class DebtManagementView extends VerticalLayout {
                     return;
                 }
 
-                List<Debt> debtEntities = debts.stream()
-                        .map(dto -> debtRepository.findById(dto.getDebtId()).orElse(null))
-                        .filter(Objects::nonNull)
+                List<Long> debtIds = debts.stream()
+                        .map(DebtDTO::getDebtId)
                         .collect(Collectors.toList());
 
-                // Ensure all debts have a minimum payment for calculation (use 0 if null)
-                for (Debt debt : debtEntities) {
-                    if (debt.getMinimumPayment() == null) {
-                        debt.setMinimumPayment(BigDecimal.ZERO);
-                    }
-                }
-
-                DebtPayoffPlan avalanchePlan = payoffCalculatorService.calculateAvalancheMethod(
-                        debtEntities, monthlyPayment
-                );
-
-                DebtPayoffPlan snowballPlan = payoffCalculatorService.calculateSnowballMethod(
-                        debtEntities, monthlyPayment
+                List<DebtPayoffPlan> plans = payoffCalculatorService.calculatePayoffPlans(
+                        debtIds, monthlyPayment
                 );
 
                 resultsLayout.removeAll();
-                resultsLayout.add(
-                        createPayoffPlanCard(avalanchePlan),
-                        createPayoffPlanCard(snowballPlan)
-                );
+                for (DebtPayoffPlan plan : plans) {
+                    resultsLayout.add(createPayoffPlanCard(plan));
+                }
 
             } catch (Exception e) {
                 showErrorNotification("Error calculating payoff: " + e.getMessage());
@@ -596,16 +573,13 @@ public class DebtManagementView extends VerticalLayout {
     private List<DebtDTO> getAllDebts() {
         User currentUser = getCurrentUser();
         boolean showInactive = showInactiveCheckbox != null && Boolean.TRUE.equals(showInactiveCheckbox.getValue());
-        return debtService.findAllAsDto().stream()
-                .filter(debt -> debt.getUserId().equals(currentUser.getUserId()))
+        return debtService.findAllByUserAsDto(currentUser).stream()
                 .filter(debt -> showInactive || Boolean.TRUE.equals(debt.getActive()))
                 .collect(Collectors.toList());
     }
 
     private User getCurrentUser() {
-        return authenticationContext.getAuthenticatedUser(UserDetails.class)
-                .flatMap(userDetails -> userRepository.findByEmail(userDetails.getUsername()))
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        return currentUserService.getCurrentUser();
     }
 
     private void showSuccessNotification(final String message) {

@@ -110,7 +110,7 @@ public class DebtPaymentDialog extends Dialog {
                     .set("margin", "0 0 0.5rem 0")
                     .set("font-size", "1.125rem");
 
-            Span debtType = new Span(currentDebt.getDebtType().toString());
+            Span debtType = new Span(currentDebt.getDebtType().getDisplayName());
             debtType.getStyle()
                     .set("font-size", "0.875rem")
                     .set("color", "var(--finance-text-secondary)")
