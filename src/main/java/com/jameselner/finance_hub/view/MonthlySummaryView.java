@@ -1,6 +1,5 @@
 package com.jameselner.finance_hub.view;
 
-import com.jameselner.finance_hub.domain.User;
 import com.jameselner.finance_hub.dto.CategorySpendingDTO;
 import com.jameselner.finance_hub.dto.MonthComparisonDTO;
 import com.jameselner.finance_hub.dto.MonthlySummaryDTO;
@@ -9,10 +8,11 @@ import com.jameselner.finance_hub.service.MonthlySummaryService;
 import com.jameselner.finance_hub.util.CurrencyFormatter;
 import com.jameselner.finance_hub.util.FinancialThresholds;
 import com.jameselner.finance_hub.view.components.MetricCardFactory;
-import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -39,7 +39,6 @@ public class MonthlySummaryView extends VerticalLayout {
     private final MetricCardFactory metricCardFactory;
 
     private YearMonth selectedMonth;
-    private Long currentUserId;
 
     private final VerticalLayout summaryCardsLayout;
     private final VerticalLayout budgetPerformanceSection;
@@ -58,10 +57,6 @@ public class MonthlySummaryView extends VerticalLayout {
         this.currencyFormatter = currencyFormatter;
         this.metricCardFactory = metricCardFactory;
         this.selectedMonth = YearMonth.now();
-
-        // Cache user ID for currency formatting
-        User currentUser = currentUserService.getCurrentUser();
-        this.currentUserId = currentUser.getUserId();
 
         setSizeFull();
         setPadding(true);
@@ -103,7 +98,8 @@ public class MonthlySummaryView extends VerticalLayout {
     }
 
     private HorizontalLayout createMonthSelector() {
-        ComboBox<YearMonth> monthSelector = new ComboBox<>("Select Month");
+        Select<YearMonth> monthSelector = new Select<>();
+        monthSelector.setLabel("Select Month");
         monthSelector.setItems(generateMonthOptions());
         monthSelector.setValue(selectedMonth);
         monthSelector.setItemLabelGenerator(month ->
@@ -114,7 +110,6 @@ public class MonthlySummaryView extends VerticalLayout {
         });
 
         HorizontalLayout toolbar = new HorizontalLayout(monthSelector);
-        toolbar.setWidthFull();
         toolbar.setSpacing(true);
         toolbar.setAlignItems(FlexComponent.Alignment.END);
 
@@ -122,34 +117,41 @@ public class MonthlySummaryView extends VerticalLayout {
     }
 
     private List<YearMonth> generateMonthOptions() {
-        List<YearMonth> months = new ArrayList<>();
+        Long userId = currentUserService.getCurrentUserId();
+        YearMonth earliest = monthlySummaryService.getEarliestAvailableMonth(userId);
         YearMonth current = YearMonth.now();
-        for (int i = 0; i < 24; i++) {
-            months.add(current.minusMonths(i));
+
+        List<YearMonth> months = new ArrayList<>();
+        YearMonth month = current;
+        while (!month.isBefore(earliest)) {
+            months.add(month);
+            month = month.minusMonths(1);
         }
         return months;
     }
 
     private void refreshData() {
-        // Show loading state
-        setEnabled(false);
+        Long userId = currentUserService.getCurrentUserId();
 
-        try {
-            MonthlySummaryDTO summary = monthlySummaryService.generateMonthlySummary(
-                    currentUserId, selectedMonth);
+        MonthlySummaryDTO summary = monthlySummaryService.generateMonthlySummary(
+                userId, selectedMonth);
 
-            updateSummaryCards(summary);
-            updateBudgetPerformance(summary);
-            updateTopCategories(summary);
-            updateMonthComparison(summary);
-            updateStatistics(summary);
-        } finally {
-            // Hide loading state
-            setEnabled(true);
-        }
+        updateSummaryCards(summary, userId);
+        updateBudgetPerformance(summary, userId);
+        updateTopCategories(summary, userId);
+        updateMonthComparison(summary, userId);
+        updateStatistics(summary, userId);
     }
 
-    private void updateSummaryCards(final MonthlySummaryDTO summary) {
+    private void applyCardSectionStyle(final VerticalLayout section) {
+        section.setPadding(true);
+        section.setSpacing(true);
+        section.getStyle()
+                .set("background-color", "var(--lumo-contrast-5pct)")
+                .set("border-radius", "var(--lumo-border-radius-m)");
+    }
+
+    private void updateSummaryCards(final MonthlySummaryDTO summary, final Long userId) {
         summaryCardsLayout.removeAll();
 
         H3 sectionTitle = new H3("Financial Overview");
@@ -162,7 +164,7 @@ public class MonthlySummaryView extends VerticalLayout {
 
         Div incomeCard = metricCardFactory.createMetricCard(
                 "Total Income",
-                currencyFormatter.format(summary.getTotalIncome(), currentUserId),
+                currencyFormatter.format(summary.getTotalIncome(), userId),
                 "var(--lumo-success-color)",
                 VaadinIcon.ARROW_DOWN,
                 false
@@ -170,7 +172,7 @@ public class MonthlySummaryView extends VerticalLayout {
 
         Div expensesCard = metricCardFactory.createMetricCard(
                 "Total Expenses",
-                currencyFormatter.format(summary.getTotalExpenses(), currentUserId),
+                currencyFormatter.format(summary.getTotalExpenses(), userId),
                 "var(--lumo-error-color)",
                 VaadinIcon.ARROW_UP,
                 false
@@ -178,7 +180,7 @@ public class MonthlySummaryView extends VerticalLayout {
 
         Div savingsCard = metricCardFactory.createMetricCard(
                 "Net Savings",
-                currencyFormatter.format(summary.getNetSavings(), currentUserId),
+                currencyFormatter.format(summary.getNetSavings(), userId),
                 summary.getNetSavings().compareTo(BigDecimal.ZERO) >= 0 ?
                         "var(--lumo-success-color)" : "var(--lumo-error-color)",
                 VaadinIcon.PIGGY_BANK,
@@ -198,13 +200,9 @@ public class MonthlySummaryView extends VerticalLayout {
         summaryCardsLayout.add(sectionTitle, cardsLayout);
     }
 
-    private void updateBudgetPerformance(final MonthlySummaryDTO summary) {
+    private void updateBudgetPerformance(final MonthlySummaryDTO summary, final Long userId) {
         budgetPerformanceSection.removeAll();
-        budgetPerformanceSection.setPadding(true);
-        budgetPerformanceSection.setSpacing(true);
-        budgetPerformanceSection.getStyle()
-                .set("background-color", "var(--lumo-contrast-5pct)")
-                .set("border-radius", "var(--lumo-border-radius-m)");
+        applyCardSectionStyle(budgetPerformanceSection);
 
         H3 sectionTitle = new H3("Budget Performance");
         sectionTitle.getStyle().set("margin", "0 0 1rem 0");
@@ -216,7 +214,7 @@ public class MonthlySummaryView extends VerticalLayout {
 
         Div budgetedCard = metricCardFactory.createMetricCard(
                 "Total Budgeted",
-                currencyFormatter.format(summary.getTotalBudgeted(), currentUserId),
+                currencyFormatter.format(summary.getTotalBudgeted(), userId),
                 "var(--lumo-primary-color)",
                 VaadinIcon.PIGGY_BANK,
                 true
@@ -224,7 +222,7 @@ public class MonthlySummaryView extends VerticalLayout {
 
         Div spentCard = metricCardFactory.createMetricCard(
                 "Total Spent",
-                currencyFormatter.format(summary.getTotalSpent(), currentUserId),
+                currencyFormatter.format(summary.getTotalSpent(), userId),
                 "var(--lumo-contrast-color)",
                 VaadinIcon.CART,
                 true
@@ -232,7 +230,7 @@ public class MonthlySummaryView extends VerticalLayout {
 
         Div remainingCard = metricCardFactory.createMetricCard(
                 "Remaining",
-                currencyFormatter.format(summary.getBudgetRemaining(), currentUserId),
+                currencyFormatter.format(summary.getBudgetRemaining(), userId),
                 summary.getBudgetRemaining().compareTo(BigDecimal.ZERO) >= 0 ?
                         "var(--lumo-success-color)" : "var(--lumo-error-color)",
                 VaadinIcon.WALLET,
@@ -265,32 +263,63 @@ public class MonthlySummaryView extends VerticalLayout {
         budgetPerformanceSection.add(sectionTitle, budgetCards, statusLayout);
     }
 
-    private void updateTopCategories(final MonthlySummaryDTO summary) {
+    private void updateTopCategories(final MonthlySummaryDTO summary, final Long userId) {
         topCategoriesSection.removeAll();
-        topCategoriesSection.setPadding(true);
-        topCategoriesSection.setSpacing(true);
-        topCategoriesSection.getStyle()
-                .set("background-color", "var(--lumo-contrast-5pct)")
-                .set("border-radius", "var(--lumo-border-radius-m)");
+        applyCardSectionStyle(topCategoriesSection);
 
-        H3 sectionTitle = new H3("Spending Categories");
+        H3 sectionTitle = new H3("Spending Breakdown");
         sectionTitle.getStyle().set("margin", "0 0 1rem 0");
-
         topCategoriesSection.add(sectionTitle);
 
-        if (summary.getTopSpendingCategories() != null && !summary.getTopSpendingCategories().isEmpty()) {
-            for (CategorySpendingDTO category : summary.getTopSpendingCategories()) {
-                VerticalLayout categoryRow = createCategoryRow(category);
-                topCategoriesSection.add(categoryRow);
+        // Variable spending categories (transaction-based)
+        BigDecimal variableMax = findMaxPercentage(summary.getVariableSpendingCategories());
+
+        H4 variableTitle = new H4("Spending Categories");
+        variableTitle.getStyle().set("margin", "0.5rem 0");
+        topCategoriesSection.add(variableTitle);
+
+        if (summary.getVariableSpendingCategories() != null && !summary.getVariableSpendingCategories().isEmpty()) {
+            for (CategorySpendingDTO category : summary.getVariableSpendingCategories()) {
+                topCategoriesSection.add(createCategoryRow(category, userId, variableMax));
             }
         } else {
             Span noDataLabel = new Span("No spending data for this month");
             noDataLabel.getStyle().set("color", "var(--lumo-secondary-text-color)");
             topCategoriesSection.add(noDataLabel);
         }
+
+        // Fixed & recurring costs
+        BigDecimal fixedMax = findMaxPercentage(summary.getFixedCostCategories());
+
+        H4 fixedTitle = new H4("Fixed & Recurring Costs");
+        fixedTitle.getStyle().set("margin", "1rem 0 0.5rem 0");
+        topCategoriesSection.add(fixedTitle);
+
+        if (summary.getFixedCostCategories() != null && !summary.getFixedCostCategories().isEmpty()) {
+            for (CategorySpendingDTO category : summary.getFixedCostCategories()) {
+                topCategoriesSection.add(createCategoryRow(category, userId, fixedMax));
+            }
+        } else {
+            Span noFixedLabel = new Span("No fixed costs for this month");
+            noFixedLabel.getStyle().set("color", "var(--lumo-secondary-text-color)");
+            topCategoriesSection.add(noFixedLabel);
+        }
     }
 
-    private VerticalLayout createCategoryRow(final CategorySpendingDTO category) {
+    private BigDecimal findMaxPercentage(final List<CategorySpendingDTO> categories) {
+        BigDecimal max = BigDecimal.ONE;
+        if (categories != null) {
+            for (CategorySpendingDTO c : categories) {
+                if (c.getPercentageOfTotal() != null && c.getPercentageOfTotal().compareTo(max) > 0) {
+                    max = c.getPercentageOfTotal();
+                }
+            }
+        }
+        return max;
+    }
+
+    private VerticalLayout createCategoryRow(
+            final CategorySpendingDTO category, final Long userId, final BigDecimal maxPercentage) {
         VerticalLayout row = new VerticalLayout();
         row.setSpacing(false);
         row.setPadding(false);
@@ -317,7 +346,7 @@ public class MonthlySummaryView extends VerticalLayout {
 
         categoryLabel.add(colorDot, name);
 
-        Span amount = new Span(currencyFormatter.format(category.getTotalSpent(), currentUserId));
+        Span amount = new Span(currencyFormatter.format(category.getTotalSpent(), userId));
         amount.getStyle()
                 .set("font-weight", "bold")
                 .set("color", "var(--lumo-primary-text-color)");
@@ -333,12 +362,19 @@ public class MonthlySummaryView extends VerticalLayout {
                 .set("border-radius", "4px")
                 .set("overflow", "hidden");
 
+        // Scale bar width relative to the largest category so the biggest bar fills ~100%
+        BigDecimal relativeWidth = maxPercentage.compareTo(BigDecimal.ZERO) > 0
+                ? category.getPercentageOfTotal()
+                        .multiply(new BigDecimal("100"))
+                        .divide(maxPercentage, 1, java.math.RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
         Div progressBar = new Div();
         progressBar.getStyle()
                 .set("height", "100%")
                 .set("background-color", category.getCategoryColor() != null ?
                         category.getCategoryColor() : "var(--lumo-primary-color)")
-                .set("width", category.getPercentageOfTotal() + "%")
+                .set("width", relativeWidth + "%")
                 .set("transition", "width 0.3s ease");
 
         progressBarContainer.add(progressBar);
@@ -360,7 +396,7 @@ public class MonthlySummaryView extends VerticalLayout {
         details.add(percentage, transactions);
 
         if (category.getBudgetAmount() != null) {
-            Span budget = new Span("Budget: " + currencyFormatter.format(category.getBudgetAmount(), currentUserId));
+            Span budget = new Span("Budget: " + currencyFormatter.format(category.getBudgetAmount(), userId));
             budget.getStyle()
                     .set("font-size", "var(--lumo-font-size-s)")
                     .set("color", category.getTotalSpent().compareTo(category.getBudgetAmount()) > 0 ?
@@ -373,13 +409,9 @@ public class MonthlySummaryView extends VerticalLayout {
         return row;
     }
 
-    private void updateMonthComparison(final MonthlySummaryDTO summary) {
+    private void updateMonthComparison(final MonthlySummaryDTO summary, final Long userId) {
         monthComparisonSection.removeAll();
-        monthComparisonSection.setPadding(true);
-        monthComparisonSection.setSpacing(true);
-        monthComparisonSection.getStyle()
-                .set("background-color", "var(--lumo-contrast-5pct)")
-                .set("border-radius", "var(--lumo-border-radius-m)");
+        applyCardSectionStyle(monthComparisonSection);
 
         H3 sectionTitle = new H3("Month-over-Month Comparison");
         sectionTitle.getStyle().set("margin", "0 0 1rem 0");
@@ -398,21 +430,21 @@ public class MonthlySummaryView extends VerticalLayout {
                     "Income Change",
                     comparison.getIncomeChange(),
                     comparison.getIncomeChangePercent(),
-                    currencyFormatter.format(comparison.getIncomeChange().abs(), currentUserId)
+                    currencyFormatter.format(comparison.getIncomeChange().abs(), userId)
             );
 
             Div expenseChangeCard = metricCardFactory.createChangeCard(
                     "Expense Change",
                     comparison.getExpenseChange(),
                     comparison.getExpenseChangePercent(),
-                    currencyFormatter.format(comparison.getExpenseChange().abs(), currentUserId)
+                    currencyFormatter.format(comparison.getExpenseChange().abs(), userId)
             );
 
             Div savingsChangeCard = metricCardFactory.createChangeCard(
                     "Savings Change",
                     comparison.getSavingsChange(),
                     comparison.getSavingsChangePercent(),
-                    currencyFormatter.format(comparison.getSavingsChange().abs(), currentUserId)
+                    currencyFormatter.format(comparison.getSavingsChange().abs(), userId)
             );
 
             comparisonCards.add(incomeChangeCard, expenseChangeCard, savingsChangeCard);
@@ -433,16 +465,16 @@ public class MonthlySummaryView extends VerticalLayout {
                         .set("font-weight", "500");
                 monthComparisonSection.add(savingsRateInfo);
             }
+        } else {
+            Span noDataLabel = new Span("No comparison data available");
+            noDataLabel.getStyle().set("color", "var(--lumo-secondary-text-color)");
+            monthComparisonSection.add(noDataLabel);
         }
     }
 
-    private void updateStatistics(final MonthlySummaryDTO summary) {
+    private void updateStatistics(final MonthlySummaryDTO summary, final Long userId) {
         statisticsSection.removeAll();
-        statisticsSection.setPadding(true);
-        statisticsSection.setSpacing(true);
-        statisticsSection.getStyle()
-                .set("background-color", "var(--lumo-contrast-5pct)")
-                .set("border-radius", "var(--lumo-border-radius-m)");
+        applyCardSectionStyle(statisticsSection);
 
         H3 sectionTitle = new H3("Summary Statistics");
         sectionTitle.getStyle().set("margin", "0 0 1rem 0");
@@ -460,7 +492,7 @@ public class MonthlySummaryView extends VerticalLayout {
 
         Div avgTransactionCard = metricCardFactory.createMetricCard(
                 "Avg Transaction",
-                currencyFormatter.format(summary.getAverageTransactionSize(), currentUserId),
+                currencyFormatter.format(summary.getAverageTransactionSize(), userId),
                 "var(--lumo-primary-color)",
                 VaadinIcon.CALC,
                 true
@@ -468,7 +500,7 @@ public class MonthlySummaryView extends VerticalLayout {
 
         Div largestExpenseCard = metricCardFactory.createMetricCard(
                 "Largest Expense",
-                currencyFormatter.format(summary.getLargestExpense(), currentUserId),
+                currencyFormatter.format(summary.getLargestExpense(), userId),
                 "var(--lumo-warning-color)",
                 VaadinIcon.WARNING,
                 true
@@ -490,7 +522,7 @@ public class MonthlySummaryView extends VerticalLayout {
         if (summary.getHousingCosts() != null) {
             Span housingInfo = new Span(String.format(
                     "Housing costs: %s/month (%.1f%% of income)",
-                    currencyFormatter.format(summary.getHousingCosts(), currentUserId),
+                    currencyFormatter.format(summary.getHousingCosts(), userId),
                     summary.getHousingToIncomeRatio()
             ));
             housingInfo.getStyle()
