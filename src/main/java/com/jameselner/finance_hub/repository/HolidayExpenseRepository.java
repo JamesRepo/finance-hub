@@ -2,6 +2,7 @@ package com.jameselner.finance_hub.repository;
 
 import com.jameselner.finance_hub.domain.Holiday;
 import com.jameselner.finance_hub.domain.HolidayExpense;
+import com.jameselner.finance_hub.domain.User;
 import com.jameselner.finance_hub.domain.enums.HolidayExpenseType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -9,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Repository
@@ -52,4 +54,15 @@ public interface HolidayExpenseRepository extends JpaRepository<HolidayExpense, 
      * Delete all expenses for a holiday
      */
     void deleteByHoliday(Holiday holiday);
+
+    /**
+     * Sum all expenses for holidays whose start date falls within the given range
+     */
+    @Query("SELECT COALESCE(SUM(e.amount), 0) FROM HolidayExpense e " +
+           "WHERE e.holiday.user = :user " +
+           "AND e.holiday.startDate BETWEEN :startDate AND :endDate")
+    BigDecimal sumByUserAndHolidayStartDateRange(
+            @Param("user") User user,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 }

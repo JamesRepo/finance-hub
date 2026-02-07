@@ -33,9 +33,12 @@ public class MonthlySummaryDTO {
 
     // Top Categories
     private List<CategorySpendingDTO> topSpendingCategories;
+    private List<CategorySpendingDTO> variableSpendingCategories;
+    private List<CategorySpendingDTO> fixedCostCategories;
 
-    // Housing
+    // Housing & Holidays
     private BigDecimal housingCosts;
+    private BigDecimal holidayCosts;
     private BigDecimal housingToIncomeRatio;
 
     // Statistics

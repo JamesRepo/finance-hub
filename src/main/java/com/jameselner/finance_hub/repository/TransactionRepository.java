@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
@@ -61,4 +62,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
            "OR LOWER(t.description) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
            "ORDER BY t.transactionDate DESC")
     List<Transaction> searchByPlaceVenueOrDescription(@Param("searchTerm") String searchTerm);
+
+    @Query("SELECT MIN(t.transactionDate) FROM Transaction t JOIN t.account a WHERE a.user = :user")
+    Optional<LocalDate> findEarliestTransactionDateByUser(@Param("user") User user);
 }

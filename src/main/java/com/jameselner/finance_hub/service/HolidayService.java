@@ -201,6 +201,21 @@ public class HolidayService {
     }
 
     /**
+     * Calculate total holiday expenses for a given month.
+     * All expenses for a holiday are attributed to the month the holiday starts in.
+     */
+    public BigDecimal calculateTotalForMonth(final Long userId, final LocalDate month) {
+        validateIdNotNull(userId);
+        if (month == null) {
+            throw new IllegalArgumentException("Month must not be null");
+        }
+        User user = getUserById(userId);
+        LocalDate startDate = month.withDayOfMonth(1);
+        LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
+        return holidayExpenseRepository.sumByUserAndHolidayStartDateRange(user, startDate, endDate);
+    }
+
+    /**
      * Count active holidays for a user
      */
     public long countActiveHolidays(final Long userId) {
