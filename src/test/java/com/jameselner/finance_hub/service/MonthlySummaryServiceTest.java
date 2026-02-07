@@ -4,9 +4,9 @@ import com.jameselner.finance_hub.domain.Category;
 import com.jameselner.finance_hub.domain.IncomeSource;
 import com.jameselner.finance_hub.domain.Transaction;
 import com.jameselner.finance_hub.domain.User;
-import com.jameselner.finance_hub.domain.enums.CategoryType;
 import com.jameselner.finance_hub.domain.enums.TransactionType;
 import com.jameselner.finance_hub.dto.BudgetDTO;
+import com.jameselner.finance_hub.dto.CategorySpendingDTO;
 import com.jameselner.finance_hub.dto.MonthlySummaryDTO;
 import com.jameselner.finance_hub.repository.IncomeSourceRepository;
 import com.jameselner.finance_hub.repository.TransactionRepository;
@@ -59,6 +59,9 @@ class MonthlySummaryServiceTest {
 
     @Mock
     private SubscriptionService subscriptionService;
+
+    @Mock
+    private HolidayService holidayService;
 
     @InjectMocks
     private MonthlySummaryService monthlySummaryService;
@@ -133,11 +136,13 @@ class MonthlySummaryServiceTest {
                     .thenReturn(new BigDecimal("200.00"));
             when(subscriptionService.calculateTotalForMonth(eq(1L), anyInt(), anyInt()))
                     .thenReturn(new BigDecimal("50.00"));
+            when(holidayService.calculateTotalForMonth(eq(1L), any()))
+                    .thenReturn(new BigDecimal("100.00"));
 
             MonthlySummaryDTO result = monthlySummaryService.generateMonthlySummary(1L, testMonth);
 
-            // Total = 500 + 1000 + 200 + 50 = 1750
-            assertEquals(new BigDecimal("1750.00"), result.getTotalExpenses());
+            // Total = 500 + 1000 + 200 + 50 + 100 = 1850
+            assertEquals(new BigDecimal("1850.00"), result.getTotalExpenses());
             assertEquals(new BigDecimal("500.00"), result.getTransactionExpenses());
         }
 
@@ -146,7 +151,7 @@ class MonthlySummaryServiceTest {
         void shouldCalculateNetSavingsCorrectly() {
             setupDefaultMocks();
 
-            // Income: 3000, Expenses: 1750
+            // Income: 3000, Expenses: 1850
             when(incomeSourceRepository.findByUserAndMonthRange(eq(testUser), any(), any()))
                     .thenReturn(List.of(createIncomeSource(new BigDecimal("3000.00"), null)));
             when(transactionRepository.sumByUserAndTypeAndDateRange(
@@ -158,11 +163,13 @@ class MonthlySummaryServiceTest {
                     .thenReturn(new BigDecimal("200.00"));
             when(subscriptionService.calculateTotalForMonth(eq(1L), anyInt(), anyInt()))
                     .thenReturn(new BigDecimal("50.00"));
+            when(holidayService.calculateTotalForMonth(eq(1L), any()))
+                    .thenReturn(new BigDecimal("100.00"));
 
             MonthlySummaryDTO result = monthlySummaryService.generateMonthlySummary(1L, testMonth);
 
-            // Net savings = 3000 - 1750 = 1250
-            assertEquals(new BigDecimal("1250.00"), result.getNetSavings());
+            // Net savings = 3000 - 1850 = 1150
+            assertEquals(new BigDecimal("1150.00"), result.getNetSavings());
         }
 
         @Test
@@ -181,6 +188,8 @@ class MonthlySummaryServiceTest {
             when(debtPaymentService.calculateTotalForMonth(eq(1L), any()))
                     .thenReturn(BigDecimal.ZERO);
             when(subscriptionService.calculateTotalForMonth(eq(1L), anyInt(), anyInt()))
+                    .thenReturn(BigDecimal.ZERO);
+            when(holidayService.calculateTotalForMonth(eq(1L), any()))
                     .thenReturn(BigDecimal.ZERO);
 
             MonthlySummaryDTO result = monthlySummaryService.generateMonthlySummary(1L, testMonth);
@@ -272,6 +281,96 @@ class MonthlySummaryServiceTest {
         }
 
         @Test
+        @DisplayName("Should add Holidays category when holiday costs >= 1")
+        void shouldAddHolidaysCategoryWhenCostsExist() {
+            setupDefaultMocks();
+
+            when(holidayService.calculateTotalForMonth(eq(1L), any()))
+                    .thenReturn(new BigDecimal("500.00"));
+
+            MonthlySummaryDTO result = monthlySummaryService.generateMonthlySummary(1L, testMonth);
+
+            assertTrue(result.getTopSpendingCategories().stream()
+                    .anyMatch(c -> c.getCategoryId().equals(FinancialThresholds.HOLIDAYS_CATEGORY_ID)));
+            assertEquals(new BigDecimal("500.00"), result.getHolidayCosts());
+        }
+
+        @Test
+        @DisplayName("Should not add Holidays category when holiday costs < 1")
+        void shouldNotAddHolidaysCategoryWhenCostsAreLow() {
+            setupDefaultMocks();
+
+            when(holidayService.calculateTotalForMonth(eq(1L), any()))
+                    .thenReturn(new BigDecimal("0.50"));
+
+            MonthlySummaryDTO result = monthlySummaryService.generateMonthlySummary(1L, testMonth);
+
+            assertFalse(result.getTopSpendingCategories().stream()
+                    .anyMatch(c -> c.getCategoryId().equals(FinancialThresholds.HOLIDAYS_CATEGORY_ID)));
+        }
+
+        @Test
+        @DisplayName("Should include holiday costs in total expenses")
+        void shouldIncludeHolidayCostsInTotalExpenses() {
+            setupDefaultMocks();
+
+            when(transactionRepository.sumByUserAndTypeAndDateRange(
+                    eq(testUser), eq(TransactionType.EXPENSE), any(), any()))
+                    .thenReturn(new BigDecimal("500.00"));
+            when(holidayService.calculateTotalForMonth(eq(1L), any()))
+                    .thenReturn(new BigDecimal("300.00"));
+
+            MonthlySummaryDTO result = monthlySummaryService.generateMonthlySummary(1L, testMonth);
+
+            // Total = 500 (transactions) + 0 (housing) + 0 (debt) + 0 (subs) + 300 (holidays) = 800
+            assertEquals(new BigDecimal("800.00"), result.getTotalExpenses());
+        }
+
+        @Test
+        @DisplayName("Should populate variable and fixed category lists correctly")
+        void shouldPopulateVariableAndFixedCategoryListsCorrectly() {
+            setupDefaultMocks();
+
+            // Set up a transaction with a category
+            Category groceries = new Category();
+            groceries.setCategoryId(10L);
+            groceries.setCategoryName("Groceries");
+            groceries.setColorCode("#FF0000");
+
+            Transaction t1 = createTransaction(new BigDecimal("200.00"), TransactionType.EXPENSE);
+            t1.setCategory(groceries);
+
+            when(transactionRepository.findByAccountUserAndTransactionDateBetween(
+                    eq(testUser), any(), any()))
+                    .thenReturn(List.of(t1));
+            when(transactionRepository.sumByUserAndTypeAndDateRange(
+                    eq(testUser), eq(TransactionType.EXPENSE), any(), any()))
+                    .thenReturn(new BigDecimal("200.00"));
+            when(housingExpenseService.calculateTotalForMonth(eq(1L), any()))
+                    .thenReturn(new BigDecimal("1000.00"));
+            when(holidayService.calculateTotalForMonth(eq(1L), any()))
+                    .thenReturn(new BigDecimal("400.00"));
+
+            MonthlySummaryDTO result = monthlySummaryService.generateMonthlySummary(1L, testMonth);
+
+            // Variable categories should contain Groceries
+            assertNotNull(result.getVariableSpendingCategories());
+            assertTrue(result.getVariableSpendingCategories().stream()
+                    .anyMatch(c -> "Groceries".equals(c.getCategoryName())));
+
+            // Fixed categories should contain Housing and Holidays
+            assertNotNull(result.getFixedCostCategories());
+            assertTrue(result.getFixedCostCategories().stream()
+                    .anyMatch(c -> c.getCategoryId().equals(FinancialThresholds.HOUSING_CATEGORY_ID)));
+            assertTrue(result.getFixedCostCategories().stream()
+                    .anyMatch(c -> c.getCategoryId().equals(FinancialThresholds.HOLIDAYS_CATEGORY_ID)));
+
+            // Variable categories should NOT contain synthetic categories
+            assertFalse(result.getVariableSpendingCategories().stream()
+                    .anyMatch(c -> c.getCategoryId().equals(FinancialThresholds.HOUSING_CATEGORY_ID)));
+        }
+
+        @Test
         @DisplayName("Should sort spending categories by total spent descending")
         void shouldSortSpendingCategoriesByTotalSpentDescending() {
             setupDefaultMocks();
@@ -286,7 +385,7 @@ class MonthlySummaryServiceTest {
             MonthlySummaryDTO result = monthlySummaryService.generateMonthlySummary(1L, testMonth);
 
             List<BigDecimal> amounts = result.getTopSpendingCategories().stream()
-                    .map(c -> c.getTotalSpent())
+                    .map(CategorySpendingDTO::getTotalSpent)
                     .toList();
 
             // Verify descending order
@@ -483,7 +582,7 @@ class MonthlySummaryServiceTest {
         }
 
         @Test
-        @DisplayName("Should calculate average transaction size correctly")
+        @DisplayName("Should calculate average transaction size for expenses only")
         void shouldCalculateAverageTransactionSizeCorrectly() {
             Transaction t1 = createTransaction(new BigDecimal("100.00"), TransactionType.EXPENSE);
             Transaction t2 = createTransaction(new BigDecimal("200.00"), TransactionType.EXPENSE);
@@ -495,8 +594,8 @@ class MonthlySummaryServiceTest {
 
             MonthlySummaryDTO result = monthlySummaryService.generateMonthlySummary(1L, testMonth);
 
-            // Average = (100 + 200 + 300) / 3 = 200
-            assertEquals(new BigDecimal("200.00"), result.getAverageTransactionSize());
+            // Average of expenses only = (100 + 200) / 2 = 150
+            assertEquals(new BigDecimal("150.00"), result.getAverageTransactionSize());
             assertEquals(3, result.getTransactionCount());
         }
 
@@ -553,6 +652,45 @@ class MonthlySummaryServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("getEarliestAvailableMonth Tests")
+    class GetEarliestAvailableMonthTests {
+
+        @BeforeEach
+        void setUpMocks() {
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        }
+
+        @Test
+        @DisplayName("Should return earliest transaction month")
+        void shouldReturnEarliestTransactionMonth() {
+            when(transactionRepository.findEarliestTransactionDateByUser(testUser))
+                    .thenReturn(Optional.of(LocalDate.of(2023, 3, 15)));
+
+            YearMonth result = monthlySummaryService.getEarliestAvailableMonth(1L);
+
+            assertEquals(YearMonth.of(2023, 3), result);
+        }
+
+        @Test
+        @DisplayName("Should default to current month when no transactions")
+        void shouldDefaultToCurrentMonthWhenNoTransactions() {
+            when(transactionRepository.findEarliestTransactionDateByUser(testUser))
+                    .thenReturn(Optional.empty());
+
+            YearMonth result = monthlySummaryService.getEarliestAvailableMonth(1L);
+
+            assertEquals(YearMonth.now(), result);
+        }
+
+        @Test
+        @DisplayName("Should throw on null userId")
+        void shouldThrowOnNullUserId() {
+            assertThrows(NullPointerException.class,
+                    () -> monthlySummaryService.getEarliestAvailableMonth(null));
+        }
+    }
+
     // Helper methods
 
     private void setupDefaultMocks() {
@@ -566,6 +704,8 @@ class MonthlySummaryServiceTest {
         when(debtPaymentService.calculateTotalForMonth(eq(1L), any()))
                 .thenReturn(BigDecimal.ZERO);
         when(subscriptionService.calculateTotalForMonth(eq(1L), anyInt(), anyInt()))
+                .thenReturn(BigDecimal.ZERO);
+        when(holidayService.calculateTotalForMonth(eq(1L), any()))
                 .thenReturn(BigDecimal.ZERO);
         when(budgetService.findByUserIdAndDateRange(eq(1L), any(), any()))
                 .thenReturn(Collections.emptyList());
@@ -612,6 +752,8 @@ class MonthlySummaryServiceTest {
         when(debtPaymentService.calculateTotalForMonth(eq(1L), any()))
                 .thenReturn(BigDecimal.ZERO);
         when(subscriptionService.calculateTotalForMonth(eq(1L), anyInt(), anyInt()))
+                .thenReturn(BigDecimal.ZERO);
+        when(holidayService.calculateTotalForMonth(eq(1L), any()))
                 .thenReturn(BigDecimal.ZERO);
         when(budgetService.findByUserIdAndDateRange(eq(1L), any(), any()))
                 .thenReturn(Collections.emptyList());
