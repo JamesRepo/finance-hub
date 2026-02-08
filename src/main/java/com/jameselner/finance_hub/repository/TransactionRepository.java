@@ -63,6 +63,18 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
            "ORDER BY t.transactionDate DESC")
     List<Transaction> searchByPlaceVenueOrDescription(@Param("searchTerm") String searchTerm);
 
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t JOIN t.account a " +
+           "WHERE a.user = :user AND t.category = :category " +
+           "AND t.transactionType = :type " +
+           "AND t.transactionDate BETWEEN :startDate AND :endDate")
+    BigDecimal sumByUserAndCategoryAndTypeAndDateRange(
+            @Param("user") User user,
+            @Param("category") Category category,
+            @Param("type") TransactionType type,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
     @Query("SELECT MIN(t.transactionDate) FROM Transaction t JOIN t.account a WHERE a.user = :user")
     Optional<LocalDate> findEarliestTransactionDateByUser(@Param("user") User user);
 }

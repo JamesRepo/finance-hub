@@ -41,6 +41,10 @@ public final class FinancialThresholds {
     /** ID used for the synthetic Holidays category in spending breakdowns */
     public static final Long HOLIDAYS_CATEGORY_ID = -4L;
 
+    // Synthetic category names
+    public static final String HOLIDAYS_CATEGORY_NAME = "Holidays";
+    public static final String SUBSCRIPTIONS_CATEGORY_NAME = "Subscriptions";
+
     // Synthetic category colors
     public static final String HOUSING_CATEGORY_COLOR = "#4A90A4";
     public static final String DEBT_CATEGORY_COLOR = "#E57373";

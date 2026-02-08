@@ -137,7 +137,7 @@ class UserLifecycleWorkflowTest extends TransactionalIntegrationTest {
         assertEquals(new BigDecimal("250.00"), totalExpenses, "Total expenses should be 250");
 
         BigDecimal spentOnBudget = budgetService.calculateSpentAmount(
-                user, categoryService.findById(expenseCategory.getCategoryId()).orElseThrow(),
+                user.getUserId(), expenseCategory.getCategoryId(),
                 budgetStart, budgetEnd);
         assertEquals(new BigDecimal("250.00"), spentOnBudget, "Budget spending should match");
 

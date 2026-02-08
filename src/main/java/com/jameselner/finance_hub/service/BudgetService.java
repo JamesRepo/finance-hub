@@ -4,10 +4,10 @@ import com.jameselner.finance_hub.domain.Budget;
 import com.jameselner.finance_hub.domain.Category;
 import com.jameselner.finance_hub.domain.Holiday;
 import com.jameselner.finance_hub.domain.Subscription;
-import com.jameselner.finance_hub.domain.Transaction;
 import com.jameselner.finance_hub.domain.User;
 import com.jameselner.finance_hub.domain.enums.TransactionType;
 import com.jameselner.finance_hub.dto.BudgetDTO;
+import com.jameselner.finance_hub.util.FinancialThresholds;
 import com.jameselner.finance_hub.mapper.BudgetMapper;
 import com.jameselner.finance_hub.repository.BudgetRepository;
 import com.jameselner.finance_hub.repository.CategoryRepository;
@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -97,16 +98,6 @@ public class BudgetService {
     }
 
     /**
-     * Find all budgets and return as DTOs with calculated fields
-     */
-    public List<BudgetDTO> findAllAsDto() {
-        return budgetRepository.findAll().stream()
-                .map(budgetMapper::toDto)
-                .map(this::enrichWithCalculatedFields)
-                .collect(Collectors.toList());
-    }
-
-    /**
      * Find all budgets for a user and return as DTOs with calculated fields
      */
     public List<BudgetDTO> findByUserIdAsDto(final Long userId) {
@@ -114,8 +105,7 @@ public class BudgetService {
         User user = findUserById(userId);
 
         return budgetRepository.findByUserOrderByStartDateDesc(user).stream()
-                .map(budgetMapper::toDto)
-                .map(this::enrichWithCalculatedFields)
+                .map(budget -> enrichWithCalculatedFields(budgetMapper.toDto(budget), user, budget.getCategory()))
                 .collect(Collectors.toList());
     }
 
@@ -131,8 +121,7 @@ public class BudgetService {
         User user = findUserById(userId);
 
         return budgetRepository.findActiveByUserAndDate(user, date).stream()
-                .map(budgetMapper::toDto)
-                .map(this::enrichWithCalculatedFields)
+                .map(budget -> enrichWithCalculatedFields(budgetMapper.toDto(budget), user, budget.getCategory()))
                 .collect(Collectors.toList());
     }
 
@@ -149,8 +138,7 @@ public class BudgetService {
         User user = findUserById(userId);
 
         return budgetRepository.findByUserAndDateRange(user, startDate, endDate).stream()
-                .map(budgetMapper::toDto)
-                .map(this::enrichWithCalculatedFields)
+                .map(budget -> enrichWithCalculatedFields(budgetMapper.toDto(budget), user, budget.getCategory()))
                 .collect(Collectors.toList());
     }
 
@@ -169,25 +157,33 @@ public class BudgetService {
     }
 
     /**
-     * Calculate budget usage based on transactions
-     * This enriches the DTO with spent, remaining, overage, and percentage used
+     * Calculate budget usage based on transactions.
+     * Looks up user and category from IDs — used by findByIdAsDto and create/update paths.
      */
     private BudgetDTO enrichWithCalculatedFields(final BudgetDTO dto) {
         if (dto == null) {
             return null;
         }
 
-        // Get the user and category to calculate spent amount
         User user = findUserById(dto.getUserId());
-
         Category category = categoryRepository.findById(dto.getCategoryId())
                 .orElseThrow(() -> new IllegalArgumentException("Category not found with ID: " + dto.getCategoryId()));
 
-        // Calculate spent amount from transactions
+        return enrichWithCalculatedFields(dto, user, category);
+    }
+
+    /**
+     * Calculate budget usage based on transactions.
+     * Uses pre-fetched user and category to avoid redundant DB lookups.
+     */
+    private BudgetDTO enrichWithCalculatedFields(final BudgetDTO dto, final User user, final Category category) {
+        if (dto == null) {
+            return null;
+        }
+
         BigDecimal spent = calculateSpentAmount(user, category, dto.getStartDate(), dto.getEndDate());
         dto.setSpent(spent);
 
-        // Calculate remaining and overage
         BigDecimal remaining = dto.getAmount().subtract(spent);
         BigDecimal overage = BigDecimal.ZERO;
 
@@ -199,7 +195,6 @@ public class BudgetService {
         dto.setRemaining(remaining);
         dto.setOverage(overage);
 
-        // Calculate percentage used
         if (dto.getAmount().compareTo(BigDecimal.ZERO) > 0) {
             double percentage = spent.divide(dto.getAmount(), 4, RoundingMode.HALF_UP)
                     .multiply(new BigDecimal("100"))
@@ -213,20 +208,19 @@ public class BudgetService {
     }
 
     /**
-     * Calculate the total amount spent for a category within a date range
-     * For "Holidays" category, this includes both regular transactions and holiday expenses
-     * For "Subscriptions" category, this includes both regular transactions and subscription costs
+     * Calculate the total amount spent for a category within a date range.
+     * Public API that accepts IDs instead of entities.
      */
     public BigDecimal calculateSpentAmount(
-            final User user,
-            final Category category,
+            final Long userId,
+            final Long categoryId,
             final LocalDate startDate,
             final LocalDate endDate) {
-        if (user == null) {
-            throw new IllegalArgumentException("User must not be null");
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID must not be null");
         }
-        if (category == null) {
-            throw new IllegalArgumentException("Category must not be null");
+        if (categoryId == null) {
+            throw new IllegalArgumentException("Category ID must not be null");
         }
         if (startDate == null) {
             throw new IllegalArgumentException("Start date must not be null");
@@ -235,22 +229,32 @@ public class BudgetService {
             throw new IllegalArgumentException("End date must not be null");
         }
 
-        // Sum all expense transactions for the category within the date range
-        BigDecimal transactionTotal = transactionRepository.findByTransactionDateBetweenAndCategoryOrderByTransactionDateDesc(
-                        startDate, endDate, category)
-                .stream()
-                .filter(t -> t.getTransactionType() == TransactionType.EXPENSE)
-                .filter(t -> t.getAccount() != null && t.getAccount().getUser().equals(user))
-                .map(Transaction::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        User user = findUserById(userId);
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new IllegalArgumentException("Category not found with ID: " + categoryId));
+
+        return calculateSpentAmount(user, category, startDate, endDate);
+    }
+
+    /**
+     * Calculate the total amount spent for a category within a date range.
+     * For "Holidays" category, this includes both regular transactions and holiday expenses.
+     * For "Subscriptions" category, this includes both regular transactions and subscription costs.
+     */
+    private BigDecimal calculateSpentAmount(
+            final User user,
+            final Category category,
+            final LocalDate startDate,
+            final LocalDate endDate) {
+        // Use SUM query instead of fetching all transactions
+        BigDecimal transactionTotal = transactionRepository.sumByUserAndCategoryAndTypeAndDateRange(
+                user, category, TransactionType.EXPENSE, startDate, endDate);
 
         // If this is the "Holidays" category, also include holiday expenses
         BigDecimal holidayTotal = BigDecimal.ZERO;
-        if ("Holidays".equalsIgnoreCase(category.getCategoryName())) {
-            // Find all holidays that overlap with the budget period
+        if (FinancialThresholds.HOLIDAYS_CATEGORY_NAME.equalsIgnoreCase(category.getCategoryName())) {
             List<Holiday> holidays = holidayRepository.findByUserAndDateRange(user, startDate, endDate);
 
-            // Sum all expenses from these holidays
             holidayTotal = holidays.stream()
                     .map(holidayExpenseRepository::calculateTotalSpent)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -258,18 +262,29 @@ public class BudgetService {
 
         // If this is the "Subscriptions" category, also include subscription costs
         BigDecimal subscriptionTotal = BigDecimal.ZERO;
-        if ("Subscriptions".equalsIgnoreCase(category.getCategoryName())) {
-            // Find all subscriptions with payment dates within the budget period
+        if (FinancialThresholds.SUBSCRIPTIONS_CATEGORY_NAME.equalsIgnoreCase(category.getCategoryName())) {
             List<Subscription> subscriptions = subscriptionRepository.findByUserAndPaymentDateBetween(
                     user, startDate, endDate);
 
-            // Sum the subscription amounts
             subscriptionTotal = subscriptions.stream()
                     .map(Subscription::getAmount)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
 
         return transactionTotal.add(holidayTotal).add(subscriptionTotal);
+    }
+
+    /**
+     * Get the earliest available month based on user's transaction history.
+     * Falls back to 12 months ago if no transactions exist.
+     */
+    public YearMonth getEarliestAvailableMonth(final Long userId) {
+        validateIdNotNull(userId);
+        User user = findUserById(userId);
+
+        return transactionRepository.findEarliestTransactionDateByUser(user)
+                .map(YearMonth::from)
+                .orElseGet(() -> YearMonth.now().minusMonths(12));
     }
 
     // Private validation methods

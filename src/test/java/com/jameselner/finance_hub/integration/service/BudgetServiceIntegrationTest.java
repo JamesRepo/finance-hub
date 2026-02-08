@@ -216,8 +216,8 @@ class BudgetServiceIntegrationTest extends TransactionalIntegrationTest {
 
             // Calculate spent
             BigDecimal spent = budgetService.calculateSpentAmount(
-                    userContext.user(),
-                    userContext.expenseCategory(),
+                    userContext.user().getUserId(),
+                    userContext.expenseCategory().getCategoryId(),
                     startDate,
                     endDate
             );
@@ -265,8 +265,8 @@ class BudgetServiceIntegrationTest extends TransactionalIntegrationTest {
             transactionService.createTransactionFromDto(before);
 
             BigDecimal spent = budgetService.calculateSpentAmount(
-                    userContext.user(),
-                    userContext.expenseCategory(),
+                    userContext.user().getUserId(),
+                    userContext.expenseCategory().getCategoryId(),
                     startDate,
                     endDate
             );
@@ -314,8 +314,8 @@ class BudgetServiceIntegrationTest extends TransactionalIntegrationTest {
             transactionService.createTransactionFromDto(income);
 
             BigDecimal spent = budgetService.calculateSpentAmount(
-                    userContext.user(),
-                    userContext.expenseCategory(),
+                    userContext.user().getUserId(),
+                    userContext.expenseCategory().getCategoryId(),
                     startDate,
                     endDate
             );

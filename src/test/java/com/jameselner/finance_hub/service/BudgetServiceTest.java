@@ -1,12 +1,9 @@
 package com.jameselner.finance_hub.service;
 
-import com.jameselner.finance_hub.domain.Account;
 import com.jameselner.finance_hub.domain.Budget;
 import com.jameselner.finance_hub.domain.Category;
-import com.jameselner.finance_hub.domain.Transaction;
 import com.jameselner.finance_hub.domain.User;
 import com.jameselner.finance_hub.domain.enums.PeriodType;
-import com.jameselner.finance_hub.domain.enums.TransactionType;
 import com.jameselner.finance_hub.dto.BudgetDTO;
 import com.jameselner.finance_hub.mapper.BudgetMapper;
 import com.jameselner.finance_hub.repository.BudgetRepository;
@@ -24,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -59,7 +57,6 @@ class BudgetServiceTest {
     private Budget validBudget;
     private User testUser;
     private Category testCategory;
-    private Account testAccount;
 
     @BeforeEach
     void setUp() {
@@ -71,11 +68,6 @@ class BudgetServiceTest {
         testCategory.setCategoryId(1L);
         testCategory.setCategoryName("Groceries");
         testCategory.setColorCode("#FF0000");
-
-        testAccount = new Account();
-        testAccount.setAccountId(1L);
-        testAccount.setAccountName("Test Account");
-        testAccount.setUser(testUser);
 
         validDto = BudgetDTO.builder()
                 .userId(1L)
@@ -114,8 +106,8 @@ class BudgetServiceTest {
             when(budgetMapper.toEntity(validDto)).thenReturn(validBudget);
             when(budgetRepository.save(validBudget)).thenReturn(validBudget);
             when(budgetMapper.toDto(validBudget)).thenReturn(validDto);
-            when(transactionRepository.findByTransactionDateBetweenAndCategoryOrderByTransactionDateDesc(
-                    any(), any(), any())).thenReturn(Collections.emptyList());
+            when(transactionRepository.sumByUserAndCategoryAndTypeAndDateRange(
+                    any(), any(), any(), any(), any())).thenReturn(BigDecimal.ZERO);
 
             // When
             BudgetDTO result = budgetService.createBudgetFromDto(validDto);
@@ -232,8 +224,8 @@ class BudgetServiceTest {
                     .thenReturn(Arrays.asList(validBudget));
             when(budgetRepository.save(validBudget)).thenReturn(validBudget);
             when(budgetMapper.toDto(validBudget)).thenReturn(validDto);
-            when(transactionRepository.findByTransactionDateBetweenAndCategoryOrderByTransactionDateDesc(
-                    any(), any(), any())).thenReturn(Collections.emptyList());
+            when(transactionRepository.sumByUserAndCategoryAndTypeAndDateRange(
+                    any(), any(), any(), any(), any())).thenReturn(BigDecimal.ZERO);
 
             // When
             BudgetDTO result = budgetService.updateBudgetFromDto(validDto);
@@ -280,8 +272,8 @@ class BudgetServiceTest {
             when(budgetMapper.toDto(validBudget)).thenReturn(validDto);
             when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
             when(categoryRepository.findById(1L)).thenReturn(Optional.of(testCategory));
-            when(transactionRepository.findByTransactionDateBetweenAndCategoryOrderByTransactionDateDesc(
-                    any(), any(), any())).thenReturn(Collections.emptyList());
+            when(transactionRepository.sumByUserAndCategoryAndTypeAndDateRange(
+                    any(), any(), any(), any(), any())).thenReturn(BigDecimal.ZERO);
 
             // When
             Optional<BudgetDTO> result = budgetService.findByIdAsDto(1L);
@@ -305,26 +297,6 @@ class BudgetServiceTest {
         }
 
         @Test
-        @DisplayName("Should find all budgets successfully")
-        void shouldFindAllBudgetsSuccessfully() {
-            // Given
-            when(budgetRepository.findAll()).thenReturn(Arrays.asList(validBudget));
-            when(budgetMapper.toDto(validBudget)).thenReturn(validDto);
-            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
-            when(categoryRepository.findById(1L)).thenReturn(Optional.of(testCategory));
-            when(transactionRepository.findByTransactionDateBetweenAndCategoryOrderByTransactionDateDesc(
-                    any(), any(), any())).thenReturn(Collections.emptyList());
-
-            // When
-            List<BudgetDTO> result = budgetService.findAllAsDto();
-
-            // Then
-            assertNotNull(result);
-            assertEquals(1, result.size());
-            verify(budgetRepository).findAll();
-        }
-
-        @Test
         @DisplayName("Should find budgets by user ID successfully")
         void shouldFindBudgetsByUserIdSuccessfully() {
             // Given
@@ -332,9 +304,8 @@ class BudgetServiceTest {
             when(budgetRepository.findByUserOrderByStartDateDesc(testUser))
                     .thenReturn(Arrays.asList(validBudget));
             when(budgetMapper.toDto(validBudget)).thenReturn(validDto);
-            when(categoryRepository.findById(1L)).thenReturn(Optional.of(testCategory));
-            when(transactionRepository.findByTransactionDateBetweenAndCategoryOrderByTransactionDateDesc(
-                    any(), any(), any())).thenReturn(Collections.emptyList());
+            when(transactionRepository.sumByUserAndCategoryAndTypeAndDateRange(
+                    any(), any(), any(), any(), any())).thenReturn(BigDecimal.ZERO);
 
             // When
             List<BudgetDTO> result = budgetService.findByUserIdAsDto(1L);
@@ -391,23 +362,15 @@ class BudgetServiceTest {
         @DisplayName("Should calculate spent amount correctly with expenses")
         void shouldCalculateSpentAmountWithExpenses() {
             // Given
-            Transaction t1 = new Transaction();
-            t1.setAmount(new BigDecimal("50.00"));
-            t1.setTransactionType(TransactionType.EXPENSE);
-            t1.setAccount(testAccount);
-
-            Transaction t2 = new Transaction();
-            t2.setAmount(new BigDecimal("75.00"));
-            t2.setTransactionType(TransactionType.EXPENSE);
-            t2.setAccount(testAccount);
-
-            when(transactionRepository.findByTransactionDateBetweenAndCategoryOrderByTransactionDateDesc(
-                    any(), any(), any())).thenReturn(Arrays.asList(t1, t2));
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+            when(categoryRepository.findById(1L)).thenReturn(Optional.of(testCategory));
+            when(transactionRepository.sumByUserAndCategoryAndTypeAndDateRange(
+                    any(), any(), any(), any(), any())).thenReturn(new BigDecimal("125.00"));
 
             // When
             BigDecimal result = budgetService.calculateSpentAmount(
-                    testUser,
-                    testCategory,
+                    1L,
+                    1L,
                     LocalDate.of(2025, 1, 1),
                     LocalDate.of(2025, 1, 31)
             );
@@ -420,13 +383,15 @@ class BudgetServiceTest {
         @DisplayName("Should return zero when no expenses found")
         void shouldReturnZeroWhenNoExpensesFound() {
             // Given
-            when(transactionRepository.findByTransactionDateBetweenAndCategoryOrderByTransactionDateDesc(
-                    any(), any(), any())).thenReturn(Collections.emptyList());
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+            when(categoryRepository.findById(1L)).thenReturn(Optional.of(testCategory));
+            when(transactionRepository.sumByUserAndCategoryAndTypeAndDateRange(
+                    any(), any(), any(), any(), any())).thenReturn(BigDecimal.ZERO);
 
             // When
             BigDecimal result = budgetService.calculateSpentAmount(
-                    testUser,
-                    testCategory,
+                    1L,
+                    1L,
                     LocalDate.of(2025, 1, 1),
                     LocalDate.of(2025, 1, 31)
             );
@@ -436,26 +401,18 @@ class BudgetServiceTest {
         }
 
         @Test
-        @DisplayName("Should ignore income transactions when calculating spent")
-        void shouldIgnoreIncomeTransactions() {
-            // Given
-            Transaction expense = new Transaction();
-            expense.setAmount(new BigDecimal("50.00"));
-            expense.setTransactionType(TransactionType.EXPENSE);
-            expense.setAccount(testAccount);
-
-            Transaction income = new Transaction();
-            income.setAmount(new BigDecimal("100.00"));
-            income.setTransactionType(TransactionType.INCOME);
-            income.setAccount(testAccount);
-
-            when(transactionRepository.findByTransactionDateBetweenAndCategoryOrderByTransactionDateDesc(
-                    any(), any(), any())).thenReturn(Arrays.asList(expense, income));
+        @DisplayName("Should only sum expense transactions (SUM query filters by type)")
+        void shouldOnlySumExpenseTransactions() {
+            // Given - the SUM query filters by TransactionType.EXPENSE at the DB level
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+            when(categoryRepository.findById(1L)).thenReturn(Optional.of(testCategory));
+            when(transactionRepository.sumByUserAndCategoryAndTypeAndDateRange(
+                    any(), any(), any(), any(), any())).thenReturn(new BigDecimal("50.00"));
 
             // When
             BigDecimal result = budgetService.calculateSpentAmount(
-                    testUser,
-                    testCategory,
+                    1L,
+                    1L,
                     LocalDate.of(2025, 1, 1),
                     LocalDate.of(2025, 1, 31)
             );
@@ -465,29 +422,72 @@ class BudgetServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw exception when user is null")
-        void shouldThrowExceptionWhenUserIsNull() {
+        @DisplayName("Should throw exception when user ID is null")
+        void shouldThrowExceptionWhenUserIdIsNull() {
             // When & Then
             assertThrows(IllegalArgumentException.class,
                     () -> budgetService.calculateSpentAmount(
                             null,
-                            testCategory,
+                            1L,
                             LocalDate.of(2025, 1, 1),
                             LocalDate.of(2025, 1, 31)
                     ));
         }
 
         @Test
-        @DisplayName("Should throw exception when category is null")
-        void shouldThrowExceptionWhenCategoryIsNull() {
+        @DisplayName("Should throw exception when category ID is null")
+        void shouldThrowExceptionWhenCategoryIdIsNull() {
             // When & Then
             assertThrows(IllegalArgumentException.class,
                     () -> budgetService.calculateSpentAmount(
-                            testUser,
+                            1L,
                             null,
                             LocalDate.of(2025, 1, 1),
                             LocalDate.of(2025, 1, 31)
                     ));
+        }
+    }
+
+    @Nested
+    @DisplayName("Get Earliest Available Month Tests")
+    class GetEarliestAvailableMonthTests {
+
+        @Test
+        @DisplayName("Should return earliest transaction month when transactions exist")
+        void shouldReturnEarliestTransactionMonth() {
+            // Given
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+            when(transactionRepository.findEarliestTransactionDateByUser(testUser))
+                    .thenReturn(Optional.of(LocalDate.of(2024, 3, 15)));
+
+            // When
+            YearMonth result = budgetService.getEarliestAvailableMonth(1L);
+
+            // Then
+            assertEquals(YearMonth.of(2024, 3), result);
+        }
+
+        @Test
+        @DisplayName("Should fall back to 12 months ago when no transactions exist")
+        void shouldFallBackTo12MonthsAgoWhenNoTransactions() {
+            // Given
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+            when(transactionRepository.findEarliestTransactionDateByUser(testUser))
+                    .thenReturn(Optional.empty());
+
+            // When
+            YearMonth result = budgetService.getEarliestAvailableMonth(1L);
+
+            // Then
+            assertEquals(YearMonth.now().minusMonths(12), result);
+        }
+
+        @Test
+        @DisplayName("Should throw exception when user ID is null")
+        void shouldThrowExceptionWhenUserIdIsNull() {
+            // When & Then
+            assertThrows(IllegalArgumentException.class,
+                    () -> budgetService.getEarliestAvailableMonth(null));
         }
     }
 

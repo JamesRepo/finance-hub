@@ -218,12 +218,12 @@ public class MonthlySummaryService {
         }
         if (expenses.subscriptionCosts().compareTo(FinancialThresholds.MINIMUM_CATEGORY_AMOUNT) >= 0) {
             categories.add(buildSyntheticCategory(
-                    FinancialThresholds.SUBSCRIPTIONS_CATEGORY_ID, "Subscriptions",
+                    FinancialThresholds.SUBSCRIPTIONS_CATEGORY_ID, FinancialThresholds.SUBSCRIPTIONS_CATEGORY_NAME,
                     FinancialThresholds.SUBSCRIPTIONS_CATEGORY_COLOR, expenses.subscriptionCosts(), expenses.total()));
         }
         if (expenses.holidayCosts().compareTo(FinancialThresholds.MINIMUM_CATEGORY_AMOUNT) >= 0) {
             categories.add(buildSyntheticCategory(
-                    FinancialThresholds.HOLIDAYS_CATEGORY_ID, "Holidays",
+                    FinancialThresholds.HOLIDAYS_CATEGORY_ID, FinancialThresholds.HOLIDAYS_CATEGORY_NAME,
                     FinancialThresholds.HOLIDAYS_CATEGORY_COLOR, expenses.holidayCosts(), expenses.total()));
         }
 
