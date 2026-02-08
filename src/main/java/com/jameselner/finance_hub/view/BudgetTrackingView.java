@@ -1,11 +1,11 @@
 package com.jameselner.finance_hub.view;
 
-import com.jameselner.finance_hub.domain.User;
 import com.jameselner.finance_hub.dto.BudgetDTO;
-import com.jameselner.finance_hub.repository.UserRepository;
 import com.jameselner.finance_hub.service.BudgetService;
 import com.jameselner.finance_hub.service.CategoryService;
+import com.jameselner.finance_hub.service.CurrentUserService;
 import com.jameselner.finance_hub.view.components.BudgetForm;
+import com.jameselner.finance_hub.view.components.NotificationHelper;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -18,8 +18,6 @@ import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -27,9 +25,9 @@ import com.vaadin.flow.component.progressbar.ProgressBar;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.spring.security.AuthenticationContext;
 import jakarta.annotation.security.PermitAll;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.YearMonth;
@@ -42,10 +40,11 @@ import java.util.List;
 @PermitAll
 public class BudgetTrackingView extends VerticalLayout {
 
+    private static final Logger log = LoggerFactory.getLogger(BudgetTrackingView.class);
+
     private final BudgetService budgetService;
     private final CategoryService categoryService;
-    private final AuthenticationContext authenticationContext;
-    private final UserRepository userRepository;
+    private final CurrentUserService currentUserService;
 
     private Grid<BudgetDTO> budgetGrid;
     private BudgetForm budgetForm;
@@ -53,16 +52,20 @@ public class BudgetTrackingView extends VerticalLayout {
     private ComboBox<YearMonth> monthFilter;
     private YearMonth selectedMonth;
 
+    // Summary card value components for live updates
+    private H3 totalBudgetedValue;
+    private H3 totalSpentValue;
+    private H3 totalRemainingValue;
+    private H3 overBudgetValue;
+
     public BudgetTrackingView(
             final BudgetService budgetService,
             final CategoryService categoryService,
-            final AuthenticationContext authenticationContext,
-            final UserRepository userRepository
+            final CurrentUserService currentUserService
     ) {
         this.budgetService = budgetService;
         this.categoryService = categoryService;
-        this.authenticationContext = authenticationContext;
-        this.userRepository = userRepository;
+        this.currentUserService = currentUserService;
 
         setSizeFull();
         setPadding(true);
@@ -74,7 +77,7 @@ public class BudgetTrackingView extends VerticalLayout {
         createFormDialog();
 
         add(createToolbar(), createSummaryCards(), budgetGrid);
-        refreshGrid();
+        refreshData();
     }
 
     private void createHeader() {
@@ -113,11 +116,13 @@ public class BudgetTrackingView extends VerticalLayout {
         monthFilter = new ComboBox<>("Filter by Month");
         monthFilter.setWidth("200px");
 
-        // Create list of last 24 months
+        Long userId = currentUserService.getCurrentUserId();
+        YearMonth earliest = budgetService.getEarliestAvailableMonth(userId);
+        YearMonth futureMonth = YearMonth.now().plusMonths(1);
+
         List<YearMonth> months = new ArrayList<>();
-        YearMonth current = YearMonth.now();
-        for (int i = 0; i < 24; i++) {
-            months.add(current.minusMonths(i));
+        for (YearMonth m = futureMonth; !m.isBefore(earliest); m = m.minusMonths(1)) {
+            months.add(m);
         }
 
         monthFilter.setItems(months);
@@ -128,10 +133,10 @@ public class BudgetTrackingView extends VerticalLayout {
         selectedMonth = YearMonth.now();
         monthFilter.setValue(selectedMonth);
 
-        // Add listener to refresh grid when selection changes
+        // Add listener to refresh when selection changes
         monthFilter.addValueChangeListener(event -> {
             selectedMonth = event.getValue();
-            refreshGrid();
+            refreshData();
         });
     }
 
@@ -301,30 +306,16 @@ public class BudgetTrackingView extends VerticalLayout {
         cards.setSpacing(true);
         cards.addClassName("mobile-stack");
 
-        List<BudgetDTO> budgets = getCurrentMonthBudgets();
-
-        // Calculate totals
-        BigDecimal totalBudgeted = budgets.stream()
-                .map(BudgetDTO::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal totalSpent = budgets.stream()
-                .map(BudgetDTO::getSpent)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal totalRemaining = budgets.stream()
-                .map(BudgetDTO::getRemaining)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        long overBudgetCount = budgets.stream()
-                .filter(b -> b.getOverage().compareTo(BigDecimal.ZERO) > 0)
-                .count();
+        totalBudgetedValue = new H3("£0");
+        totalSpentValue = new H3("£0");
+        totalRemainingValue = new H3("£0");
+        overBudgetValue = new H3("0");
 
         cards.add(
-                createSummaryCard("Total Budgeted", "£" + totalBudgeted, VaadinIcon.WALLET, "var(--finance-primary)"),
-                createSummaryCard("Total Spent", "£" + totalSpent, VaadinIcon.CASH, "#a78bfa"),
-                createSummaryCard("Total Remaining", "£" + totalRemaining, VaadinIcon.PIGGY_BANK, "var(--finance-secondary)"),
-                createSummaryCard("Over Budget", String.valueOf(overBudgetCount), VaadinIcon.WARNING, "var(--finance-danger)")
+                createSummaryCard("Total Budgeted", totalBudgetedValue, VaadinIcon.WALLET, "var(--finance-primary)"),
+                createSummaryCard("Total Spent", totalSpentValue, VaadinIcon.CASH, "#a78bfa"),
+                createSummaryCard("Total Remaining", totalRemainingValue, VaadinIcon.PIGGY_BANK, "var(--finance-secondary)"),
+                createSummaryCard("Over Budget", overBudgetValue, VaadinIcon.WARNING, "var(--finance-danger)")
         );
 
         return cards;
@@ -332,7 +323,7 @@ public class BudgetTrackingView extends VerticalLayout {
 
     private VerticalLayout createSummaryCard(
             final String title,
-            final String value,
+            final H3 valueHeading,
             final VaadinIcon icon,
             final String color
     ) {
@@ -363,7 +354,6 @@ public class BudgetTrackingView extends VerticalLayout {
 
         header.add(titleSpan, iconComponent);
 
-        H3 valueHeading = new H3(value);
         valueHeading.getStyle()
                 .set("margin", "0.5rem 0 0 0")
                 .set("font-size", "1.875rem")
@@ -380,11 +370,11 @@ public class BudgetTrackingView extends VerticalLayout {
         formDialog.setWidth("min(600px, 95vw)");
         formDialog.setMaxHeight("90vh");
 
-        budgetForm = new BudgetForm(budgetService, categoryService, authenticationContext, userRepository);
+        budgetForm = new BudgetForm(budgetService, categoryService, currentUserService);
 
         budgetForm.setSaveListener(budget -> {
             formDialog.close();
-            refreshGrid();
+            refreshData();
         });
 
         budgetForm.setCancelListener(() -> formDialog.close());
@@ -410,7 +400,7 @@ public class BudgetTrackingView extends VerticalLayout {
         dialog.setText(
                 String.format("""
                                 Are you sure you want to delete the budget for %s?
-                                
+
                                 Budget Amount: £%s
                                 Period: %s to %s""",
                         budget.getCategoryName(),
@@ -431,17 +421,16 @@ public class BudgetTrackingView extends VerticalLayout {
     private void deleteBudget(final BudgetDTO budget) {
         try {
             budgetService.deleteById(budget.getBudgetId());
-            refreshGrid();
-            showSuccessNotification("Budget deleted successfully");
+            refreshData();
+            NotificationHelper.showSuccess("Budget deleted successfully");
         } catch (Exception e) {
-            showErrorNotification("Error deleting budget: " + e.getMessage());
+            NotificationHelper.showError("Error deleting budget: " + e.getMessage());
         }
     }
 
     private void copyBudgetsFromPreviousMonth() {
         YearMonth previousMonth = selectedMonth.minusMonths(1);
-        User currentUser = getCurrentUser();
-        Long userId = currentUser.getUserId();
+        Long userId = currentUserService.getCurrentUserId();
 
         List<BudgetDTO> previousBudgets = budgetService.findByUserIdAndDateRange(
                 userId,
@@ -450,7 +439,7 @@ public class BudgetTrackingView extends VerticalLayout {
         );
 
         if (previousBudgets.isEmpty()) {
-            showErrorNotification("No budgets found for " +
+            NotificationHelper.showError("No budgets found for " +
                     previousMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")));
             return;
         }
@@ -483,16 +472,21 @@ public class BudgetTrackingView extends VerticalLayout {
 
                     budgetService.createBudgetFromDto(newBudget);
                     copiedCount++;
+                } catch (IllegalArgumentException ex) {
+                    log.debug("Skipping budget copy for category {}: {}",
+                            budget.getCategoryName(), ex.getMessage());
                 } catch (Exception ex) {
-                    // Skip if budget already exists for this category
+                    log.error("Unexpected error copying budget for category {}",
+                            budget.getCategoryName(), ex);
+                    NotificationHelper.showError("Error copying budget: " + ex.getMessage());
                 }
             }
 
             if (copiedCount > 0) {
-                showSuccessNotification(copiedCount + " budget(s) copied successfully");
-                refreshGrid();
+                NotificationHelper.showSuccess(copiedCount + " budget(s) copied successfully");
+                refreshData();
             } else {
-                showErrorNotification("Budgets already exist for selected categories in " +
+                NotificationHelper.showError("Budgets already exist for selected categories in " +
                         selectedMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")));
             }
         });
@@ -500,8 +494,33 @@ public class BudgetTrackingView extends VerticalLayout {
         dialog.open();
     }
 
-    private void refreshGrid() {
-        budgetGrid.setItems(getCurrentMonthBudgets());
+    private void refreshData() {
+        List<BudgetDTO> budgets = getCurrentMonthBudgets();
+        budgetGrid.setItems(budgets);
+        refreshSummaryCards(budgets);
+    }
+
+    private void refreshSummaryCards(final List<BudgetDTO> budgets) {
+        BigDecimal totalBudgeted = budgets.stream()
+                .map(BudgetDTO::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalSpent = budgets.stream()
+                .map(BudgetDTO::getSpent)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalRemaining = budgets.stream()
+                .map(BudgetDTO::getRemaining)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        long overBudgetCount = budgets.stream()
+                .filter(b -> b.getOverage().compareTo(BigDecimal.ZERO) > 0)
+                .count();
+
+        totalBudgetedValue.setText("£" + totalBudgeted);
+        totalSpentValue.setText("£" + totalSpent);
+        totalRemainingValue.setText("£" + totalRemaining);
+        overBudgetValue.setText(String.valueOf(overBudgetCount));
     }
 
     private List<BudgetDTO> getCurrentMonthBudgets() {
@@ -509,28 +528,11 @@ public class BudgetTrackingView extends VerticalLayout {
             return new ArrayList<>();
         }
 
-        User currentUser = getCurrentUser();
-        Long userId = currentUser.getUserId();
+        Long userId = currentUserService.getCurrentUserId();
         return budgetService.findByUserIdAndDateRange(
                 userId,
                 selectedMonth.atDay(1),
                 selectedMonth.atEndOfMonth()
         );
-    }
-
-    private User getCurrentUser() {
-        return authenticationContext.getAuthenticatedUser(UserDetails.class)
-                .flatMap(userDetails -> userRepository.findByEmail(userDetails.getUsername()))
-                .orElseThrow(() -> new RuntimeException("User not found"));
-    }
-
-    private void showSuccessNotification(final String message) {
-        Notification notification = Notification.show(message, 3000, Notification.Position.TOP_CENTER);
-        notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-    }
-
-    private void showErrorNotification(final String message) {
-        Notification notification = Notification.show(message, 5000, Notification.Position.TOP_CENTER);
-        notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
     }
 }

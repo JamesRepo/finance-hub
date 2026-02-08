@@ -1,31 +1,25 @@
 package com.jameselner.finance_hub.view.components;
 
 import com.jameselner.finance_hub.domain.Category;
-import com.jameselner.finance_hub.domain.User;
 import com.jameselner.finance_hub.domain.enums.CategoryType;
 import com.jameselner.finance_hub.domain.enums.PeriodType;
 import com.jameselner.finance_hub.dto.BudgetDTO;
-import com.jameselner.finance_hub.repository.UserRepository;
 import com.jameselner.finance_hub.service.BudgetService;
 import com.jameselner.finance_hub.service.CategoryService;
+import com.jameselner.finance_hub.service.CurrentUserService;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.formlayout.FormLayout;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.BigDecimalField;
-import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.validator.BigDecimalRangeValidator;
-import com.vaadin.flow.spring.security.AuthenticationContext;
 import lombok.Setter;
-import org.springframework.security.core.userdetails.UserDetails;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -39,10 +33,9 @@ public class BudgetForm extends VerticalLayout {
 
     private final BudgetService budgetService;
     private final CategoryService categoryService;
-    private final AuthenticationContext authenticationContext;
-    private final UserRepository userRepository;
+    private final CurrentUserService currentUserService;
 
-    private final Binder<BudgetDTO> binder = new BeanValidationBinder<>(BudgetDTO.class);
+    private final Binder<BudgetDTO> binder = new Binder<>(BudgetDTO.class);
     private BudgetDTO currentBudget;
 
     // Form components
@@ -63,13 +56,11 @@ public class BudgetForm extends VerticalLayout {
     public BudgetForm(
             final BudgetService budgetService,
             final CategoryService categoryService,
-            final AuthenticationContext authenticationContext,
-            final UserRepository userRepository
+            final CurrentUserService currentUserService
     ) {
         this.budgetService = budgetService;
         this.categoryService = categoryService;
-        this.authenticationContext = authenticationContext;
-        this.userRepository = userRepository;
+        this.currentUserService = currentUserService;
 
         addClassName("budget-form");
         setSpacing(true);
@@ -239,18 +230,17 @@ public class BudgetForm extends VerticalLayout {
 
             // Set user ID (from current session)
             if (currentBudget.getUserId() == null) {
-                User currentUser = getCurrentUser();
-                currentBudget.setUserId(currentUser.getUserId());
+                currentBudget.setUserId(currentUserService.getCurrentUserId());
             }
 
             // Save via service
             BudgetDTO savedBudget;
             if (currentBudget.getBudgetId() == null) {
                 savedBudget = budgetService.createBudgetFromDto(currentBudget);
-                showSuccessNotification("Budget created successfully!");
+                NotificationHelper.showSuccess("Budget created successfully!");
             } else {
                 savedBudget = budgetService.updateBudgetFromDto(currentBudget);
-                showSuccessNotification("Budget updated successfully!");
+                NotificationHelper.showSuccess("Budget updated successfully!");
             }
 
             // Notify listener
@@ -261,9 +251,9 @@ public class BudgetForm extends VerticalLayout {
             clearForm();
 
         } catch (ValidationException e) {
-            showErrorNotification("Please fix the validation errors in the form.");
+            NotificationHelper.showError("Please fix the validation errors in the form.");
         } catch (Exception e) {
-            showErrorNotification("Error saving budget: " + e.getMessage());
+            NotificationHelper.showError("Error saving budget: " + e.getMessage());
         }
     }
 
@@ -272,16 +262,6 @@ public class BudgetForm extends VerticalLayout {
         if (cancelListener != null) {
             cancelListener.run();
         }
-    }
-
-    private void showSuccessNotification(final String message) {
-        Notification notification = Notification.show(message, 3000, Notification.Position.TOP_CENTER);
-        notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-    }
-
-    private void showErrorNotification(final String message) {
-        Notification notification = Notification.show(message, 5000, Notification.Position.TOP_CENTER);
-        notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
     }
 
     /**
@@ -300,11 +280,5 @@ public class BudgetForm extends VerticalLayout {
         }
 
         setBudget(newBudget);
-    }
-
-    private User getCurrentUser() {
-        return authenticationContext.getAuthenticatedUser(UserDetails.class)
-                .flatMap(userDetails -> userRepository.findByEmail(userDetails.getUsername()))
-                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }
