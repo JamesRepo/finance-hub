@@ -1,11 +1,14 @@
 package com.jameselner.finance_hub.view;
 
 import com.jameselner.finance_hub.domain.User;
+import com.jameselner.finance_hub.dto.AnnualProjectionDTO;
+import com.jameselner.finance_hub.dto.AnnualProjectionDTO.CategoryProjection;
 import com.jameselner.finance_hub.dto.CategorySpendingDTO;
 import com.jameselner.finance_hub.dto.MonthlyDataPointDTO;
 import com.jameselner.finance_hub.dto.YearComparisonDTO;
 import com.jameselner.finance_hub.dto.YearlySummaryDTO;
 import com.jameselner.finance_hub.repository.UserRepository;
+import com.jameselner.finance_hub.service.AnnualProjectionService;
 import com.jameselner.finance_hub.service.YearlySummaryService;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -27,6 +30,7 @@ import jakarta.annotation.security.PermitAll;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -39,12 +43,14 @@ import java.util.List;
 public class YearlySummaryView extends VerticalLayout {
 
     private final YearlySummaryService yearlySummaryService;
+    private final AnnualProjectionService annualProjectionService;
     private final AuthenticationContext authenticationContext;
     private final UserRepository userRepository;
 
     private Integer selectedYear;
 
     private final VerticalLayout summaryCardsLayout;
+    private final VerticalLayout projectionSection;
     private final VerticalLayout monthlyChartSection;
     private final VerticalLayout savingsRateSection;
     private final VerticalLayout yearComparisonSection;
@@ -55,10 +61,12 @@ public class YearlySummaryView extends VerticalLayout {
 
     public YearlySummaryView(
             final YearlySummaryService yearlySummaryService,
+            final AnnualProjectionService annualProjectionService,
             final AuthenticationContext authenticationContext,
             final UserRepository userRepository
     ) {
         this.yearlySummaryService = yearlySummaryService;
+        this.annualProjectionService = annualProjectionService;
         this.authenticationContext = authenticationContext;
         this.userRepository = userRepository;
         this.selectedYear = LocalDate.now().getYear();
@@ -74,6 +82,7 @@ public class YearlySummaryView extends VerticalLayout {
 
         // Placeholder layouts that will be populated
         summaryCardsLayout = new VerticalLayout();
+        projectionSection = new VerticalLayout();
         monthlyChartSection = new VerticalLayout();
         savingsRateSection = new VerticalLayout();
         yearComparisonSection = new VerticalLayout();
@@ -82,6 +91,7 @@ public class YearlySummaryView extends VerticalLayout {
 
         add(
                 summaryCardsLayout,
+                projectionSection,
                 monthlyChartSection,
                 savingsRateSection,
                 yearComparisonSection,
@@ -141,6 +151,7 @@ public class YearlySummaryView extends VerticalLayout {
                 currentUser.getUserId(), selectedYear);
 
         updateSummaryCards(currentSummary);
+        updateProjectionSection(currentUser);
         updateMonthlyChart(currentSummary);
         updateSavingsRate(currentSummary);
         updateYearComparison(currentSummary);
@@ -176,6 +187,325 @@ public class YearlySummaryView extends VerticalLayout {
         summaryCardsLayout.add(sectionTitle, cardsLayout);
     }
 
+    private void updateProjectionSection(final User currentUser) {
+        projectionSection.removeAll();
+
+        boolean isCurrentYear = selectedYear == LocalDate.now().getYear();
+        if (!isCurrentYear) {
+            projectionSection.setVisible(false);
+            return;
+        }
+
+        projectionSection.setVisible(true);
+        projectionSection.setPadding(true);
+        projectionSection.setSpacing(true);
+        projectionSection.getStyle()
+                .set("background-color", "var(--lumo-contrast-5pct)")
+                .set("border-radius", "var(--lumo-border-radius-m)")
+                .set("border", "2px solid var(--lumo-primary-color)");
+
+        AnnualProjectionDTO projection = annualProjectionService.generateProjection(
+                currentUser.getUserId(), selectedYear);
+
+        // Section title
+        H3 sectionTitle = new H3("Annual Projection");
+        sectionTitle.getStyle().set("margin", "0 0 1rem 0")
+                .set("color", "var(--lumo-primary-text-color)");
+        projectionSection.add(sectionTitle);
+
+        // Projection overview cards
+        HorizontalLayout projectionCards = new HorizontalLayout();
+        projectionCards.setWidthFull();
+        projectionCards.setSpacing(true);
+
+        projectionCards.add(
+                createProjectionCard("Projected Income", projection.getProjectedIncome(),
+                        "var(--lumo-success-color)", VaadinIcon.ARROW_DOWN),
+                createProjectionCard("Projected Expenses", projection.getProjectedExpenses(),
+                        "var(--lumo-error-color)", VaadinIcon.ARROW_UP),
+                createProjectionCard("Projected Net Savings", projection.getProjectedNetSavings(),
+                        projection.getProjectedNetSavings().compareTo(BigDecimal.ZERO) >= 0 ?
+                                "var(--lumo-success-color)" : "var(--lumo-error-color)",
+                        VaadinIcon.PIGGY_BANK),
+                createProjectionPercentageCard("Projected Savings Rate", projection.getProjectedSavingsRate(),
+                        projection.getProjectedSavingsRate().compareTo(BigDecimal.valueOf(20)) >= 0 ?
+                                "var(--lumo-success-color)" : "var(--lumo-warning-color)",
+                        VaadinIcon.CHART_LINE)
+        );
+        projectionSection.add(projectionCards);
+
+        // Expense breakdown
+        H3 breakdownTitle = new H3("Projected Expense Breakdown");
+        breakdownTitle.getStyle().set("margin", "1.5rem 0 0.5rem 0");
+        projectionSection.add(breakdownTitle);
+
+        HorizontalLayout breakdownCards = new HorizontalLayout();
+        breakdownCards.setWidthFull();
+        breakdownCards.setSpacing(true);
+
+        BigDecimal totalExpenses = projection.getProjectedExpenses();
+        breakdownCards.add(
+                createBreakdownCard("Budgeted Categories", projection.getBudgetedExpenses(), totalExpenses,
+                        "var(--lumo-primary-color)"),
+                createBreakdownCard("Housing", projection.getHousingCosts(), totalExpenses,
+                        "#4A90A4"),
+                createBreakdownCard("Debt Payments", projection.getDebtPayments(), totalExpenses,
+                        "#E57373"),
+                createBreakdownCard("Subscriptions", projection.getSubscriptionCosts(), totalExpenses,
+                        "#9575CD"),
+                createBreakdownCard("Holidays", projection.getHolidayCosts(), totalExpenses,
+                        "#4DB6AC")
+        );
+        projectionSection.add(breakdownCards);
+
+        // Projected spending by category
+        if (projection.getCategoryProjections() != null && !projection.getCategoryProjections().isEmpty()) {
+            H3 categoryTitle = new H3("Projected Spending by Category");
+            categoryTitle.getStyle().set("margin", "1.5rem 0 0.5rem 0");
+            projectionSection.add(categoryTitle);
+
+            for (CategoryProjection cat : projection.getCategoryProjections()) {
+                projectionSection.add(createProjectionCategoryRow(cat));
+            }
+        }
+
+        // Blended outlook
+        if (projection.getBlendedAnnualIncome() != null) {
+            H3 blendedTitle = new H3("Blended Outlook (YTD Actual + Remaining Projected)");
+            blendedTitle.getStyle().set("margin", "1.5rem 0 0.5rem 0");
+            projectionSection.add(blendedTitle);
+
+            HorizontalLayout blendedCards = new HorizontalLayout();
+            blendedCards.setWidthFull();
+            blendedCards.setSpacing(true);
+
+            blendedCards.add(
+                    createMetricCard("Expected Year-End Income", projection.getBlendedAnnualIncome(),
+                            "var(--lumo-success-color)", VaadinIcon.COIN_PILES, true),
+                    createMetricCard("Expected Year-End Expenses", projection.getBlendedAnnualExpenses(),
+                            "var(--lumo-error-color)", VaadinIcon.WALLET, true),
+                    createMetricCard("Expected Net Savings", projection.getBlendedNetSavings(),
+                            projection.getBlendedNetSavings().compareTo(BigDecimal.ZERO) >= 0 ?
+                                    "var(--lumo-success-color)" : "var(--lumo-error-color)",
+                            VaadinIcon.PIGGY_BANK, true),
+                    createPercentageCard("Expected Savings Rate", projection.getBlendedSavingsRate(),
+                            projection.getBlendedSavingsRate().compareTo(BigDecimal.valueOf(20)) >= 0 ?
+                                    "var(--lumo-success-color)" : "var(--lumo-warning-color)",
+                            VaadinIcon.CHART_LINE, true)
+            );
+            projectionSection.add(blendedCards);
+
+            Span blendedInfo = new Span(String.format(
+                    "%d months actual + %d months projected",
+                    projection.getCompletedMonths(), projection.getProjectedMonths()));
+            blendedInfo.getStyle()
+                    .set("font-size", "var(--lumo-font-size-s)")
+                    .set("color", "var(--lumo-secondary-text-color)");
+            projectionSection.add(blendedInfo);
+        }
+
+        // Pace indicator
+        if (projection.getCompletedMonths() > 0 && projection.getYtdActualExpenses() != null) {
+            BigDecimal annualizedPace = projection.getYtdActualExpenses()
+                    .multiply(BigDecimal.valueOf(12))
+                    .divide(BigDecimal.valueOf(projection.getCompletedMonths()), 2, RoundingMode.HALF_UP);
+
+            boolean onPace = annualizedPace.compareTo(projection.getProjectedExpenses()) <= 0;
+            String paceColor = onPace ? "var(--lumo-success-text-color)" : "var(--lumo-error-text-color)";
+
+            Div paceIndicator = new Div();
+            paceIndicator.getStyle()
+                    .set("margin-top", "1rem")
+                    .set("padding", "0.75rem")
+                    .set("background-color", "var(--finance-card-bg)")
+                    .set("border-radius", "var(--lumo-border-radius-m)")
+                    .set("border-left", "4px solid " + paceColor);
+
+            Span paceLabel = new Span(onPace ? "On Pace" : "Over Pace");
+            paceLabel.getStyle()
+                    .set("font-weight", "bold")
+                    .set("color", paceColor)
+                    .set("display", "block")
+                    .set("margin-bottom", "0.25rem");
+
+            Span paceDetail = new Span(String.format(
+                    "You're spending at a pace of £%.2f/year vs your projection of £%.2f/year",
+                    annualizedPace, projection.getProjectedExpenses()));
+            paceDetail.getStyle()
+                    .set("font-size", "var(--lumo-font-size-s)")
+                    .set("color", "var(--lumo-secondary-text-color)");
+
+            paceIndicator.add(paceLabel, paceDetail);
+            projectionSection.add(paceIndicator);
+        }
+    }
+
+    private Div createProjectionCard(final String label, final BigDecimal value,
+                                      final String color, final VaadinIcon icon) {
+        Div card = new Div();
+        card.getStyle()
+                .set("flex", "1")
+                .set("padding", "1rem")
+                .set("background-color", "var(--finance-card-bg)")
+                .set("border-radius", "var(--lumo-border-radius-m)")
+                .set("border-left", "4px solid " + color);
+
+        Icon cardIcon = new Icon(icon);
+        cardIcon.setColor(color);
+        cardIcon.getStyle().set("margin-bottom", "0.5rem");
+
+        Span labelSpan = new Span(label);
+        labelSpan.getStyle()
+                .set("display", "block")
+                .set("font-size", "var(--lumo-font-size-s)")
+                .set("color", "var(--lumo-secondary-text-color)");
+
+        Span valueSpan = new Span(String.format("£%.2f", value != null ? value : BigDecimal.ZERO));
+        valueSpan.getStyle()
+                .set("display", "block")
+                .set("font-size", "var(--lumo-font-size-xxl)")
+                .set("font-weight", "bold")
+                .set("color", "var(--lumo-primary-text-color)");
+
+        card.add(cardIcon, labelSpan, valueSpan);
+        return card;
+    }
+
+    private Div createProjectionPercentageCard(final String label, final BigDecimal value,
+                                                final String color, final VaadinIcon icon) {
+        Div card = new Div();
+        card.getStyle()
+                .set("flex", "1")
+                .set("padding", "1rem")
+                .set("background-color", "var(--finance-card-bg)")
+                .set("border-radius", "var(--lumo-border-radius-m)")
+                .set("border-left", "4px solid " + color);
+
+        Icon cardIcon = new Icon(icon);
+        cardIcon.setColor(color);
+        cardIcon.getStyle().set("margin-bottom", "0.5rem");
+
+        Span labelSpan = new Span(label);
+        labelSpan.getStyle()
+                .set("display", "block")
+                .set("font-size", "var(--lumo-font-size-s)")
+                .set("color", "var(--lumo-secondary-text-color)");
+
+        Span valueSpan = new Span(String.format("%.1f%%", value != null ? value : BigDecimal.ZERO));
+        valueSpan.getStyle()
+                .set("display", "block")
+                .set("font-size", "var(--lumo-font-size-xxl)")
+                .set("font-weight", "bold")
+                .set("color", "var(--lumo-primary-text-color)");
+
+        card.add(cardIcon, labelSpan, valueSpan);
+        return card;
+    }
+
+    private Div createBreakdownCard(final String label, final BigDecimal amount,
+                                     final BigDecimal totalExpenses, final String color) {
+        Div card = new Div();
+        card.getStyle()
+                .set("flex", "1")
+                .set("padding", "0.75rem")
+                .set("background-color", "var(--finance-card-bg)")
+                .set("border-radius", "var(--lumo-border-radius-m)")
+                .set("border-left", "4px solid " + color);
+
+        Span labelSpan = new Span(label);
+        labelSpan.getStyle()
+                .set("display", "block")
+                .set("font-size", "var(--lumo-font-size-s)")
+                .set("color", "var(--lumo-secondary-text-color)");
+
+        BigDecimal safeAmount = amount != null ? amount : BigDecimal.ZERO;
+        Span valueSpan = new Span(String.format("£%.2f", safeAmount));
+        valueSpan.getStyle()
+                .set("display", "block")
+                .set("font-size", "var(--lumo-font-size-xl)")
+                .set("font-weight", "bold")
+                .set("color", "var(--lumo-primary-text-color)");
+
+        BigDecimal percentage = totalExpenses.compareTo(BigDecimal.ZERO) > 0
+                ? safeAmount.multiply(BigDecimal.valueOf(100))
+                        .divide(totalExpenses, 1, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+        Span percentSpan = new Span(String.format("%.1f%% of total", percentage));
+        percentSpan.getStyle()
+                .set("display", "block")
+                .set("font-size", "var(--lumo-font-size-xs)")
+                .set("color", "var(--lumo-secondary-text-color)");
+
+        card.add(labelSpan, valueSpan, percentSpan);
+        return card;
+    }
+
+    private VerticalLayout createProjectionCategoryRow(final CategoryProjection category) {
+        VerticalLayout row = new VerticalLayout();
+        row.setSpacing(false);
+        row.setPadding(false);
+        row.getStyle().set("margin-bottom", "0.75rem");
+
+        HorizontalLayout header = new HorizontalLayout();
+        header.setWidthFull();
+        header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+
+        Div categoryLabel = new Div();
+        Span colorDot = new Span();
+        colorDot.getStyle()
+                .set("width", "12px")
+                .set("height", "12px")
+                .set("border-radius", "50%")
+                .set("background-color", category.getColorCode() != null ?
+                        category.getColorCode() : "#666")
+                .set("display", "inline-block")
+                .set("margin-right", "0.5rem");
+
+        String nameText = category.getCategoryName();
+        if (category.isSynthetic()) {
+            nameText += " (fixed)";
+        }
+        Span name = new Span(nameText);
+        name.getStyle().set("font-weight", "500");
+
+        categoryLabel.add(colorDot, name);
+
+        Span amount = new Span(String.format("£%.2f", category.getAnnualAmount()));
+        amount.getStyle()
+                .set("font-weight", "bold")
+                .set("color", "var(--lumo-primary-text-color)");
+
+        header.add(categoryLabel, amount);
+
+        // Progress bar
+        Div progressBarContainer = new Div();
+        progressBarContainer.getStyle()
+                .set("width", "100%")
+                .set("height", "6px")
+                .set("background-color", "var(--lumo-contrast-10pct)")
+                .set("border-radius", "3px")
+                .set("overflow", "hidden");
+
+        BigDecimal pct = category.getPercentageOfTotal() != null ? category.getPercentageOfTotal() : BigDecimal.ZERO;
+        Div progressBar = new Div();
+        progressBar.getStyle()
+                .set("height", "100%")
+                .set("background-color", category.getColorCode() != null ?
+                        category.getColorCode() : "var(--lumo-primary-color)")
+                .set("width", pct + "%")
+                .set("transition", "width 0.3s ease");
+
+        progressBarContainer.add(progressBar);
+
+        Span percentage = new Span(String.format("%.1f%% of projected expenses", pct));
+        percentage.getStyle()
+                .set("font-size", "var(--lumo-font-size-xs)")
+                .set("color", "var(--lumo-secondary-text-color)");
+
+        row.add(header, progressBarContainer, percentage);
+        return row;
+    }
+
     private void updateMonthlyChart(final YearlySummaryDTO summary) {
         monthlyChartSection.removeAll();
         monthlyChartSection.setPadding(true);
@@ -196,6 +526,10 @@ public class YearlySummaryView extends VerticalLayout {
             legend.add(createLegendItem("Income", "var(--lumo-success-color)"));
             legend.add(createLegendItem("Expenses", "var(--lumo-error-color)"));
             legend.add(createLegendItem("Savings", "var(--lumo-primary-color)"));
+            boolean isCurrentYear = selectedYear == LocalDate.now().getYear();
+            if (isCurrentYear) {
+                legend.add(createLegendItem("Projected", "var(--lumo-contrast-30pct)"));
+            }
             monthlyChartSection.add(legend);
 
             // Find max value for scaling
@@ -210,8 +544,13 @@ public class YearlySummaryView extends VerticalLayout {
             }
 
             // Create chart
+            int currentMonthValue = LocalDate.now().getMonthValue();
             for (MonthlyDataPointDTO dataPoint : summary.getMonthlyData()) {
-                monthlyChartSection.add(createMonthBar(dataPoint, maxValue));
+                VerticalLayout bar = createMonthBar(dataPoint, maxValue);
+                if (isCurrentYear && dataPoint.getMonth().getMonthValue() >= currentMonthValue) {
+                    bar.getStyle().set("opacity", "0.5");
+                }
+                monthlyChartSection.add(bar);
             }
 
             // Add averages
