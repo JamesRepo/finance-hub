@@ -232,11 +232,33 @@ public class HousingExpenseService {
     }
 
     /**
-     * Calculate total annual housing costs (sum of last 12 months or current month * 12)
+     * Calculate total annual housing costs based on recent history.
+     * If 12+ months exist, sum the most recent 12 months.
+     * If fewer months exist, annualize the average of available months.
      */
     public BigDecimal calculateTotalAnnualHousingCosts(final Long userId) {
-        BigDecimal currentMonthTotal = calculateTotalMonthlyHousingCosts(userId);
-        return currentMonthTotal.multiply(BigDecimal.valueOf(12));
+        validateIdNotNull(userId);
+        User user = getUserById(userId);
+
+        List<LocalDate> months = housingExpenseRepository.findDistinctMonthsByUser(user);
+        if (months.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        int monthsToUse = Math.min(12, months.size());
+        BigDecimal total = BigDecimal.ZERO;
+
+        for (int i = 0; i < monthsToUse; i++) {
+            LocalDate month = months.get(i);
+            total = total.add(housingExpenseRepository.getTotalForMonth(user, month));
+        }
+
+        if (months.size() >= 12) {
+            return total;
+        }
+
+        BigDecimal average = total.divide(BigDecimal.valueOf(monthsToUse), 2, RoundingMode.HALF_UP);
+        return average.multiply(BigDecimal.valueOf(12));
     }
 
     /**
