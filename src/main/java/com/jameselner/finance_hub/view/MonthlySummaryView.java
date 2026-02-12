@@ -372,12 +372,15 @@ public class MonthlySummaryView extends VerticalLayout {
                 .set("font-size", "var(--lumo-font-size-s)")
                 .set("color", "var(--lumo-secondary-text-color)");
 
-        Span transactions = new Span(category.getTransactionCount() + " transactions");
-        transactions.getStyle()
-                .set("font-size", "var(--lumo-font-size-s)")
-                .set("color", "var(--lumo-secondary-text-color)");
+        details.add(percentage);
 
-        details.add(percentage, transactions);
+        if (category.getTransactionCount() > 0) {
+            Span transactions = new Span(category.getTransactionCount() + " transactions");
+            transactions.getStyle()
+                    .set("font-size", "var(--lumo-font-size-s)")
+                    .set("color", "var(--lumo-secondary-text-color)");
+            details.add(transactions);
+        }
 
         if (category.getBudgetAmount() != null) {
             Span budget = new Span("Budget: " + currencyFormatter.format(category.getBudgetAmount(), userId));
