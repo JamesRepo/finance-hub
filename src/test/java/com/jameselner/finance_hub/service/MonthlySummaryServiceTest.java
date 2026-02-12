@@ -147,71 +147,6 @@ class MonthlySummaryServiceTest {
         }
 
         @Test
-        @DisplayName("Should calculate net savings correctly")
-        void shouldCalculateNetSavingsCorrectly() {
-            setupDefaultMocks();
-
-            // Income: 3000, Expenses: 1850
-            when(incomeSourceRepository.findByUserAndMonthRange(eq(testUser), any(), any()))
-                    .thenReturn(List.of(createIncomeSource(new BigDecimal("3000.00"), null)));
-            when(transactionRepository.sumByUserAndTypeAndDateRange(
-                    eq(testUser), eq(TransactionType.EXPENSE), any(), any()))
-                    .thenReturn(new BigDecimal("500.00"));
-            when(housingExpenseService.calculateTotalForMonth(eq(1L), any()))
-                    .thenReturn(new BigDecimal("1000.00"));
-            when(debtPaymentService.calculateTotalForMonth(eq(1L), any()))
-                    .thenReturn(new BigDecimal("200.00"));
-            when(subscriptionService.calculateTotalForMonth(eq(1L), anyInt(), anyInt()))
-                    .thenReturn(new BigDecimal("50.00"));
-            when(holidayService.calculateTotalForMonth(eq(1L), any()))
-                    .thenReturn(new BigDecimal("100.00"));
-
-            MonthlySummaryDTO result = monthlySummaryService.generateMonthlySummary(1L, testMonth);
-
-            // Net savings = 3000 - 1850 = 1150
-            assertEquals(new BigDecimal("1150.00"), result.getNetSavings());
-        }
-
-        @Test
-        @DisplayName("Should calculate savings rate correctly")
-        void shouldCalculateSavingsRateCorrectly() {
-            setupDefaultMocks();
-
-            // Income: 2000, Net Savings: 400 -> Rate = 20%
-            when(incomeSourceRepository.findByUserAndMonthRange(eq(testUser), any(), any()))
-                    .thenReturn(List.of(createIncomeSource(new BigDecimal("2000.00"), null)));
-            when(transactionRepository.sumByUserAndTypeAndDateRange(
-                    eq(testUser), eq(TransactionType.EXPENSE), any(), any()))
-                    .thenReturn(new BigDecimal("1600.00"));
-            when(housingExpenseService.calculateTotalForMonth(eq(1L), any()))
-                    .thenReturn(BigDecimal.ZERO);
-            when(debtPaymentService.calculateTotalForMonth(eq(1L), any()))
-                    .thenReturn(BigDecimal.ZERO);
-            when(subscriptionService.calculateTotalForMonth(eq(1L), anyInt(), anyInt()))
-                    .thenReturn(BigDecimal.ZERO);
-            when(holidayService.calculateTotalForMonth(eq(1L), any()))
-                    .thenReturn(BigDecimal.ZERO);
-
-            MonthlySummaryDTO result = monthlySummaryService.generateMonthlySummary(1L, testMonth);
-
-            // Savings rate = 400/2000 * 100 = 20%
-            assertEquals(new BigDecimal("20.00"), result.getSavingsRate());
-        }
-
-        @Test
-        @DisplayName("Should return zero savings rate when income is zero")
-        void shouldReturnZeroSavingsRateWhenIncomeIsZero() {
-            setupDefaultMocks();
-
-            when(incomeSourceRepository.findByUserAndMonthRange(eq(testUser), any(), any()))
-                    .thenReturn(Collections.emptyList());
-
-            MonthlySummaryDTO result = monthlySummaryService.generateMonthlySummary(1L, testMonth);
-
-            assertEquals(BigDecimal.ZERO, result.getSavingsRate());
-        }
-
-        @Test
         @DisplayName("Should use selected month year for housing ratio")
         void shouldUseSelectedMonthYearForHousingRatio() {
             setupDefaultMocks();
@@ -368,6 +303,26 @@ class MonthlySummaryServiceTest {
             // Variable categories should NOT contain synthetic categories
             assertFalse(result.getVariableSpendingCategories().stream()
                     .anyMatch(c -> c.getCategoryId().equals(FinancialThresholds.HOUSING_CATEGORY_ID)));
+        }
+
+        @Test
+        @DisplayName("Should set transaction count to zero for synthetic fixed cost categories")
+        void shouldSetTransactionCountToZeroForSyntheticCategories() {
+            setupDefaultMocks();
+
+            when(housingExpenseService.calculateTotalForMonth(eq(1L), any()))
+                    .thenReturn(new BigDecimal("1500.00"));
+            when(debtPaymentService.calculateTotalForMonth(eq(1L), any()))
+                    .thenReturn(new BigDecimal("300.00"));
+            when(subscriptionService.calculateTotalForMonth(eq(1L), anyInt(), anyInt()))
+                    .thenReturn(new BigDecimal("50.00"));
+
+            MonthlySummaryDTO result = monthlySummaryService.generateMonthlySummary(1L, testMonth);
+
+            for (CategorySpendingDTO fixed : result.getFixedCostCategories()) {
+                assertEquals(0, fixed.getTransactionCount(),
+                        "Synthetic category '" + fixed.getCategoryName() + "' should have 0 transactions");
+            }
         }
 
         @Test
@@ -568,6 +523,67 @@ class MonthlySummaryServiceTest {
 
             // Should return zero percent change when previous is zero
             assertEquals(BigDecimal.ZERO, result.getMonthComparison().getIncomeChangePercent());
+        }
+
+        @Test
+        @DisplayName("Should calculate expense change correctly")
+        void shouldCalculateExpenseChangeCorrectly() {
+            // Current month expenses: 800, Previous month expenses: 600
+            setupMocksForComparison(
+                    new BigDecimal("3000.00"), new BigDecimal("3000.00"),
+                    new BigDecimal("800.00"), new BigDecimal("600.00")
+            );
+
+            MonthlySummaryDTO result = monthlySummaryService.generateMonthlySummary(1L, testMonth);
+
+            assertEquals(new BigDecimal("200.00"), result.getMonthComparison().getExpenseChange());
+            assertEquals(new BigDecimal("33.33"), result.getMonthComparison().getExpenseChangePercent());
+        }
+
+        @Test
+        @DisplayName("Should calculate expense decrease correctly")
+        void shouldCalculateExpenseDecreaseCorrectly() {
+            // Current month expenses: 500, Previous month expenses: 800
+            setupMocksForComparison(
+                    new BigDecimal("3000.00"), new BigDecimal("3000.00"),
+                    new BigDecimal("500.00"), new BigDecimal("800.00")
+            );
+
+            MonthlySummaryDTO result = monthlySummaryService.generateMonthlySummary(1L, testMonth);
+
+            assertEquals(new BigDecimal("-300.00"), result.getMonthComparison().getExpenseChange());
+            assertEquals(new BigDecimal("-37.50"), result.getMonthComparison().getExpenseChangePercent());
+        }
+
+        @Test
+        @DisplayName("Should handle zero previous expenses gracefully")
+        void shouldHandleZeroPreviousExpensesGracefully() {
+            setupMocksForComparison(
+                    new BigDecimal("3000.00"), new BigDecimal("3000.00"),
+                    new BigDecimal("500.00"), BigDecimal.ZERO
+            );
+
+            MonthlySummaryDTO result = monthlySummaryService.generateMonthlySummary(1L, testMonth);
+
+            assertEquals(new BigDecimal("500.00"), result.getMonthComparison().getExpenseChange());
+            assertEquals(BigDecimal.ZERO, result.getMonthComparison().getExpenseChangePercent());
+        }
+
+        @Test
+        @DisplayName("Should only populate income and expense fields in month comparison")
+        void shouldOnlyPopulateIncomeAndExpenseFieldsInMonthComparison() {
+            setupMocksForComparison(
+                    new BigDecimal("3000.00"), new BigDecimal("2500.00"),
+                    new BigDecimal("1000.00"), new BigDecimal("800.00")
+            );
+
+            MonthlySummaryDTO result = monthlySummaryService.generateMonthlySummary(1L, testMonth);
+
+            assertNotNull(result.getMonthComparison());
+            assertNotNull(result.getMonthComparison().getIncomeChange());
+            assertNotNull(result.getMonthComparison().getIncomeChangePercent());
+            assertNotNull(result.getMonthComparison().getExpenseChange());
+            assertNotNull(result.getMonthComparison().getExpenseChangePercent());
         }
     }
 
