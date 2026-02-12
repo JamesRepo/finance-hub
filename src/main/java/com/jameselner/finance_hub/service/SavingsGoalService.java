@@ -144,7 +144,7 @@ public class SavingsGoalService {
         if (user == null) {
             throw new IllegalArgumentException("User must not be null");
         }
-        return savingsGoalRepository.getTotalCurrentAmountByUser(user);
+        return savingsGoalRepository.getTotalCurrentSavingsAmountByUser(user);
     }
 
     public SavingsGoalProgressDTO calculateProgress(final Long goalId) {

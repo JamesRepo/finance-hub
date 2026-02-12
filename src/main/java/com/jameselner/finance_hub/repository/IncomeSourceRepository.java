@@ -45,4 +45,7 @@ public interface IncomeSourceRepository extends JpaRepository<IncomeSource, Long
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
     );
+
+    @Query("SELECT i FROM IncomeSource i WHERE i.user = :user AND i.recurrenceFrequency = 'MONTHLY' ORDER BY i.startDate DESC LIMIT 1")
+    IncomeSource getLastMonthlyIncomeByUser(@Param("user") User user);
 }

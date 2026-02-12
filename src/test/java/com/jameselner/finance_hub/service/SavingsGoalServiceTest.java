@@ -499,12 +499,12 @@ class SavingsGoalServiceTest {
         @DisplayName("Should get total current amount for user")
         void shouldGetTotalCurrentAmountForUser() {
             BigDecimal expectedTotal = new BigDecimal("15000.00");
-            when(savingsGoalRepository.getTotalCurrentAmountByUser(testUser)).thenReturn(expectedTotal);
+            when(savingsGoalRepository.getTotalCurrentSavingsAmountByUser(testUser)).thenReturn(expectedTotal);
 
             BigDecimal result = savingsGoalService.getTotalCurrentAmountByUser(testUser);
 
             assertEquals(expectedTotal, result);
-            verify(savingsGoalRepository).getTotalCurrentAmountByUser(testUser);
+            verify(savingsGoalRepository).getTotalCurrentSavingsAmountByUser(testUser);
         }
 
         @Test
