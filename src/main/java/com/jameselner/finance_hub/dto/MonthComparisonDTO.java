@@ -17,9 +17,4 @@ public class MonthComparisonDTO {
 
     private BigDecimal expenseChange;
     private BigDecimal expenseChangePercent;
-
-    private BigDecimal savingsChange;
-    private BigDecimal savingsChangePercent;
-
-    private BigDecimal savingsRateChange; // Change in percentage points
 }

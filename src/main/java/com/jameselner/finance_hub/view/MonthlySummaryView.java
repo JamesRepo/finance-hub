@@ -134,7 +134,8 @@ public class MonthlySummaryView extends VerticalLayout {
         Long userId = currentUserService.getCurrentUserId();
 
         MonthlySummaryDTO summary = monthlySummaryService.generateMonthlySummary(
-                userId, selectedMonth);
+                userId, selectedMonth
+        );
 
         updateSummaryCards(summary, userId);
         updateBudgetPerformance(summary, userId);
@@ -178,24 +179,7 @@ public class MonthlySummaryView extends VerticalLayout {
                 false
         );
 
-        Div savingsCard = metricCardFactory.createMetricCard(
-                "Net Savings",
-                currencyFormatter.format(summary.getNetSavings(), userId),
-                summary.getNetSavings().compareTo(BigDecimal.ZERO) >= 0 ?
-                        "var(--lumo-success-color)" : "var(--lumo-error-color)",
-                VaadinIcon.PIGGY_BANK,
-                false
-        );
-
-        Div savingsRateCard = metricCardFactory.createPercentageCard(
-                "Savings Rate",
-                summary.getSavingsRate(),
-                summary.getSavingsRate().compareTo(FinancialThresholds.GOOD_SAVINGS_RATE_PERCENT) >= 0 ?
-                        "var(--lumo-success-color)" : "var(--lumo-warning-color)",
-                VaadinIcon.CHART_LINE
-        );
-
-        cardsLayout.add(incomeCard, expensesCard, savingsCard, savingsRateCard);
+        cardsLayout.add(incomeCard, expensesCard);
 
         summaryCardsLayout.add(sectionTitle, cardsLayout);
     }
@@ -440,31 +424,9 @@ public class MonthlySummaryView extends VerticalLayout {
                     currencyFormatter.format(comparison.getExpenseChange().abs(), userId)
             );
 
-            Div savingsChangeCard = metricCardFactory.createChangeCard(
-                    "Savings Change",
-                    comparison.getSavingsChange(),
-                    comparison.getSavingsChangePercent(),
-                    currencyFormatter.format(comparison.getSavingsChange().abs(), userId)
-            );
-
-            comparisonCards.add(incomeChangeCard, expenseChangeCard, savingsChangeCard);
+            comparisonCards.add(incomeChangeCard, expenseChangeCard);
 
             monthComparisonSection.add(comparisonCards);
-
-            // Savings rate change
-            if (comparison.getSavingsRateChange() != null) {
-                Span savingsRateInfo = new Span(String.format(
-                        "Savings rate %s by %.1f percentage points",
-                        comparison.getSavingsRateChange().compareTo(BigDecimal.ZERO) >= 0 ?
-                                "increased" : "decreased",
-                        comparison.getSavingsRateChange().abs()
-                ));
-                savingsRateInfo.getStyle()
-                        .set("color", comparison.getSavingsRateChange().compareTo(BigDecimal.ZERO) >= 0 ?
-                                "var(--lumo-success-text-color)" : "var(--lumo-error-text-color)")
-                        .set("font-weight", "500");
-                monthComparisonSection.add(savingsRateInfo);
-            }
         } else {
             Span noDataLabel = new Span("No comparison data available");
             noDataLabel.getStyle().set("color", "var(--lumo-secondary-text-color)");

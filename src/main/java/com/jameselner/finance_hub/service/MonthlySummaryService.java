@@ -87,8 +87,6 @@ public class MonthlySummaryService {
 
         BigDecimal totalIncome = calculateTotalIncome(user, startDate, endDate);
         ExpenseBreakdown expenses = calculateExpenseBreakdown(user, userId, month);
-        BigDecimal netSavings = totalIncome.subtract(expenses.total());
-        BigDecimal savingsRate = calculateSavingsRate(totalIncome, netSavings);
 
         List<BudgetDTO> budgets = budgetService.findByUserIdAndDateRange(userId, startDate, endDate);
         BudgetPerformance budgetPerf = calculateBudgetPerformance(budgets);
@@ -110,15 +108,14 @@ public class MonthlySummaryService {
         TransactionStatistics stats = calculateTransactionStatistics(transactions);
 
         MonthComparisonDTO monthComparison = calculateMonthComparison(
-                user, userId, month, totalIncome, expenses.total(), netSavings, savingsRate);
+                user, userId, month, totalIncome, expenses.total()
+        );
 
         return MonthlySummaryDTO.builder()
                 .month(month)
                 .totalIncome(totalIncome)
                 .totalExpenses(expenses.total())
                 .transactionExpenses(expenses.transactionExpenses())
-                .netSavings(netSavings)
-                .savingsRate(savingsRate)
                 .totalBudgeted(budgetPerf.totalBudgeted())
                 .totalSpent(budgetPerf.totalSpent())
                 .budgetRemaining(budgetPerf.remaining())
@@ -272,14 +269,6 @@ public class MonthlySummaryService {
         return expenses != null ? expenses : BigDecimal.ZERO;
     }
 
-    private BigDecimal calculateSavingsRate(final BigDecimal totalIncome, final BigDecimal netSavings) {
-        if (totalIncome.compareTo(BigDecimal.ZERO) == 0) {
-            return BigDecimal.ZERO;
-        }
-        return netSavings.multiply(BigDecimal.valueOf(100))
-                .divide(totalIncome, 2, RoundingMode.HALF_UP);
-    }
-
     /**
      * Calculate spending categories from pre-fetched transactions (fix: no duplicate DB query)
      */
@@ -362,9 +351,7 @@ public class MonthlySummaryService {
             final Long userId,
             final YearMonth currentMonth,
             final BigDecimal currentIncome,
-            final BigDecimal currentExpenses,
-            final BigDecimal currentSavings,
-            final BigDecimal currentSavingsRate
+            final BigDecimal currentExpenses
     ) {
         YearMonth previousMonth = currentMonth.minusMonths(1);
         LocalDate previousStart = previousMonth.atDay(1);
@@ -373,8 +360,6 @@ public class MonthlySummaryService {
         BigDecimal previousIncome = calculateTotalIncome(user, previousStart, previousEnd);
         ExpenseBreakdown previousBreakdown = calculateExpenseBreakdown(user, userId, previousMonth);
         BigDecimal previousExpenses = previousBreakdown.total();
-        BigDecimal previousSavings = previousIncome.subtract(previousExpenses);
-        BigDecimal previousSavingsRate = calculateSavingsRate(previousIncome, previousSavings);
 
         BigDecimal incomeChange = currentIncome.subtract(previousIncome);
         BigDecimal incomeChangePercent = calculateChangePercentage(previousIncome, currentIncome);
@@ -382,19 +367,11 @@ public class MonthlySummaryService {
         BigDecimal expenseChange = currentExpenses.subtract(previousExpenses);
         BigDecimal expenseChangePercent = calculateChangePercentage(previousExpenses, currentExpenses);
 
-        BigDecimal savingsChange = currentSavings.subtract(previousSavings);
-        BigDecimal savingsChangePercent = calculateChangePercentage(previousSavings, currentSavings);
-
-        BigDecimal savingsRateChange = currentSavingsRate.subtract(previousSavingsRate);
-
         return MonthComparisonDTO.builder()
                 .incomeChange(incomeChange)
                 .incomeChangePercent(incomeChangePercent)
                 .expenseChange(expenseChange)
                 .expenseChangePercent(expenseChangePercent)
-                .savingsChange(savingsChange)
-                .savingsChangePercent(savingsChangePercent)
-                .savingsRateChange(savingsRateChange)
                 .build();
     }
 
