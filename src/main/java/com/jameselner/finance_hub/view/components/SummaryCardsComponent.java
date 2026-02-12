@@ -8,7 +8,6 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.spring.security.AuthenticationContext;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -19,8 +18,8 @@ import java.util.Locale;
 
 /**
  * Component displaying summary cards with key financial metrics.
- * Shows Total Balance, Monthly Income, Monthly Expenses, and Savings Rate.
- * Each card includes an icon, value, label, and trend indicator.
+ * Shows Total Balance, Last Monthly Income, Monthly Expenses, Total Debt, and Total Savings.
+ * Each card includes an icon, value, and label.
  */
 public class SummaryCardsComponent extends HorizontalLayout {
 
@@ -47,43 +46,40 @@ public class SummaryCardsComponent extends HorizontalLayout {
 
                     DashboardSummaryDto summary = dashboardService.getDashboardSummary(user);
 
-                    // Create the four summary cards with real data
+                    // Create the five summary cards with real data
                     add(createSummaryCard(
                             "Total Balance",
                             formatCurrency(summary.totalBalance()),
-                            "All active accounts",
                             VaadinIcon.WALLET,
-                            "var(--finance-primary)",
-                            true
+                            "var(--finance-primary)"
                     ));
 
-                    BigDecimal incomeChange = summary.getIncomeChange();
                     add(createSummaryCard(
-                            "Monthly Income",
-                            formatCurrency(summary.monthlyIncome()),
-                            formatPercentageChange(incomeChange) + " from last month",
+                            "Last Monthly Income",
+                            formatCurrency(summary.lastMonthlyIncome()),
                             VaadinIcon.TRENDING_UP,
-                            "var(--finance-secondary)",
-                            incomeChange.compareTo(BigDecimal.ZERO) >= 0
+                            "var(--finance-secondary)"
                     ));
 
-                    BigDecimal expenseChange = summary.getExpenseChange();
                     add(createSummaryCard(
                             "Monthly Expenses",
                             formatCurrency(summary.monthlyExpenses()),
-                            formatPercentageChange(expenseChange) + " from last month",
                             VaadinIcon.TRENDING_DOWN,
-                            "var(--finance-danger)",
-                            expenseChange.compareTo(BigDecimal.ZERO) <= 0  // Lower expenses is positive
+                            "var(--finance-danger)"
                     ));
 
                     add(createSummaryCard(
                             "Total Debt",
                             formatCurrency(summary.totalDebt()),
-                            "Current month",
                             VaadinIcon.BAN,
-                            "var(--finance-warning)",
-                            true
+                            "var(--finance-warning)"
+                    ));
+
+                    add(createSummaryCard(
+                            "Total Savings",
+                            formatCurrency(summary.totalSavings()),
+                            VaadinIcon.PIGGY_BANK,
+                            "var(--finance-secondary)"
                     ));
                 });
     }
@@ -93,33 +89,21 @@ public class SummaryCardsComponent extends HorizontalLayout {
         return formatter.format(amount);
     }
 
-    private String formatPercentage(final BigDecimal percentage) {
-        return String.format("%.1f%%", percentage);
-    }
-
-    private String formatPercentageChange(final BigDecimal change) {
-        if (change.compareTo(BigDecimal.ZERO) > 0) {
-            return "+" + formatPercentage(change);
-        } else if (change.compareTo(BigDecimal.ZERO) < 0) {
-            return formatPercentage(change);
-        } else {
-            return "No change";
-        }
-    }
-
     /**
      * Creates an individual summary card with metric information.
      *
      * @param label The card label (e.g., "Total Balance")
      * @param value The main value to display (e.g., "$24,582.00")
-     * @param trend Trend or additional information text
      * @param iconType The Vaadin icon to display
      * @param iconColor The color for the icon background
-     * @param isPositive Whether the trend is positive (green) or not (red)
      * @return A Div containing the formatted card
      */
-    private Div createSummaryCard(String label, String value, String trend,
-                                  VaadinIcon iconType, String iconColor, boolean isPositive) {
+    private Div createSummaryCard(
+            final String label,
+            final String value,
+            final VaadinIcon iconType,
+            final String iconColor
+    ) {
         Div card = new Div();
         card.getStyle()
                 .set("background-color", "var(--finance-card-bg)")
@@ -162,33 +146,8 @@ public class SummaryCardsComponent extends HorizontalLayout {
                 .set("display", "block")
                 .set("margin-bottom", "0.75rem");
 
-        // Trend indicator with arrow
-        HorizontalLayout trendLayout = new HorizontalLayout();
-        trendLayout.setSpacing(true);
-        trendLayout.setAlignItems(FlexComponent.Alignment.CENTER);
-        trendLayout.setPadding(false);
-        trendLayout.getStyle()
-                .set("margin", "0");
-
-        Icon trendIcon;
-        if (isPositive) {
-            trendIcon = VaadinIcon.ARROW_UP.create();
-            trendIcon.getStyle().set("color", "var(--finance-secondary)");
-        } else {
-            trendIcon = VaadinIcon.ARROW_DOWN.create();
-            trendIcon.getStyle().set("color", "var(--finance-danger)");
-        }
-        trendIcon.setSize("14px");
-
-        Span trendText = new Span(trend);
-        trendText.getStyle()
-                .set("font-size", "0.875rem")
-                .set("color", isPositive ? "var(--finance-secondary)" : "var(--finance-danger)");
-
-        trendLayout.add(trendIcon, trendText);
-
         // Assemble the card
-        card.add(iconContainer, valueSpan, labelSpan, trendLayout);
+        card.add(iconContainer, valueSpan, labelSpan);
 
         return card;
     }

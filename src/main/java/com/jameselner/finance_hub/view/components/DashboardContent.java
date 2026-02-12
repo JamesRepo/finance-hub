@@ -3,7 +3,6 @@ package com.jameselner.finance_hub.view.components;
 import com.jameselner.finance_hub.repository.UserRepository;
 import com.jameselner.finance_hub.service.DashboardService;
 import com.vaadin.flow.component.html.H1;
-import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.security.AuthenticationContext;
 
@@ -27,11 +26,6 @@ public class DashboardContent extends VerticalLayout {
 
         add(createPageHeader());
         add(new SummaryCardsComponent(dashboardService, authenticationContext, userRepository));
-
-        // Additional components can be added here as they're developed:
-        // add(new ChartAndTransactionsComponent());
-        // add(new DebtAndSavingsComponent());
-        // add(new YearlySummaryComponent());
     }
 
     private VerticalLayout createPageHeader() {
@@ -41,12 +35,7 @@ public class DashboardContent extends VerticalLayout {
                 .set("font-size", "2rem")
                 .set("margin-bottom", "0.5rem");
 
-        Span pageSubtitle = new Span("Welcome back! Here's your financial overview.");
-        pageSubtitle.getStyle()
-                .set("color", "var(--finance-text-secondary)")
-                .set("margin-bottom", "2rem");
-
-        VerticalLayout pageHeader = new VerticalLayout(pageTitle, pageSubtitle);
+        VerticalLayout pageHeader = new VerticalLayout(pageTitle);
         pageHeader.setSpacing(false);
         pageHeader.setPadding(false);
 
