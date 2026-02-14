@@ -23,6 +23,7 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.spring.security.AuthenticationContext;
@@ -115,7 +116,8 @@ public class YearlySummaryView extends VerticalLayout {
     }
 
     private HorizontalLayout createYearSelector() {
-        ComboBox<Integer> yearSelector = new ComboBox<>("Select Year");
+        Select<Integer> yearSelector = new Select<>();
+        yearSelector.setLabel("Select Year");
         yearSelector.setItems(generateYearOptions());
         yearSelector.setValue(selectedYear);
         yearSelector.addValueChangeListener(event -> {
@@ -123,12 +125,7 @@ public class YearlySummaryView extends VerticalLayout {
             refreshData();
         });
 
-        Button exportButton = new Button("Export to CSV", new Icon(VaadinIcon.DOWNLOAD));
-        exportButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        exportButton.addClickListener(event -> exportToCSV());
-
-        HorizontalLayout toolbar = new HorizontalLayout(yearSelector, exportButton);
-        toolbar.setWidthFull();
+        HorizontalLayout toolbar = new HorizontalLayout(yearSelector);
         toolbar.setSpacing(true);
         toolbar.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
         toolbar.setAlignItems(FlexComponent.Alignment.END);
