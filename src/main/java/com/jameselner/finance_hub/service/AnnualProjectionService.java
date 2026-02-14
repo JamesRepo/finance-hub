@@ -52,21 +52,85 @@ public class AnnualProjectionService {
         LocalDate yearStart = LocalDate.of(year, 1, 1);
         LocalDate yearEnd = LocalDate.of(year, 12, 31);
 
-        // Project income (current month actual × 12, using net amounts)
-        BigDecimal projectedIncome = projectIncome(userId);
-
-        // Project expenses from budgets
         List<BudgetDTO> budgets = budgetService.findByUserIdAndDateRange(userId, yearStart, yearEnd);
+        return buildProjection(userId, user, year, yearStart, yearEnd, budgets,
+                null, null, null, null, null);
+    }
+
+    /**
+     * Generate an annual projection with ephemeral overrides for what-if analysis.
+     * Budget overrides replace all budget entries for a given category with a synthetic
+     * MONTHLY budget at the override amount. Fixed-category and income overrides are
+     * monthly amounts that replace the computed values (annualized internally via × 12).
+     * Null overrides use the real computed values.
+     *
+     * @param userId the user ID
+     * @param year the projection year
+     * @param budgetOverrides map of categoryId to monthly override amount
+     * @param incomeMonthlyOverride monthly income override (nullable)
+     * @param housingMonthlyOverride monthly housing override (nullable)
+     * @param debtMonthlyOverride monthly debt payment override (nullable)
+     * @param subscriptionMonthlyOverride monthly subscription override (nullable)
+     * @param holidayMonthlyOverride monthly holiday override (nullable)
+     */
+    public AnnualProjectionDTO generateProjectionWithOverrides(
+            final Long userId, final Integer year,
+            final Map<Long, BigDecimal> budgetOverrides,
+            final BigDecimal incomeMonthlyOverride,
+            final BigDecimal housingMonthlyOverride,
+            final BigDecimal debtMonthlyOverride,
+            final BigDecimal subscriptionMonthlyOverride,
+            final BigDecimal holidayMonthlyOverride) {
+        Objects.requireNonNull(userId, "User ID must not be null");
+        Objects.requireNonNull(year, "Year must not be null");
+        Objects.requireNonNull(budgetOverrides, "Budget overrides must not be null");
+
+        User user = getUserById(userId);
+        LocalDate yearStart = LocalDate.of(year, 1, 1);
+        LocalDate yearEnd = LocalDate.of(year, 12, 31);
+
+        List<BudgetDTO> budgets = budgetService.findByUserIdAndDateRange(userId, yearStart, yearEnd);
+        List<BudgetDTO> adjustedBudgets = applyBudgetOverrides(budgets, budgetOverrides, yearStart, yearEnd);
+        return buildProjection(userId, user, year, yearStart, yearEnd, adjustedBudgets,
+                incomeMonthlyOverride, housingMonthlyOverride, debtMonthlyOverride,
+                subscriptionMonthlyOverride, holidayMonthlyOverride);
+    }
+
+    /**
+     * Core projection logic shared by both generateProjection and generateProjectionWithOverrides.
+     * Nullable monthly overrides replace the corresponding computed annual values (× 12).
+     */
+    private AnnualProjectionDTO buildProjection(
+            final Long userId, final User user, final Integer year,
+            final LocalDate yearStart, final LocalDate yearEnd,
+            final List<BudgetDTO> budgets,
+            final BigDecimal incomeMonthlyOverride,
+            final BigDecimal housingMonthlyOverride,
+            final BigDecimal debtMonthlyOverride,
+            final BigDecimal subscriptionMonthlyOverride,
+            final BigDecimal holidayMonthlyOverride) {
+
+        BigDecimal projectedIncome = incomeMonthlyOverride != null
+                ? incomeMonthlyOverride.multiply(BigDecimal.valueOf(12))
+                : projectIncome(userId);
+
         Map<String, CategoryProjection> budgetCategories = annualizeBudgets(budgets, yearStart, yearEnd);
         BigDecimal budgetedExpenses = budgetCategories.values().stream()
                 .map(CategoryProjection::getAnnualAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Project pseudo-category expenses
-        BigDecimal housingCosts = housingExpenseService.calculateTotalAnnualHousingCosts(userId);
-        BigDecimal subscriptionCosts = projectSubscriptionCosts(userId);
-        BigDecimal debtPayments = projectDebtPayments(user);
-        BigDecimal holidayCosts = projectHolidayCosts(userId, yearStart, yearEnd);
+        BigDecimal housingCosts = housingMonthlyOverride != null
+                ? housingMonthlyOverride.multiply(BigDecimal.valueOf(12))
+                : housingExpenseService.calculateTotalAnnualHousingCosts(userId);
+        BigDecimal subscriptionCosts = subscriptionMonthlyOverride != null
+                ? subscriptionMonthlyOverride.multiply(BigDecimal.valueOf(12))
+                : projectSubscriptionCosts(userId);
+        BigDecimal debtPayments = debtMonthlyOverride != null
+                ? debtMonthlyOverride.multiply(BigDecimal.valueOf(12))
+                : projectDebtPayments(user);
+        BigDecimal holidayCosts = holidayMonthlyOverride != null
+                ? holidayMonthlyOverride.multiply(BigDecimal.valueOf(12))
+                : projectHolidayCosts(userId, yearStart, yearEnd);
 
         BigDecimal projectedExpenses = budgetedExpenses
                 .add(housingCosts)
@@ -77,7 +141,6 @@ public class AnnualProjectionService {
         BigDecimal projectedNetSavings = projectedIncome.subtract(projectedExpenses);
         BigDecimal projectedSavingsRate = calculateSavingsRate(projectedIncome, projectedNetSavings);
 
-        // Build category projections
         List<CategoryProjection> categoryProjections = buildCategoryProjections(
                 budgetCategories, housingCosts, debtPayments, subscriptionCosts, holidayCosts, projectedExpenses);
 
@@ -94,13 +157,52 @@ public class AnnualProjectionService {
                 .holidayCosts(holidayCosts)
                 .categoryProjections(categoryProjections);
 
-        // Build blended view for current year
         int currentYear = LocalDate.now().getYear();
         if (year == currentYear) {
             populateBlendedView(builder, userId, user, year, projectedIncome, projectedExpenses);
         }
 
         return builder.build();
+    }
+
+    /**
+     * Apply budget overrides by replacing all budget entries for each overridden category
+     * with a single synthetic MONTHLY budget spanning the full year.
+     */
+    private List<BudgetDTO> applyBudgetOverrides(
+            final List<BudgetDTO> originalBudgets,
+            final Map<Long, BigDecimal> overrides,
+            final LocalDate yearStart,
+            final LocalDate yearEnd) {
+
+        if (overrides.isEmpty()) {
+            return originalBudgets;
+        }
+
+        List<BudgetDTO> result = new ArrayList<>();
+        Map<Long, BudgetDTO> syntheticByCategory = new LinkedHashMap<>();
+
+        for (BudgetDTO budget : originalBudgets) {
+            if (overrides.containsKey(budget.getCategoryId())) {
+                // Build a synthetic entry for this category if we haven't yet
+                if (!syntheticByCategory.containsKey(budget.getCategoryId())) {
+                    syntheticByCategory.put(budget.getCategoryId(), BudgetDTO.builder()
+                            .categoryId(budget.getCategoryId())
+                            .categoryName(budget.getCategoryName())
+                            .categoryColorCode(budget.getCategoryColorCode())
+                            .amount(overrides.get(budget.getCategoryId()))
+                            .periodType(PeriodType.MONTHLY)
+                            .startDate(yearStart)
+                            .endDate(yearEnd)
+                            .build());
+                }
+            } else {
+                result.add(budget);
+            }
+        }
+
+        result.addAll(syntheticByCategory.values());
+        return result;
     }
 
     /**
