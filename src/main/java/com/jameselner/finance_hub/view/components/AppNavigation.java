@@ -9,6 +9,7 @@ import com.jameselner.finance_hub.view.HolidaysView;
 import com.jameselner.finance_hub.view.HousingExpensesView;
 import com.jameselner.finance_hub.view.IncomeTrackingView;
 import com.jameselner.finance_hub.view.MonthlySummaryView;
+import com.jameselner.finance_hub.view.ProjectionsView;
 import com.jameselner.finance_hub.view.SavingsGoalsView;
 import com.jameselner.finance_hub.view.SettingsView;
 import com.jameselner.finance_hub.view.SubscriptionsView;
@@ -69,6 +70,9 @@ public class AppNavigation extends VerticalLayout {
 
         SideNavItem yearlySummary = new SideNavItem("\uD83D\uDCC6 Yearly Summary", YearlySummaryView.class);
         nav.addItem(yearlySummary);
+
+        SideNavItem projections = new SideNavItem("\uD83D\uDD2E Projections", ProjectionsView.class);
+        nav.addItem(projections);
 
         return nav;
     }
